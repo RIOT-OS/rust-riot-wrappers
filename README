@@ -1,0 +1,5 @@
+This is a very early stage of what could become a riot-sys and surrounding
+crates. The ideas is to write applications in Rust (eg. using embedded-hal),
+and execute them on RIOT. A riot-embedded-hal could export RIOT's established
+peripherals to Rust's embedded-hal API, building on a manual or bindgen-managed
+riot-sys crate(s?).
