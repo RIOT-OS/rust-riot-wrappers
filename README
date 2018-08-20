@@ -3,3 +3,19 @@ crates. The ideas is to write applications in Rust (eg. using embedded-hal),
 and execute them on RIOT. A riot-embedded-hal could export RIOT's established
 peripherals to Rust's embedded-hal API, building on a manual or bindgen-managed
 riot-sys crate(s?).
+
+On using bindgen
+----------------
+
+So far, I've played around a bit with bindgen, and
+
+    bindgen ../RIOT/sys/include/uart_stdio.h -o uart_stdio.rs -- -I ../RIOT/sys/include -I ../RIOT/drivers/include -I.
+
+does produce probably-usable results. It does need a blank or fake board.h
+definition, though, and that's where I'm sceptical of whether it's the right
+approach. Riot's definitions can in many cases be overridden by the board file.
+Unless we have a board file that overrides everything to be nonsentical, we
+can't be sure whether the resulting bindings would stop working with a
+particular board file. With that, and due to being unsure of where to actually
+get the base files from (submodule tracking master, probably), I'm sticking
+with hand-crafted files for now.
