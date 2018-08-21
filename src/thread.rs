@@ -20,6 +20,7 @@ extern "C" {
         name: *const libc::c_char,
     ) -> kernel_pid_t;
     pub fn thread_wakeup(pid: kernel_pid_t) -> libc::c_int;
+    pub fn thread_sleep();
 }
 
 // manually added from whitelist-less output, didn't find how to whitelist them
