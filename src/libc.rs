@@ -6,6 +6,7 @@
 #![no_std]
 
 pub type c_int = i32;
+pub type c_uint = u32;
 pub type c_char = i8;
 
 pub enum c_void {}

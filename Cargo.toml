@@ -2,3 +2,6 @@
 name = "riot-sys"
 version = "0.1.0"
 authors = ["chrysn <chrysn@fsfe.org>"]
+
+[dependencies]
+embedded-hal = "0.2.0"
