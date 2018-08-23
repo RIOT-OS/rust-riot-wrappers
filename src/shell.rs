@@ -77,24 +77,20 @@ fn null_shell_command() -> shell_command_t
     }
 }
 
-pub fn run(command: &ShellCommand, line_buf: &mut[u8]) -> !
+pub fn run(commands: &[ShellCommand], line_buf: &mut[u8]) -> !
 {
     const LIMIT: usize = 5;
     // FIXME: Arbitrary size limit, find an idiom to pass in a null-terminated slice or to allocate
     // a variable-lenth (commands.len() + 1) structure on the stack.
     let mut args: [shell_command_t; LIMIT + 1] = [null_shell_command(); LIMIT + 1];
 
-    // Having commands has become difficult when ShellCommand became ShellCommand<H>; using a
-    // single command to begin with.
-//     if commands.len()  > LIMIT {
-//         panic!("Static command count exceeded");
-//     }
-// 
-//     for (src, dest) in commands.iter().zip(&mut args[..LIMIT]) {
-//         *dest = src.internal_command;
-//     }
+    if commands.len()  > LIMIT {
+        panic!("Static command count exceeded");
+    }
 
-    args[0] = command.as_shell_command();
+    for (src, dest) in commands.iter().zip(&mut args[..LIMIT]) {
+        *dest = src.as_shell_command();
+    }
 
     unsafe { shell_run(
             args.as_ptr(),
