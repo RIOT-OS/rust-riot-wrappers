@@ -10,3 +10,4 @@ pub mod uartstdio;
 pub mod thread;
 pub mod shell;
 pub mod i2c;
+pub mod gnrc;
