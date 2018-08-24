@@ -1,34 +1,6 @@
-// Manually adapted from the output of
-//
-//     bindgen ../RIOT/drivers/include/periph/i2c.h --use-core --ctypes-prefix=libc -o i2c.rs -- -I ../RIOT/sys/include -I ../RIOT/drivers/include -I ../RIOT/core/include -I .
-
-use libc;
-
-pub type i2c_t = libc::c_uint;
-
-extern "C" {
-    pub fn i2c_init(dev: i2c_t);
-    pub fn i2c_acquire(dev: i2c_t) -> libc::c_int;
-    pub fn i2c_release(dev: i2c_t) -> libc::c_int;
-    pub fn i2c_read_bytes(
-        dev: i2c_t,
-        addr: u16,
-        data: *mut libc::c_void,
-        len: usize,
-        flags: u8,
-    ) -> libc::c_int;
-    pub fn i2c_write_bytes(
-        dev: i2c_t,
-        addr: u16,
-        data: *const libc::c_void,
-        len: usize,
-        flags: u8,
-    ) -> libc::c_int;
-}
-
-// Again, this is the part that'll be split out
-
 use embedded_hal::blocking;
+use libc;
+use raw::{i2c_t, i2c_acquire, i2c_release, i2c_read_bytes, i2c_write_bytes};
 
 pub struct I2CDevice {
     dev: i2c_t,

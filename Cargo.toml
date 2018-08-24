@@ -5,3 +5,6 @@ authors = ["chrysn <chrysn@fsfe.org>"]
 
 [dependencies]
 embedded-hal = "0.2.0"
+
+[build-dependencies]
+bindgen = "0.38.0"

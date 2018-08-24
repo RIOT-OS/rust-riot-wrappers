@@ -2,10 +2,7 @@ extern crate core;
 
 use core::convert::TryInto;
 
-extern "C" {
-    fn uart_stdio_read(buffer: *mut [u8], len: isize) -> isize;
-    fn uart_stdio_write(buffer: *const [u8], len: isize) -> isize;
-}
+use raw::{uart_stdio_read, uart_stdio_write};
 
 // Is it OK that everyone can instanciate this at any time just so? Probably yes, because the
 // uart_stdio documentation says nothing about limitations on when to call this.

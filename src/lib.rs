@@ -5,6 +5,8 @@ extern crate embedded_hal;
 
 pub mod libc;
 
+pub mod raw;
+
 pub mod saul;
 pub mod uartstdio;
 pub mod thread;
