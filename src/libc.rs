@@ -3,7 +3,7 @@
 // For a more correct approach, I'd probably need to take the C compiler used for RIOT into
 // account.
 
-#![no_std]
+#![allow(non_camel_case_types)]
 
 pub type c_int = i32;
 pub type c_uint = u32;

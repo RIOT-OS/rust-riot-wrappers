@@ -1,18 +1,8 @@
 use libc;
-use raw::{shell_run, shell_command_t, shell_command_handler_t};
-
-// extern "C" {
-//     // changed: function diverges as per documentation.
-//     pub fn shell_run(
-//         commands: *const shell_command_t,
-//         line_buf: *mut libc::c_char,
-//         len: libc::c_int,
-//     ) -> !;
-// }
-
-// // changed: usize
-// pub const SHELL_DEFAULT_BUFSIZE: usize = 128;
-
+use raw::{
+    shell_run,
+    shell_command_t,
+};
 
 
 // not repr(C) for as long as run() copies over all the inner commands, but there might be a time
@@ -79,7 +69,10 @@ pub fn run(commands: &[ShellCommand], line_buf: &mut[u8]) -> !
             line_buf.as_mut_ptr() as *mut i8,
             line_buf.len() as i32, // FIXME: panic if len is too large
             )
-    }
+    };
+
+    // shell_run diverges as by its documentation, but the wrapped signature does not show that.
+    unreachable!();
 }
 
 /// Take the passed on arguments of a shell_command_handler_t and call an inner function that
