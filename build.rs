@@ -6,14 +6,11 @@ use std::path::PathBuf;
 
 fn main() {
 
-    println!("------Building!");
-
     let sourcefile = env::var("RIOT_EXPANDED_HEADER")
         .expect("Please set RIOT_EXPANDED_HEADER, see README for details.");
 
     println!("cargo:rerun-if-env-changed=RIOT_EXPANDED_HEADER");
     println!("cargo:rerun-if-changed={}", sourcefile);
-    println!("cargo:warning=Building!");
 
     let bindings = builder()
         .header(sourcefile)
