@@ -8,7 +8,7 @@ pub mod libc;
 pub mod raw;
 
 pub mod saul;
-pub mod uartstdio;
+pub mod stdio;
 pub mod thread;
 pub mod shell;
 pub mod i2c;
