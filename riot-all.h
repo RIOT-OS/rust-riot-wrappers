@@ -5,3 +5,7 @@
 #include <net/gnrc.h>
 #include <saul.h>
 #include <saul_reg.h>
+
+#ifndef I2C_COUNT
+#define I2C_COUNT 0
+#endif
