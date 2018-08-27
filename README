@@ -20,7 +20,7 @@ Makefile:
 for-cargo: ${BINDIR}/riot-expanded-headers.h
 
 ${BINDIR}/riot-expanded-headers.h: ../../riot-sys/riot-all.h
-	$(Q)$(CC) $(CFLAGS_WITH_MACROS) $(INCLUDES) $< -E -o $@
+	$(Q)$(CC) $(CFLAGS_WITH_MACROS) $(INCLUDES) $< -fdirectives-only -E -o $@
 	@echo "You may now run cargo with RIOT_EXPANDED_HEADER=$@"
 
 .PHONY: for-cargo
