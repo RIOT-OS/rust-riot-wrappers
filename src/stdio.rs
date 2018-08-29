@@ -1,6 +1,7 @@
 extern crate core;
 
 use core::intrinsics::transmute;
+use libc;
 
 use raw::{
     stdio_write,
@@ -11,7 +12,7 @@ use raw::{
 pub struct Stdio {}
 
 impl core::fmt::Write for Stdio {
-     #[cfg(not(target_os = "linux"))]
+    #[cfg(not(target_os = "linux"))]
     fn write_str(&mut self, s: &str) -> core::fmt::Result
     {
         let data = s.as_bytes();
@@ -24,14 +25,14 @@ impl core::fmt::Write for Stdio {
         }
     }
 
-     // FIXME have a better criterion
-     #[cfg(target_os = "linux")]
-     fn write_str(&mut self, s: &str) -> core::fmt::Result
-     {
-         extern "C" {
-             fn putchar(c: isize) -> isize;
-         }
-         s.as_bytes().iter().for_each(|c| unsafe {putchar(*c as isize);});
-         Ok(())
-     }
+    // FIXME have a better criterion
+    #[cfg(target_os = "linux")]
+    fn write_str(&mut self, s: &str) -> core::fmt::Result
+    {
+        extern "C" {
+            fn putchar(c: libc::c_int) -> libc::c_int;
+        }
+        s.as_bytes().iter().for_each(|c| unsafe {putchar(*c as libc::c_int);});
+        Ok(())
+    }
 }
