@@ -1,4 +1,6 @@
 use libc;
+use stdio;
+use core::fmt::Write;
 use raw::{
     shell_run,
     shell_command_t,
@@ -53,7 +55,8 @@ pub fn run(commands: &[ShellCommand], line_buf: &mut[u8]) -> !
 {
     const LIMIT: usize = 5;
     // FIXME: Arbitrary size limit, find an idiom to pass in a null-terminated slice or to allocate
-    // a variable-lenth (commands.len() + 1) structure on the stack.
+    // a variable-lenth (commands.len() + 1) structure on the stack. Possibly const numeric
+    // generics will solve this.
     let mut args: [shell_command_t; LIMIT + 1] = [null_shell_command(); LIMIT + 1];
 
     if commands.len()  > LIMIT {
@@ -81,9 +84,14 @@ pub fn command_wrap_inner<F>(argc: libc::c_int, argv: *mut *mut libc::c_char, in
 where F: Fn(&[&str]) -> i32
 {
     // Same issue as with run, see LIMIT there
-    const LIMIT: usize = 5;
-    let mut args: [&str; LIMIT] = [&""; 5];
+    const LIMIT: usize = 10;
+    let mut args: [&str; LIMIT] = [&""; LIMIT];
 
+    if argc > LIMIT as i32 {
+        let mut stdio = stdio::Stdio {};
+        writeln!(stdio, "Not processing: too many arguments");
+        return 1;
+    }
     let argc: usize = if argc < 0 { 0 } else if argc as usize > LIMIT { LIMIT } else { argc as usize };
 
     let argv: *mut *mut u8 = unsafe { ::core::mem::transmute(argv) };
