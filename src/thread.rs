@@ -44,8 +44,8 @@ impl KernelPID
 
 pub fn getpid() -> KernelPID
 {
-//     KernelPID(raw::thread_getpid())
-    unimplemented!("That's a static function in C");
+    // implementing the static thread_getpid function:
+    KernelPID(unsafe { ::core::ptr::read_volatile(&raw::sched_active_pid) })
 }
 
 pub fn sleep()
