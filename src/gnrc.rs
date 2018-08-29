@@ -3,6 +3,7 @@ use raw::{
     gnrc_netif_t,
     ipv6_addr_t,
     ipv6_addr_from_str,
+    kernel_pid_t,
 };
 
 use ::core::iter::Iterator;
@@ -96,4 +97,25 @@ impl IPv6Addr
     pub unsafe fn as_ptr(&self) -> *const ipv6_addr_t {
         &self.inner
     }
+}
+
+/// Given an address like fe80::1%42, split it up into a IPv6Addr and a numeric interface
+/// identifier, if any is given. It is an error for the address not to be parsable, or for the
+/// interface identifier not to be numeric.
+///
+/// Don't consider the error type final, that's just what works easily Right Now.
+// This is not implemented in terms of the RIOT ipv6_addr functions as they heavily rely on
+// null-terminated strings and mutating memory.
+pub fn split_ipv6_address(input: &str) -> Result<(IPv6Addr, Option<kernel_pid_t>), &'static str> {
+    let mut s = input.splitn(2, "%");
+    let addr = s.next()
+        .ok_or("No address")?
+        .parse()
+        .map_err(|_| "Unparsable address")?;
+    let interface = match s.next() {
+        None => None,
+        Some(x) => Some(x.parse().map_err(|_| "Non-numeric interface identifier")?)
+    };
+
+    Ok((addr, interface))
 }
