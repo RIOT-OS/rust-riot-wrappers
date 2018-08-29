@@ -16,6 +16,7 @@ fn main() {
         .header(sourcefile)
         .use_core()
         .ctypes_prefix("libc")
+        .impl_debug(true)
         .generate()
         .expect("Unable to generate bindings");
 

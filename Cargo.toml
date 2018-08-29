@@ -7,4 +7,6 @@ authors = ["chrysn <chrysn@fsfe.org>"]
 embedded-hal = "0.2.0"
 
 [build-dependencies]
-bindgen = "0.38.0"
+# bindgen = "0.40.0"
+# .40 is not released yet; until then:
+bindgen = { path = "../../../../../../git/crates/bindgen" }
