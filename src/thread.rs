@@ -1,6 +1,8 @@
 use raw;
 use libc;
 
+use core::intrinsics::transmute;
+
 // // wrongly detected as u32, it's actually used as an i32
 // pub const THREAD_CREATE_SLEEPING: i32 = 1;
 // pub const THREAD_AUTO_FREE: i32 = 2;
@@ -132,4 +134,39 @@ pub fn get_pid() -> KernelPID
 pub fn sleep()
 {
     unsafe { raw::thread_sleep() }
+}
+
+pub struct Thread<'a> {
+    name: &'a libc::CStr,
+    stack: &'a mut [u8],
+}
+
+impl<'a> Thread<'a> {
+    pub fn create(
+            stack: &'a mut [u8],
+            priority: i8,
+            flags: i32,
+            task_func: raw::thread_task_func_t,
+            arg: *mut libc::c_void,
+            name: &'a libc::CStr,
+        ) -> Self
+    {
+        // Not bothering to store the resulting PID; right after the call the process could already
+        // be dead and replaced by another one.
+        unsafe { raw::thread_create(
+            transmute(stack.as_mut_ptr()), stack.len() as i32,
+            priority,
+            flags,
+            task_func,
+            arg,
+            name.as_ptr(),
+            ) };
+        Thread { stack, name }
+    }
+}
+
+impl<'a> Drop for Thread<'a> {
+    fn drop(&mut self) {
+        panic!("Can't drop a Thread because I can't kill the process (or make sure it has died for good)");
+    }
 }
