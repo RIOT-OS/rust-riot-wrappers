@@ -15,9 +15,84 @@ use libc;
 #[derive(Debug)]
 pub struct KernelPID(pub raw::kernel_pid_t);
 
+mod status_converted {
+    //! Converting the raw constants into consistently typed ones for use in match branches. If
+    //! that becomes a pattern, it might make sense to introduce a macro that forces a bunch of
+    //! symbols (with different capitalizations) into a given type and makes an enum with a
+    //! from_int method out of it.
+
+    use raw;
+
+    pub const STATUS_NOT_FOUND: i32 = raw::STATUS_NOT_FOUND as i32;
+    pub const STATUS_STOPPED: i32 = raw::STATUS_STOPPED as i32;
+    pub const STATUS_SLEEPING: i32 = raw::STATUS_SLEEPING as i32;
+    pub const STATUS_MUTEX_BLOCKED: i32 = raw::STATUS_MUTEX_BLOCKED as i32;
+    pub const STATUS_RECEIVE_BLOCKED: i32 = raw::STATUS_RECEIVE_BLOCKED as i32;
+    pub const STATUS_SEND_BLOCKED: i32 = raw::STATUS_SEND_BLOCKED as i32;
+    pub const STATUS_REPLY_BLOCKED: i32 = raw::STATUS_REPLY_BLOCKED as i32;
+    pub const STATUS_FLAG_BLOCKED_ANY: i32 = raw::STATUS_FLAG_BLOCKED_ANY as i32;
+    pub const STATUS_FLAG_BLOCKED_ALL: i32 = raw::STATUS_FLAG_BLOCKED_ALL as i32;
+    pub const STATUS_MBOX_BLOCKED: i32 = raw::STATUS_MBOX_BLOCKED as i32;
+    pub const STATUS_RUNNING: i32 = raw::STATUS_RUNNING as i32;
+    pub const STATUS_PENDING: i32 = raw::STATUS_PENDING as i32;
+}
+
+#[derive(Debug)]
+pub enum Status {
+    // I would not rely on any properties of the assigned values, but it might make the conversion
+    // points easier on the generated code if it can be reasoned down to a simple check of whether
+    // it's in range.
+    NotFound = status_converted::STATUS_NOT_FOUND as isize,
+    Stopped = status_converted::STATUS_STOPPED as isize,
+    Sleeping = status_converted::STATUS_SLEEPING as isize,
+    MutexBlocked = status_converted::STATUS_MUTEX_BLOCKED as isize,
+    ReceiveBlocked = status_converted::STATUS_RECEIVE_BLOCKED as isize,
+    SendBlocked = status_converted::STATUS_SEND_BLOCKED as isize,
+    ReplyBlocked = status_converted::STATUS_REPLY_BLOCKED as isize,
+    FlagBlockedAny = status_converted::STATUS_FLAG_BLOCKED_ANY as isize,
+    FlagBlockedAll = status_converted::STATUS_FLAG_BLOCKED_ALL as isize,
+    MboxBlocked = status_converted::STATUS_MBOX_BLOCKED as isize,
+    Running = status_converted::STATUS_RUNNING as isize,
+    Pending = status_converted::STATUS_PENDING as isize,
+
+    Other, // Not making this Other(i32) as by the time this is reached, the code can't react
+           // meaningfully to it, and if that shows up in any debug output, someone will need to
+           // reproduce this anyway and can hook into from_int then.
+}
+
+impl Status {
+    pub fn is_on_runqueue(&self) -> bool {
+        // FIXME: Why don't I get STATUS_ON_RUNQUEUE? Without that, I can just as well check for
+        // being either or.
+        match self {
+            Pending => true,
+            Running => true,
+            _ => false,
+        }
+    }
+
+    fn from_int(status: i32) -> Self {
+        match status {
+             status_converted::STATUS_NOT_FOUND => Status::NotFound,
+             status_converted::STATUS_STOPPED => Status::Stopped,
+             status_converted::STATUS_SLEEPING => Status::Sleeping,
+             status_converted::STATUS_MUTEX_BLOCKED => Status::MutexBlocked,
+             status_converted::STATUS_RECEIVE_BLOCKED => Status::ReceiveBlocked,
+             status_converted::STATUS_SEND_BLOCKED => Status::SendBlocked,
+             status_converted::STATUS_REPLY_BLOCKED => Status::ReplyBlocked,
+             status_converted::STATUS_FLAG_BLOCKED_ANY => Status::FlagBlockedAny,
+             status_converted::STATUS_FLAG_BLOCKED_ALL => Status::FlagBlockedAll,
+             status_converted::STATUS_MBOX_BLOCKED => Status::MboxBlocked,
+             status_converted::STATUS_RUNNING => Status::Running,
+             status_converted::STATUS_PENDING => Status::Pending,
+             _ => Status::Other,
+        }
+    }
+}
+
 impl KernelPID
 {
-    pub fn getname(&self) -> Option<&str>
+    pub fn get_name(&self) -> Option<&str>
     {
         let ptr = unsafe { raw::thread_getname(self.0) };
         if ptr == 0 as *const libc::c_char {
@@ -31,6 +106,12 @@ impl KernelPID
         Some(name)
     }
 
+    pub fn get_status(&self) -> Status
+    {
+        let status = unsafe { raw::thread_getstatus(self.0) };
+        Status::from_int(status)
+    }
+
     pub fn wakeup(&self) -> Result<(), ()>
     {
         let success = unsafe { raw::thread_wakeup(self.0) };
@@ -42,7 +123,7 @@ impl KernelPID
     }
 }
 
-pub fn getpid() -> KernelPID
+pub fn get_pid() -> KernelPID
 {
     // implementing the static thread_getpid function:
     KernelPID(unsafe { ::core::ptr::read_volatile(&raw::sched_active_pid) })
