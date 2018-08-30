@@ -136,37 +136,55 @@ pub fn sleep()
     unsafe { raw::thread_sleep() }
 }
 
-pub struct Thread<'a> {
+pub struct Thread<'a, R> {
     name: &'a libc::CStr,
     stack: &'a mut [u8],
+    closure: R,
 }
 
-impl<'a> Thread<'a> {
-    pub fn create(
+impl<'a, R> Thread<'a, R>
+    where R: Send + FnMut(),
+{
+    pub fn prepare(
             stack: &'a mut [u8],
-            priority: i8,
-            flags: i32,
-            task_func: raw::thread_task_func_t,
-            arg: *mut libc::c_void,
+            closure: R,
             name: &'a libc::CStr,
         ) -> Self
     {
-        // Not bothering to store the resulting PID; right after the call the process could already
-        // be dead and replaced by another one.
-        unsafe { raw::thread_create(
-            transmute(stack.as_mut_ptr()), stack.len() as i32,
+        Thread { stack, name, closure }
+    }
+
+    // As with saul::ContainedRegistration start, we can't do this in the original constructor as
+    // the value will still move around. Like there, I'd actually need to pin self, for it could
+    // move around between the invocation of start (where the pointer to self or self.closure is
+    // passed out to the OS thread) and the start of the thread, which for low-priorized or
+    // WOUT_YIELD threads can be a later time.
+    pub fn start(
+        &mut self,
+        priority: i8,
+        flags: i32,
+    ) -> KernelPID {
+        let pid = unsafe { raw::thread_create(
+            transmute(self.stack.as_mut_ptr()), self.stack.len() as i32,
             priority,
             flags,
-            task_func,
-            arg,
-            name.as_ptr(),
+            Some(Self::run),
+            transmute(&mut self.closure),
+            self.name.as_ptr(),
             ) };
-        Thread { stack, name }
+        KernelPID(pid)
+    }
+
+    unsafe extern "C" fn run(x: *mut libc::c_void) -> *mut libc::c_void {
+        let closure: &mut R = transmute(x);
+        closure();
+        0 as *mut libc::c_void
     }
 }
 
-impl<'a> Drop for Thread<'a> {
+impl<'a, R> Drop for Thread<'a, R> {
     fn drop(&mut self) {
+        // We don't even know whether it has been started, either
         panic!("Can't drop a Thread because I can't kill the process (or make sure it has died for good)");
     }
 }
