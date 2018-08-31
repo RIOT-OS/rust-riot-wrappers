@@ -10,3 +10,7 @@ embedded-hal = "0.2.0"
 # bindgen = "0.40.0"
 # .40 is not released yet; until then:
 bindgen = { path = "../../../../../../git/crates/bindgen" }
+
+[features]
+default = ["set_panic_handler"]
+set_panic_handler = []
