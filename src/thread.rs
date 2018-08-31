@@ -67,8 +67,8 @@ impl Status {
         // FIXME: Why don't I get STATUS_ON_RUNQUEUE? Without that, I can just as well check for
         // being either or.
         match self {
-            Pending => true,
-            Running => true,
+            Status::Pending => true,
+            Status::Running => true,
             _ => false,
         }
     }
