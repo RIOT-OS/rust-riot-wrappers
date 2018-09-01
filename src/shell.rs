@@ -14,30 +14,84 @@ use raw::{
 // acting on the closure would need a userdata argument which is not there (cf. freenode/#rust
 // 2018-02-21 14:30CEST), so passing around callbacks directly.
 #[derive(Copy, Clone)]
-pub struct ShellCommand<'a>
+pub struct ShellCommand<'a, R>
 {
     name: &'a libc::CStr,
     desc: &'a libc::CStr,
-    handler: unsafe extern "C" fn(argc: libc::c_int, argv: *mut *mut libc::c_char) -> libc::c_int,
+    handler: R,
 }
 
-impl<'a> ShellCommand<'a>
+impl<'a, R> ShellCommand<'a, R>
 {
-    pub fn new(name: &'a libc::CStr, desc: &'a libc::CStr, handler: unsafe extern "C" fn(argc: libc::c_int, argv: *mut *mut libc::c_char) -> libc::c_int) -> Self
-    {
-        ShellCommand {
-            name: name,
-            desc: desc,
-            handler: handler,
+    unsafe extern "C" fn execute(argc: libc::c_int, argv: *mut *mut libc::c_char) -> libc::c_int {
+        let commands = steal_global_run_state();
+        for c in commands.iter_mut() {
+            if let Some(result) = c.try_run(argc, argv) {
+                return result;
+            }
         }
+        panic!("Command handler executed, but argv[0] does not match any known command");
     }
 
-    pub fn as_shell_command(&self) -> shell_command_t
+    pub fn new(name: &'a libc::CStr, desc: &'a libc::CStr, handler: R) -> Self
+    {
+        ShellCommand { name, desc, handler }
+    }
+}
+
+// Only implemented as a trait so there can be trait object references in the GLOBAL_RUN_STATE
+pub trait ShellCommandTrait {
+    fn as_shell_command(&self) -> shell_command_t;
+
+    /// If argv[0] matches the command's command name, run it and return some result; otherwise
+    /// do nothing and return None.
+    fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int>;
+}
+
+impl<'a, 's, R> ShellCommandTrait for ShellCommand<'a, R>
+    where R: Fn(&[&str]) -> i32,
+{
+    fn as_shell_command(&self) -> shell_command_t
     {
         shell_command_t {
             name: self.name.as_ptr(),
             desc: self.desc.as_ptr(),
-            handler: Some(self.handler),
+            handler: Some(Self::execute),
+        }
+    }
+
+    fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int>
+    {
+        let argv: &[*mut i8] = unsafe { ::core::slice::from_raw_parts(argv, argc as usize) };
+
+        // This would save us the LIMIT, but I can't yet say
+        //     where R: Fn(impl Iterator<Item=&str>>) -> i32
+        // (yet?)
+        // let argv = argv.iter().map(|ptr| unsafe { libc::CStr::from_ptr(*ptr) }.to_bytes()).peekable();
+        //
+        // Instead, using a LIMIT:
+
+        // Same issue as with run, see LIMIT there
+        const LIMIT: usize = 10;
+        let mut arg_array: [&str; LIMIT] = [&""; LIMIT];
+        if argc > LIMIT as i32 {
+            let mut stdio = stdio::Stdio {};
+            // Might not even be my own handler, but as long as everyone has the same limit, why
+            // not err out early.
+            writeln!(stdio, "Not processing: too many arguments");
+            return Some(1);
+        }
+        let argc = argc as usize;
+        for i in 0..argc {
+            arg_array[i] = unsafe { libc::CStr::from_ptr(argv[i]) }.to_str().unwrap();
+        }
+        let argv = &arg_array[..argc];
+
+        if argv[0].as_bytes() == self.name.to_bytes() {
+            let h = &mut self.handler;
+            Some(h(argv))
+        } else {
+            None
         }
     }
 }
@@ -51,7 +105,17 @@ fn null_shell_command() -> shell_command_t
     }
 }
 
-pub fn run(commands: &[ShellCommand], line_buf: &mut[u8]) -> !
+static mut GLOBAL_RUN_STATE: usize = 0;
+/// This is a brutal workaround for shell commands not being passed any additional data.
+///
+/// The function hands any caller an immutable reference to the shared location, under the
+/// (invalid) assumption that there will only ever be one shell instance running and that won't
+/// cross thread boundaries.
+fn steal_global_run_state<'a>() -> &'a mut &'a mut [&'a mut dyn ShellCommandTrait] {
+    unsafe { ::core::mem::transmute(GLOBAL_RUN_STATE as *const libc::c_void as *const _) }
+}
+
+pub fn run(commands: &[&mut dyn ShellCommandTrait], line_buf: &mut[u8]) -> !
 {
     const LIMIT: usize = 5;
     // FIXME: Arbitrary size limit, find an idiom to pass in a null-terminated slice or to allocate
@@ -67,6 +131,11 @@ pub fn run(commands: &[ShellCommand], line_buf: &mut[u8]) -> !
         *dest = src.as_shell_command();
     }
 
+    unsafe {
+        if GLOBAL_RUN_STATE != 0 { panic!("Shell run more than once.") };
+        GLOBAL_RUN_STATE = ::core::mem::transmute(&commands);
+    }
+
     unsafe { shell_run(
             args.as_ptr(),
             line_buf.as_mut_ptr() as *mut i8,
@@ -76,41 +145,4 @@ pub fn run(commands: &[ShellCommand], line_buf: &mut[u8]) -> !
 
     // shell_run diverges as by its documentation, but the wrapped signature does not show that.
     unreachable!();
-}
-
-/// Take the passed on arguments of a shell_command_handler_t and call an inner function that
-/// receives those arguments in nice str slice form.
-pub fn command_wrap_inner<F>(argc: libc::c_int, argv: *mut *mut libc::c_char, inner: F) -> i32
-where F: Fn(&[&str]) -> i32
-{
-    // Same issue as with run, see LIMIT there
-    const LIMIT: usize = 10;
-    let mut args: [&str; LIMIT] = [&""; LIMIT];
-
-    if argc > LIMIT as i32 {
-        let mut stdio = stdio::Stdio {};
-        writeln!(stdio, "Not processing: too many arguments");
-        return 1;
-    }
-    let argc: usize = if argc < 0 { 0 } else if argc as usize > LIMIT { LIMIT } else { argc as usize };
-
-    let argv: *mut *mut u8 = unsafe { ::core::mem::transmute(argv) };
-    let argv: &[*mut u8] = unsafe { ::core::slice::from_raw_parts(argv, argc) };
-
-    for i in 0..argc {
-        let start = argv[i];
-        // I *really* need a no_std CStr...
-        let mut slice = unsafe { ::core::slice::from_raw_parts(start, 1) };
-        loop {
-            if slice[slice.len() - 1] == 0 {
-                slice = unsafe { ::core::slice::from_raw_parts(start, slice.len() - 1) };
-                break;
-            } else {
-                slice = unsafe { ::core::slice::from_raw_parts(start, slice.len() + 1) };
-            }
-        }
-        args[i] = ::core::str::from_utf8(slice).unwrap();
-    }
-
-    inner(&args[..argc])
 }
