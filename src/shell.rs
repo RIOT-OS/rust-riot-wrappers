@@ -43,13 +43,13 @@ impl<'a, R> ShellCommand<'a, R>
 pub trait ShellCommandTrait {
     fn as_shell_command(&self) -> shell_command_t;
 
-    /// If argv[0] matches the command's command name, run it and return some result; otherwise
+    /// If `argv[0]` matches the command's command name, run it and return some result; otherwise
     /// do nothing and return None.
     fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int>;
 }
 
 impl<'a, 's, R> ShellCommandTrait for ShellCommand<'a, R>
-    where R: Fn(&[&str]) -> i32,
+    where R: FnMut(&[&str]) -> i32,
 {
     fn as_shell_command(&self) -> shell_command_t
     {
