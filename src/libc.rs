@@ -63,6 +63,29 @@ impl CStr {
     }
 }
 
+// End of plain CStr imitation
+
+impl CStr {
+/// This is an experimental variation on from_ptr which allows passing in a reference with a
+/// lifetime which indicates the lifetime the result should have.
+///
+/// Thus, rather than generating a reference whose lifetime is arbitrary (which it in general is
+/// not), the caller needs to create an indicator like this:
+///
+/// ```
+/// unsafe extern "C" fn f(argument: *const i8) {
+///     let marker: ();
+///     let argument = CStr::from_ptr_with_lifetime(argument, &marker);
+///     ...
+/// }
+/// ```
+///
+/// This indicates that the argument pointer is expected to be valid for no longer than a reference
+/// to the marker is valid, which is the duration of the f call.
+    pub unsafe fn from_ptr_with_lifetime<'a>(ptr: *const c_char, _marker: &'a ()) -> &'a CStr {
+        CStr::from_ptr(ptr)
+    }
+}
 
 // This is similar to the cstr-macro crate definition, but without the std dependency
 #[macro_export]

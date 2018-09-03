@@ -63,11 +63,12 @@ impl<'a, 's, R> ShellCommandTrait for ShellCommand<'a, R>
     fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int>
     {
         let argv: &[*mut i8] = unsafe { ::core::slice::from_raw_parts(argv, argc as usize) };
+        let marker = ();
 
         // This would save us the LIMIT, but I can't yet say
         //     where R: Fn(impl Iterator<Item=&str>>) -> i32
         // (yet?)
-        // let argv = argv.iter().map(|ptr| unsafe { libc::CStr::from_ptr(*ptr) }.to_bytes()).peekable();
+        // let argv = argv.iter().map(|ptr| unsafe { libc::CStr::from_ptr_with_lifetime(*ptr, &marker) }.to_bytes()).peekable();
         //
         // Instead, using a LIMIT:
 
@@ -83,7 +84,7 @@ impl<'a, 's, R> ShellCommandTrait for ShellCommand<'a, R>
         }
         let argc = argc as usize;
         for i in 0..argc {
-            arg_array[i] = unsafe { libc::CStr::from_ptr(argv[i]) }.to_str().unwrap();
+            arg_array[i] = unsafe { libc::CStr::from_ptr_with_lifetime(argv[i], &marker) }.to_str().unwrap();
         }
         let argv = &arg_array[..argc];
 
