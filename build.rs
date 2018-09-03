@@ -17,8 +17,6 @@ fn main() {
         .use_core()
         .ctypes_prefix("libc")
         .impl_debug(true)
-        // RIOT's comment style only causes errors during cargo build
-        .generate_comments(false)
         .generate()
         .expect("Unable to generate bindings");
 
