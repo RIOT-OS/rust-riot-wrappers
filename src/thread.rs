@@ -14,7 +14,9 @@ use core::intrinsics::transmute;
 // pub const THREAD_PRIORITY_IDLE: i8 = 15;
 // pub const THREAD_PRIORITY_MAIN: i8 = 7;
 
-#[derive(Debug)]
+// FIXME: The argument should not be pub, the constructor should check the range and eg. reject
+// building one with KERNEL_PID_ISR.
+#[derive(Debug, PartialEq)]
 pub struct KernelPID(pub raw::kernel_pid_t);
 
 mod status_converted {

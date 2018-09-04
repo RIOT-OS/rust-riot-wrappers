@@ -1,0 +1,200 @@
+use raw::{self, kernel_pid_t, msg_send, msg_receive, msg_send_receive, msg_reply, msg_t};
+use libc;
+use thread::{
+    KernelPID,
+};
+use core::marker::PhantomData;
+
+mod pid_converted {
+    //! See thread::status_converted.
+    use raw;
+
+    pub const KERNEL_PID_UNDEF: raw::kernel_pid_t = raw::KERNEL_PID_UNDEF as raw::kernel_pid_t;
+    pub const KERNEL_PID_FIRST: raw::kernel_pid_t = raw::KERNEL_PID_FIRST as raw::kernel_pid_t;
+    pub const KERNEL_PID_LAST: raw::kernel_pid_t = raw::KERNEL_PID_LAST as raw::kernel_pid_t;
+    pub const KERNEL_PID_ISR: raw::kernel_pid_t = raw::KERNEL_PID_ISR as raw::kernel_pid_t;
+}
+
+/// The source of a message
+// Ideally this would be represented in memory 1:1 like a KernelPID, but I can't tell Rust that a
+// KernelPID has a valid range from KERNEL_PID_FIRST to KERNEL_PID_LAST and have it use that
+// knowledge.
+#[derive(Debug, PartialEq)]
+pub enum MsgSender {
+    Invalid, // = raw::KERNEL_PID_UNDEF
+    Thread(KernelPID),
+    ISR, // = raw::KERNEL_PID_ISR
+}
+
+impl MsgSender {
+    fn from_pid(pid: kernel_pid_t) -> Self {
+        match pid {
+            x if x >= pid_converted::KERNEL_PID_FIRST && x <= pid_converted::KERNEL_PID_LAST => MsgSender::Thread(KernelPID(x)),
+            pid_converted::KERNEL_PID_ISR => MsgSender::ISR,
+            _ => MsgSender::Invalid,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum MsgSendError {
+    ReceiverNotWaiting,
+    InvalidPID,
+}
+
+pub trait Msg
+{
+    fn get_sender(&self) -> MsgSender;
+    fn get_type(&self) -> u16;
+    fn send(self, target: &KernelPID) -> Result<(), MsgSendError>;
+    fn send_receive(self, target: &KernelPID) -> OpaqueMsg;
+    fn reply(self, response: impl WrapsMsgT) -> Result<(), ()>;
+}
+
+/// Helper trait to implement Msg for the various Msg value styles. This is not supposed to be
+/// public, but leaks due to the implementation.
+pub trait WrapsMsgT
+{
+    fn extract(self) -> msg_t;
+    fn view(&self) -> &msg_t;
+}
+
+impl<T> Msg for T
+    where T: WrapsMsgT
+{
+    fn send(self, target: &KernelPID) -> Result<(), MsgSendError> {
+        let mut m = self.extract();
+        match unsafe { msg_send(&mut m, target.0) } {
+            1 => Ok(()),
+            0 => Err(MsgSendError::ReceiverNotWaiting),
+            _ => Err(MsgSendError::InvalidPID),
+        }
+    }
+
+    fn send_receive(self, target: &KernelPID) -> OpaqueMsg {
+        let mut m = self.extract();
+        let _ = unsafe { msg_send_receive(&mut m, &mut m, target.0) };
+        OpaqueMsg(m)
+    }
+
+    fn reply(self, response: impl WrapsMsgT) -> Result<(), ()> {
+        let mut m = self.extract();
+        let mut r = response.extract();
+        let result = unsafe { msg_reply(&mut m, &mut r) };
+        match result {
+            1 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    fn get_sender(&self) -> MsgSender {
+        MsgSender::from_pid(self.view().sender_pid)
+    }
+
+    fn get_type(&self) -> u16 {
+        self.view().type_
+    }
+}
+
+/// Build a default (empty, theoretically uninitialized) msg_t. To be used only until MaybeUninit
+/// becomes usable.
+fn empty_msg() -> msg_t {
+    msg_t { sender_pid: 0, type_: 0, content: raw::msg_t__bindgen_ty_1 {value: 0} }
+}
+
+/// An initialized message with inaccessible value.
+pub struct OpaqueMsg(msg_t);
+
+impl OpaqueMsg
+{
+    pub fn receive() -> OpaqueMsg {
+        let mut m = empty_msg();
+        let _ = unsafe { msg_receive(&mut m) };
+        OpaqueMsg(m)
+    }
+}
+
+impl ::core::fmt::Debug for OpaqueMsg
+{
+    fn fmt(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        write!(formatter, "OpaqueMsg {{ from {:?}, type 0x{:x} }}", self.get_sender(), self.get_type())
+    }
+}
+
+impl WrapsMsgT for OpaqueMsg {
+    fn extract(self) -> msg_t { self.0 }
+    fn view(&self) -> &msg_t { &self.0 }
+}
+
+/// An initialized message of a type that needs no access to a value
+pub struct EmptyMsg(msg_t);
+
+impl EmptyMsg
+{
+    pub fn new(type_: u16) -> Self {
+        EmptyMsg(msg_t { type_, ..empty_msg() })
+    }
+}
+
+impl WrapsMsgT for EmptyMsg {
+    fn extract(self) -> msg_t { self.0 }
+    fn view(&self) -> &msg_t { &self.0 }
+}
+
+/// An initialized message of a type whose payload is numeric
+#[derive(Debug)]
+pub struct NumericMsg(msg_t);
+
+impl NumericMsg
+{
+    pub fn new(type_: u16, value: u32) -> Self {
+        NumericMsg(msg_t { type_, content: raw::msg_t__bindgen_ty_1 { value: value }, ..empty_msg() })
+    }
+
+    /// Interpret an opaque message as a numeric one. The caller needs to ensure that the message
+    /// was initialized with a u32 value, typically by checking the message type (or receiving the
+    /// message as a response) and relying on senders to properly initialize the message.
+    pub unsafe fn recognize(msg: OpaqueMsg) -> Self {
+        NumericMsg(msg.extract())
+    }
+
+    pub fn get_value(&self) -> u32 {
+        unsafe { self.0.content.value }
+    }
+}
+
+impl WrapsMsgT for NumericMsg {
+    fn extract(self) -> msg_t { self.0 }
+    fn view(&self) -> &msg_t { &self.0 }
+}
+
+pub struct ContainerMsg<T> {
+    message: msg_t,
+    t: PhantomData<T>
+}
+
+// The tricky part will be creating a Container from an OpaqueMsg -- there we'll have to know for
+// sure the type and lifetime involved.
+//
+// Not requiring T: Send because the behavior of messages in RIOT is to be raw pointers; what
+// happens to the value needs to be considered already when the type is constructed.
+impl<T> ContainerMsg<T>
+    where T: Sized
+{
+    pub fn new(type_: u16, value: T) -> Self {
+        use ::core::mem::size_of;
+        assert!(size_of::<T>() <= size_of::<*mut libc::c_void>(), "Type too large to send");
+        ContainerMsg {
+            message: msg_t { type_, content: raw::msg_t__bindgen_ty_1 { ptr: unsafe { ::core::mem::transmute_copy(&value) } }, ..empty_msg() },
+            t: PhantomData
+        }
+    }
+
+    pub fn get_value(self) -> T {
+        unsafe { ::core::mem::transmute_copy(&self.message.content.ptr) }
+    }
+
+    pub unsafe fn recognize(msg: OpaqueMsg) -> Self {
+        ContainerMsg { message: msg.extract(), t: PhantomData }
+    }
+}

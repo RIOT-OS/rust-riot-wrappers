@@ -15,6 +15,7 @@ pub mod thread;
 pub mod shell;
 pub mod i2c;
 pub mod gnrc;
+pub mod msg;
 
 #[cfg(feature = "set_panic_handler")]
 mod panic;
