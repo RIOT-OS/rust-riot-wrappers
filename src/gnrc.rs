@@ -188,24 +188,12 @@ impl Drop for Pktsnip {
 impl Pktsnip {
     pub fn len(&self) -> usize {
         // Implementing the static function gnrc_pkt_len
-        let mut len = 0;
-        let mut pkt = self.0;
-        while pkt != 0 as *mut _ { unsafe {
-            len += (*pkt).size;
-            pkt = (*pkt).next;
-        }}
-        len
+        self.iter_snips().map(|s| s.data.len()).sum()
     }
 
     pub fn count(&self) -> usize {
         // Implementing the static function gnrc_pkt_count
-        let mut count = 0;
-        let mut pkt = self.0;
-        while pkt != 0 as *mut _ { unsafe {
-            count += 1;
-            pkt = (*pkt).next;
-        }}
-        count
+        self.iter_snips().count()
     }
 
     pub fn get_ipv6_hdr(&self) -> Option<&ipv6_hdr_t> {
