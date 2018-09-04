@@ -176,10 +176,10 @@ pub struct ContainerMsg<T> {
 // The tricky part will be creating a Container from an OpaqueMsg -- there we'll have to know for
 // sure the type and lifetime involved.
 //
-// Not requiring T: Send because the behavior of messages in RIOT is to be raw pointers; what
-// happens to the value needs to be considered already when the type is constructed.
+// T needs to be Send. If you want to pass around raw pointers as RIOT does in GNRC, wrap them like
+// Pktsnip.
 impl<T> ContainerMsg<T>
-    where T: Sized
+    where T: Sized + Send
 {
     pub fn new(type_: u16, value: T) -> Self {
         use ::core::mem::size_of;

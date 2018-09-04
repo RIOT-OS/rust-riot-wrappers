@@ -4,10 +4,19 @@ use raw::{
     ipv6_addr_t,
     ipv6_addr_from_str,
     kernel_pid_t,
+    gnrc_pktsnip_t,
+    gnrc_pktbuf_release_error,
+    gnrc_pktbuf_hold,
+    GNRC_NETERR_SUCCESS,
+    gnrc_nettype_t,
+    gnrc_ipv6_get_header,
+    ipv6_hdr_t,
 };
 
 use ::core::iter::Iterator;
 use libc;
+
+use core::marker::PhantomData;
 
 struct NetifIter {
     current: *const gnrc_netif_t,
@@ -118,4 +127,105 @@ pub fn split_ipv6_address(input: &str) -> Result<(IPv6Addr, Option<kernel_pid_t>
     };
 
     Ok((addr, interface))
+}
+
+#[derive(Debug)]
+pub struct PktsnipPart<'a> {
+    data: &'a [u8],
+    type_: gnrc_nettype_t,
+}
+
+pub struct SnipIter<'a> {
+    pointer: *const gnrc_pktsnip_t,
+    datalifetime: PhantomData<&'a ()>,
+}
+
+impl<'a> Iterator for SnipIter<'a> {
+    type Item = PktsnipPart<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let s = self.pointer;
+        if s == 0 as *const _ {
+            return None
+        }
+        let s = unsafe { *s };
+        self.pointer = s.next;
+        Some(PktsnipPart {
+            data: unsafe { ::core::slice::from_raw_parts(::core::mem::transmute(s.data), s.size) },
+            type_: s.type_
+        })
+    }
+}
+
+/// Wrapper type around gnrc_pktsnip_t that takes care of the reference counting involved.
+pub struct Pktsnip(*mut gnrc_pktsnip_t);
+
+/// Pktsnip can be send because any volatile fields are accessed through the appropriate functions
+/// (hold, release), and the non-volatile fields are only written to by threads that made sure they
+/// obtained a COW copy using start_write.
+unsafe impl Send for Pktsnip {}
+
+impl From<*mut gnrc_pktsnip_t> for Pktsnip {
+    /// Accept this pointer as the refcounting wrapper's responsibility
+    fn from(input: *mut gnrc_pktsnip_t) -> Self {
+        Pktsnip(input)
+    }
+}
+
+impl Clone for Pktsnip {
+    fn clone(&self) -> Pktsnip {
+        unsafe { gnrc_pktbuf_hold(self.0, 1) };
+        Pktsnip(self.0)
+    }
+}
+
+impl Drop for Pktsnip {
+    fn drop(&mut self) {
+        unsafe { gnrc_pktbuf_release_error(self.0, GNRC_NETERR_SUCCESS) }
+    }
+}
+
+impl Pktsnip {
+    pub fn len(&self) -> usize {
+        // Implementing the static function gnrc_pkt_len
+        let mut len = 0;
+        let mut pkt = self.0;
+        while pkt != 0 as *mut _ { unsafe {
+            len += (*pkt).size;
+            pkt = (*pkt).next;
+        }}
+        len
+    }
+
+    pub fn count(&self) -> usize {
+        // Implementing the static function gnrc_pkt_count
+        let mut count = 0;
+        let mut pkt = self.0;
+        while pkt != 0 as *mut _ { unsafe {
+            count += 1;
+            pkt = (*pkt).next;
+        }}
+        count
+    }
+
+    pub fn get_ipv6_hdr(&self) -> Option<&ipv6_hdr_t> {
+        let hdr = unsafe { gnrc_ipv6_get_header(self.0) };
+        if hdr == 0 as *mut _ {
+            None
+        } else {
+            // It's OK to hand out a reference: self.0 is immutable in its data areas, and hdr
+            // should point somewhere in there
+            Some(unsafe { &*hdr })
+        }
+    }
+
+    pub fn iter_snips(&self) -> SnipIter {
+        SnipIter { pointer: self.0, datalifetime: PhantomData }
+    }
+}
+
+impl ::core::fmt::Debug for Pktsnip {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        write!(f, "Pktsnip {{ length {}, in {} snips }}", self.len(), self.count())
+    }
 }
