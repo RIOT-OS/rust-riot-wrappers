@@ -15,7 +15,12 @@ mod regular {
         fn write_str(&mut self, s: &str) -> ::core::fmt::Result
         {
             let data = s.as_bytes();
-            let result = unsafe { stdio_write(transmute(data.as_ptr()), data.len()) };
+            let len = data.len();
+            if len == 0 {
+                return Ok(());
+            }
+
+            let result = unsafe { stdio_write(transmute(data.as_ptr()), len) };
 
             if result >= 0 {
                 Ok(())
