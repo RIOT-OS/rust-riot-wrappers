@@ -8,6 +8,7 @@
 #include <net/gnrc/ipv6.h>
 #include <net/gnrc/nettype.h>
 #include <net/gnrc/netapi.h>
+#include <net/gcoap.h>
 #include <saul.h>
 #include <saul_reg.h>
 
