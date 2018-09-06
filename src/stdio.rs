@@ -1,7 +1,7 @@
 #[cfg(not(target_os = "linux"))]
 mod regular {
     use ::core::intrinsics::transmute;
-    use raw::{
+    use riot_sys::{
         stdio_write,
         stdio_read,
     };
@@ -45,7 +45,7 @@ mod regular {
 // FIXME have a better criterion
 #[cfg(target_os = "linux")]
 mod nativestdio {
-    use libc;
+    use riot_sys::libc;
 
     // Is it OK that everyone can instanciate this at any time just so? Probably yes, because the
     // uart_stdio documentation says nothing about limitations on when to call this.

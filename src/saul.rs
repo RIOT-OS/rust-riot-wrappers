@@ -2,8 +2,8 @@
 // than reading from sensors, for there we'd have to construct lifetimes for things whose memory
 // location is managed in C.
 
-use raw;
-use libc;
+use riot_sys as raw;
+use riot_sys::libc;
 
 /// A struct containing both a registration and its driver
 struct ContainedRegistration<R> {

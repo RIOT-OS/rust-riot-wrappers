@@ -1,5 +1,5 @@
-use raw;
-use libc;
+use riot_sys as raw;
+use riot_sys::libc;
 
 use core::intrinsics::transmute;
 
@@ -25,7 +25,7 @@ mod status_converted {
     //! symbols (with different capitalizations) into a given type and makes an enum with a
     //! from_int method out of it.
 
-    use raw;
+    use riot_sys as raw;
 
     pub const STATUS_NOT_FOUND: i32 = raw::STATUS_NOT_FOUND as i32;
     pub const STATUS_STOPPED: i32 = raw::STATUS_STOPPED as i32;

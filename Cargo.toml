@@ -1,15 +1,11 @@
 [package]
-name = "riot-sys"
+name = "riot-wrappers"
 version = "0.1.0"
 authors = ["chrysn <chrysn@fsfe.org>"]
 
 [dependencies]
 embedded-hal = "0.2.0"
-
-[build-dependencies]
-# bindgen = "0.40.0"
-# .40 is not released yet; until then:
-bindgen = { path = "../../../../../../git/crates/bindgen" }
+riot-sys = { path = "../riot-sys" }
 
 [features]
 default = ["set_panic_handler"]

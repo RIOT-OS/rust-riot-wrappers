@@ -1,5 +1,5 @@
 use embedded_hal::blocking;
-use raw::i2c_t;
+use riot_sys::i2c_t;
 
 pub struct I2CDevice {
     // because the not_actually_i2c implementation does not use it, but I still want to keep the
@@ -28,8 +28,8 @@ pub enum Error {
 #[cfg(not(target_os="linux"))]
 mod regular {
     use super::*;
-    use raw::{i2c_acquire, i2c_release, i2c_read_bytes, i2c_write_bytes, I2C_COUNT};
-    use libc;
+    use riot_sys::{i2c_acquire, i2c_release, i2c_read_bytes, i2c_write_bytes, I2C_COUNT};
+    use riot_sys::libc;
 
     impl blocking::i2c::WriteRead for I2CDevice
     {

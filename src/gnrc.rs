@@ -1,4 +1,4 @@
-use raw::{
+use riot_sys::{
     gnrc_netif_iter,
     gnrc_netif_t,
     ipv6_addr_t,
@@ -14,7 +14,7 @@ use raw::{
 };
 
 use ::core::iter::Iterator;
-use libc;
+use riot_sys::libc;
 
 use core::marker::PhantomData;
 
@@ -131,8 +131,8 @@ pub fn split_ipv6_address(input: &str) -> Result<(IPv6Addr, Option<kernel_pid_t>
 
 #[derive(Debug)]
 pub struct PktsnipPart<'a> {
-    data: &'a [u8],
-    type_: gnrc_nettype_t,
+    pub data: &'a [u8],
+    pub type_: gnrc_nettype_t,
 }
 
 pub struct SnipIter<'a> {

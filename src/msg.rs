@@ -1,5 +1,5 @@
-use raw::{self, kernel_pid_t, msg_send, msg_receive, msg_send_receive, msg_reply, msg_t};
-use libc;
+use riot_sys::{self, kernel_pid_t, msg_send, msg_receive, msg_send_receive, msg_reply, msg_t};
+use riot_sys::libc;
 use thread::{
     KernelPID,
 };
@@ -7,7 +7,7 @@ use core::marker::PhantomData;
 
 mod pid_converted {
     //! See thread::status_converted.
-    use raw;
+    use riot_sys as raw;
 
     pub const KERNEL_PID_UNDEF: raw::kernel_pid_t = raw::KERNEL_PID_UNDEF as raw::kernel_pid_t;
     pub const KERNEL_PID_FIRST: raw::kernel_pid_t = raw::KERNEL_PID_FIRST as raw::kernel_pid_t;
@@ -21,9 +21,9 @@ mod pid_converted {
 // knowledge.
 #[derive(Debug, PartialEq)]
 pub enum MsgSender {
-    Invalid, // = raw::KERNEL_PID_UNDEF
+    Invalid, // = riot_sys::KERNEL_PID_UNDEF
     Thread(KernelPID),
-    ISR, // = raw::KERNEL_PID_ISR
+    ISR, // = riot_sys::KERNEL_PID_ISR
 }
 
 impl MsgSender {
@@ -99,7 +99,7 @@ impl<T> Msg for T
 /// Build a default (empty, theoretically uninitialized) msg_t. To be used only until MaybeUninit
 /// becomes usable.
 fn empty_msg() -> msg_t {
-    msg_t { sender_pid: 0, type_: 0, content: raw::msg_t__bindgen_ty_1 {value: 0} }
+    msg_t { sender_pid: 0, type_: 0, content: riot_sys::msg_t__bindgen_ty_1 {value: 0} }
 }
 
 /// An initialized message with inaccessible value.
@@ -148,7 +148,7 @@ pub struct NumericMsg(msg_t);
 impl NumericMsg
 {
     pub fn new(type_: u16, value: u32) -> Self {
-        NumericMsg(msg_t { type_, content: raw::msg_t__bindgen_ty_1 { value: value }, ..empty_msg() })
+        NumericMsg(msg_t { type_, content: riot_sys::msg_t__bindgen_ty_1 { value: value }, ..empty_msg() })
     }
 
     /// Interpret an opaque message as a numeric one. The caller needs to ensure that the message
@@ -185,7 +185,7 @@ impl<T> ContainerMsg<T>
         use ::core::mem::size_of;
         assert!(size_of::<T>() <= size_of::<*mut libc::c_void>(), "Type too large to send");
         ContainerMsg {
-            message: msg_t { type_, content: raw::msg_t__bindgen_ty_1 { ptr: unsafe { ::core::mem::transmute_copy(&value) } }, ..empty_msg() },
+            message: msg_t { type_, content: riot_sys::msg_t__bindgen_ty_1 { ptr: unsafe { ::core::mem::transmute_copy(&value) } }, ..empty_msg() },
             t: PhantomData
         }
     }

@@ -1,7 +1,7 @@
-use libc;
+use riot_sys::libc;
 use stdio;
 use core::fmt::Write;
-use raw::{
+use riot_sys::{
     shell_run,
     shell_command_t,
 };
