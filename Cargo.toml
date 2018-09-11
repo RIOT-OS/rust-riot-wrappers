@@ -6,6 +6,7 @@ authors = ["chrysn <chrysn@fsfe.org>"]
 [dependencies]
 embedded-hal = "0.2.0"
 riot-sys = { path = "../riot-sys" }
+crc = { version = "^1", default-features = false }
 
 [features]
 default = ["set_panic_handler"]

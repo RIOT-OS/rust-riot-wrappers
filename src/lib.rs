@@ -5,6 +5,7 @@
 
 extern crate riot_sys;
 extern crate embedded_hal;
+extern crate crc;
 
 pub mod saul;
 pub mod stdio;
