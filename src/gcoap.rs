@@ -159,9 +159,9 @@ impl PacketBuffer {
             }
             hdr.code = code as u8;
 
-            // FIXME bad pointer arithmetic
-            (*self.pkt).payload      = (self.buf as usize + coap_get_total_hdr_len(&*self.pkt) + 25 /* used to be 8 */) as *mut _;
-            (*self.pkt).payload_len  = self.len as u16 - ((*self.pkt).payload as usize - self.buf as usize) as u16;
+            let headroom = coap_get_total_hdr_len(&*self.pkt) + 25 /* used to be 8 */;
+            (*self.pkt).payload      = self.buf.offset(headroom as isize);
+            (*self.pkt).payload_len  = self.len as u16 - headroom as u16;
         }
 
         let buf = unsafe { ::core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize) };
@@ -193,9 +193,8 @@ impl PacketBuffer {
         // the payload_len limitation tells nanocoap not to write into it.
         let bytes_to_send_start = unsafe { (*self.pkt).payload };
         unsafe {
-            // FIXME this is bad pointer arithmetic
-            (*self.pkt).payload = (self.buf as usize + coap_get_total_hdr_len(&*self.pkt)) as *mut _;
-            (*self.pkt).payload_len = (bytes_to_send_start as usize - (*self.pkt).payload as usize) as u16;
+            (*self.pkt).payload = self.buf.offset(coap_get_total_hdr_len(&*self.pkt) as isize);
+            (*self.pkt).payload_len = bytes_to_send_start.offset_from((*self.pkt).payload) as u16;
             (*self.pkt).options_len = 0;
         }
 
