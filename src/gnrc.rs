@@ -106,6 +106,14 @@ impl IPv6Addr
     pub unsafe fn as_ptr(&self) -> *const ipv6_addr_t {
         &self.inner
     }
+
+    /// Given a ipv6_addr_t, copy the data out into an IPv6Addr.
+    /// 
+    /// That might be inefficient in many cases, and there might be a way to get an &IPv6Addr
+    /// newtyped from a &ipv6_addr_t, but right now this was simple to do.
+    pub fn clone_from_ptr(raw: *const ipv6_addr_t) -> Self {
+        IPv6Addr { inner: unsafe { *raw } }
+    }
 }
 
 /// Given an address like fe80::1%42, split it up into a IPv6Addr and a numeric interface
