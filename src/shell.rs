@@ -48,8 +48,9 @@ pub trait ShellCommandTrait {
     fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int>;
 }
 
-impl<'a, 's, R> ShellCommandTrait for ShellCommand<'a, R>
-    where R: FnMut(&[&str]) -> i32,
+impl<'a, R> ShellCommandTrait for ShellCommand<'a, R>
+// actually, I'd prefer to say FnMut(impl Write, &[&str]) -> i32, but impl doesn't work there.
+    where R: FnMut(&mut stdio::Stdio, &[&str]) -> i32,
 {
     fn as_shell_command(&self) -> shell_command_t
     {
@@ -65,6 +66,8 @@ impl<'a, 's, R> ShellCommandTrait for ShellCommand<'a, R>
         let argv: &[*mut i8] = unsafe { ::core::slice::from_raw_parts(argv, argc as usize) };
         let marker = ();
 
+        let mut stdio = stdio::Stdio {};
+
         // This would save us the LIMIT, but I can't yet say
         //     where R: Fn(impl Iterator<Item=&str>>) -> i32
         // (yet?)
@@ -76,7 +79,6 @@ impl<'a, 's, R> ShellCommandTrait for ShellCommand<'a, R>
         const LIMIT: usize = 10;
         let mut arg_array: [&str; LIMIT] = [&""; LIMIT];
         if argc > LIMIT as i32 {
-            let mut stdio = stdio::Stdio {};
             // Might not even be my own handler, but as long as everyone has the same limit, why
             // not err out early.
             writeln!(stdio, "Not processing: too many arguments");
@@ -90,7 +92,7 @@ impl<'a, 's, R> ShellCommandTrait for ShellCommand<'a, R>
 
         if argv[0].as_bytes() == self.name.to_bytes() {
             let h = &mut self.handler;
-            Some(h(argv))
+            Some(h(&mut stdio, argv))
         } else {
             None
         }
