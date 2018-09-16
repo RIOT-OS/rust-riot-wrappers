@@ -28,7 +28,7 @@ pub enum Error {
 #[cfg(riot_module_periph_i2c)]
 mod regular {
     use super::*;
-    use riot_sys::{i2c_acquire, i2c_release, i2c_read_bytes, i2c_write_bytes, I2C_COUNT};
+    use riot_sys::{i2c_acquire, i2c_release, i2c_read_bytes, i2c_write_bytes};
     use riot_sys::libc;
 
     impl blocking::i2c::WriteRead for I2CDevice
