@@ -8,6 +8,10 @@ embedded-hal = "0.2.0"
 riot-sys = { path = "../riot-sys" }
 crc = { version = "^1", default-features = false }
 
+[build-dependencies]
+# bindgen = "0.40.0"
+bindgen = { path = "../../../../../../git/crates/bindgen" }
+
 [features]
 default = ["set_panic_handler"]
 set_panic_handler = []

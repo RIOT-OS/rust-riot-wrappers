@@ -25,7 +25,7 @@ pub enum Error {
     DeviceNotFound,
 }
 
-#[cfg(not(target_os="linux"))]
+#[cfg(riot_module_periph_i2c)]
 mod regular {
     use super::*;
     use riot_sys::{i2c_acquire, i2c_release, i2c_read_bytes, i2c_write_bytes, I2C_COUNT};
@@ -37,12 +37,6 @@ mod regular {
 
         fn write_read(&mut self, address: u8, bytes: &[u8], buffer: &mut [u8]) -> Result<(), Self::Error>
         {
-            // this doesn't really work yet as it doesn't remove the links to i2c_write_bytes (which
-            // are not present in native as no i2c device is here).
-            if I2C_COUNT == 0 {
-                return Err(Error::DeviceNotFound);
-            }
-
             let err = unsafe { i2c_acquire(self.dev) };
             if err != 0 {
                 return Err(Error::AcquireError);
@@ -64,7 +58,7 @@ mod regular {
 
 }
 
-#[cfg(target_os="linux")]
+#[cfg(not(riot_module_periph_i2c))]
 mod not_actually_i2c {
     use super::*;
 
@@ -72,10 +66,6 @@ mod not_actually_i2c {
     {
         type Error = Error;
 
-        // for the native board which has no I2C; the discriminator is a terrible choice but works
-        // right now; ideally, the above solution with I2C_COUNT gating would work, but if that's a
-        // dead end, the next best options are pulling some #define-s out into cfg options.
-        #[cfg(target_os="linux")]
         fn write_read(&mut self, _address: u8, _bytes: &[u8], _buffer: &mut [u8]) -> Result<(), Self::Error>
         {
             Err(Error::DeviceNotFound)
