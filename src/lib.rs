@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(try_from)]
 #![feature(ptr_offset_from)] 
-#![cfg_attr(feature = "set_panic_handler", feature(panic_handler))]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
 
 extern crate riot_sys;
