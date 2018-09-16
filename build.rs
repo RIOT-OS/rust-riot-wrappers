@@ -3,7 +3,6 @@ extern crate bindgen;
 use bindgen::builder;
 use bindgen::callbacks::{ParseCallbacks, IntKind};
 use std::env;
-use std::path::PathBuf;
 
 #[derive(Debug)]
 struct ReportRiotDefinesAsCfg();
@@ -33,7 +32,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=RIOT_EXPANDED_HEADER");
     println!("cargo:rerun-if-changed={}", sourcefile);
 
-    let bindings = builder()
+    builder()
         .header(sourcefile)
         .parse_callbacks(Box::new(ReportRiotDefinesAsCfg()))
         .generate()
