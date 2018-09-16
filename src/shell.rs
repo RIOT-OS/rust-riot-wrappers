@@ -1,11 +1,7 @@
-use riot_sys::libc;
-use stdio;
 use core::fmt::Write;
-use riot_sys::{
-    shell_run,
-    shell_command_t,
-};
-
+use riot_sys::libc;
+use riot_sys::{shell_command_t, shell_run};
+use stdio;
 
 // not repr(C) for as long as run() copies over all the inner commands, but there might be a time
 // when we pack it into something null-terminatable from the outside and then repr(C) would help
@@ -14,15 +10,13 @@ use riot_sys::{
 // acting on the closure would need a userdata argument which is not there (cf. freenode/#rust
 // 2018-02-21 14:30CEST), so passing around callbacks directly.
 #[derive(Copy, Clone)]
-pub struct ShellCommand<'a, R>
-{
+pub struct ShellCommand<'a, R> {
     name: &'a libc::CStr,
     desc: &'a libc::CStr,
     handler: R,
 }
 
-impl<'a, R> ShellCommand<'a, R>
-{
+impl<'a, R> ShellCommand<'a, R> {
     unsafe extern "C" fn execute(argc: libc::c_int, argv: *mut *mut libc::c_char) -> libc::c_int {
         let commands = steal_global_run_state();
         for c in commands.iter_mut() {
@@ -33,9 +27,12 @@ impl<'a, R> ShellCommand<'a, R>
         panic!("Command handler executed, but argv[0] does not match any known command");
     }
 
-    pub fn new(name: &'a libc::CStr, desc: &'a libc::CStr, handler: R) -> Self
-    {
-        ShellCommand { name, desc, handler }
+    pub fn new(name: &'a libc::CStr, desc: &'a libc::CStr, handler: R) -> Self {
+        ShellCommand {
+            name,
+            desc,
+            handler,
+        }
     }
 }
 
@@ -50,10 +47,10 @@ pub trait ShellCommandTrait {
 
 impl<'a, R> ShellCommandTrait for ShellCommand<'a, R>
 // actually, I'd prefer to say FnMut(impl Write, &[&str]) -> i32, but impl doesn't work there.
-    where R: FnMut(&mut stdio::Stdio, &[&str]) -> i32,
+where
+    R: FnMut(&mut stdio::Stdio, &[&str]) -> i32,
 {
-    fn as_shell_command(&self) -> shell_command_t
-    {
+    fn as_shell_command(&self) -> shell_command_t {
         shell_command_t {
             name: self.name.as_ptr(),
             desc: self.desc.as_ptr(),
@@ -61,8 +58,7 @@ impl<'a, R> ShellCommandTrait for ShellCommand<'a, R>
         }
     }
 
-    fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int>
-    {
+    fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int> {
         let argv: &[*mut i8] = unsafe { ::core::slice::from_raw_parts(argv, argc as usize) };
         let marker = ();
 
@@ -86,7 +82,9 @@ impl<'a, R> ShellCommandTrait for ShellCommand<'a, R>
         }
         let argc = argc as usize;
         for i in 0..argc {
-            arg_array[i] = unsafe { libc::CStr::from_ptr_with_lifetime(argv[i], &marker) }.to_str().unwrap();
+            arg_array[i] = unsafe { libc::CStr::from_ptr_with_lifetime(argv[i], &marker) }
+                .to_str()
+                .unwrap();
         }
         let argv = &arg_array[..argc];
 
@@ -99,12 +97,11 @@ impl<'a, R> ShellCommandTrait for ShellCommand<'a, R>
     }
 }
 
-fn null_shell_command() -> shell_command_t
-{
-    shell_command_t { 
-            name: 0 as *const libc::c_char,
-            desc: 0 as *const libc::c_char,
-            handler: None,
+fn null_shell_command() -> shell_command_t {
+    shell_command_t {
+        name: 0 as *const libc::c_char,
+        desc: 0 as *const libc::c_char,
+        handler: None,
     }
 }
 
@@ -118,15 +115,14 @@ fn steal_global_run_state<'a>() -> &'a mut &'a mut [&'a mut dyn ShellCommandTrai
     unsafe { ::core::mem::transmute(GLOBAL_RUN_STATE as *const libc::c_void as *const _) }
 }
 
-pub fn run(commands: &[&mut dyn ShellCommandTrait], line_buf: &mut[u8]) -> !
-{
+pub fn run(commands: &[&mut dyn ShellCommandTrait], line_buf: &mut [u8]) -> ! {
     const LIMIT: usize = 5;
     // FIXME: Arbitrary size limit, find an idiom to pass in a null-terminated slice or to allocate
     // a variable-lenth (commands.len() + 1) structure on the stack. Possibly const numeric
     // generics will solve this.
     let mut args: [shell_command_t; LIMIT + 1] = [null_shell_command(); LIMIT + 1];
 
-    if commands.len()  > LIMIT {
+    if commands.len() > LIMIT {
         panic!("Static command count exceeded");
     }
 
@@ -135,15 +131,18 @@ pub fn run(commands: &[&mut dyn ShellCommandTrait], line_buf: &mut[u8]) -> !
     }
 
     unsafe {
-        if GLOBAL_RUN_STATE != 0 { panic!("Shell run more than once.") };
+        if GLOBAL_RUN_STATE != 0 {
+            panic!("Shell run more than once.")
+        };
         GLOBAL_RUN_STATE = ::core::mem::transmute(&commands);
     }
 
-    unsafe { shell_run(
+    unsafe {
+        shell_run(
             args.as_ptr(),
             line_buf.as_mut_ptr() as *mut i8,
             line_buf.len() as i32, // FIXME: panic if len is too large
-            )
+        )
     };
 
     // shell_run diverges as by its documentation, but the wrapped signature does not show that.

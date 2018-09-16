@@ -4,20 +4,15 @@ mod regular {
     //! not go through the C standard library but directly to however uart_stdio is currently
     //! implemented in Riot.
 
-    use ::core::intrinsics::transmute;
-    use riot_sys::{
-        stdio_write,
-        stdio_read,
-    };
+    use core::intrinsics::transmute;
+    use riot_sys::{stdio_read, stdio_write};
 
     // Is it OK that everyone can instanciate this at any time just so? Probably yes, because the
     // uart_stdio documentation says nothing about limitations on when to call this.
     pub struct Stdio {}
 
-
     impl ::core::fmt::Write for Stdio {
-        fn write_str(&mut self, s: &str) -> ::core::fmt::Result
-        {
+        fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
             let data = s.as_bytes();
             let len = data.len();
             if len == 0 {
@@ -59,12 +54,13 @@ mod nativestdio {
     pub struct Stdio {}
 
     impl ::core::fmt::Write for Stdio {
-        fn write_str(&mut self, s: &str) -> ::core::fmt::Result
-        {
+        fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
             extern "C" {
                 fn putchar(c: libc::c_int) -> libc::c_int;
             }
-            s.as_bytes().iter().for_each(|c| unsafe {putchar(*c as libc::c_int);});
+            s.as_bytes().iter().for_each(|c| unsafe {
+                putchar(*c as libc::c_int);
+            });
             Ok(())
         }
     }
@@ -85,7 +81,7 @@ mod nativestdio {
     }
 }
 
-#[cfg(riot_module_stdio_uart)]
-pub use self::regular::Stdio;
 #[cfg(not(riot_module_stdio_uart))]
 pub use self::nativestdio::Stdio;
+#[cfg(riot_module_stdio_uart)]
+pub use self::regular::Stdio;

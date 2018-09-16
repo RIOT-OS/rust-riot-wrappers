@@ -1,19 +1,19 @@
 use riot_sys::{
+    gnrc_ipv6_get_header,
     gnrc_netif_iter,
     gnrc_netif_t,
-    ipv6_addr_t,
-    ipv6_addr_from_str,
-    kernel_pid_t,
-    gnrc_pktsnip_t,
-    gnrc_pktbuf_release_error,
-    gnrc_pktbuf_hold,
-    GNRC_NETERR_SUCCESS,
     gnrc_nettype_t,
-    gnrc_ipv6_get_header,
+    gnrc_pktbuf_hold,
+    gnrc_pktbuf_release_error,
+    gnrc_pktsnip_t,
+    ipv6_addr_from_str,
+    ipv6_addr_t,
     ipv6_hdr_t,
+    kernel_pid_t,
+    GNRC_NETERR_SUCCESS,
 };
 
-use ::core::iter::Iterator;
+use core::iter::Iterator;
 use riot_sys::libc;
 
 use core::marker::PhantomData;
@@ -25,8 +25,7 @@ struct NetifIter {
 impl Iterator for NetifIter {
     type Item = *const gnrc_netif_t;
 
-    fn next(&mut self) -> Option<Self::Item>
-    {
+    fn next(&mut self) -> Option<Self::Item> {
         self.current = unsafe { gnrc_netif_iter(self.current) };
         if self.current == 0 as *const gnrc_netif_t {
             None
@@ -37,16 +36,16 @@ impl Iterator for NetifIter {
 }
 
 pub fn netif_iter() -> impl Iterator<Item = *const gnrc_netif_t> {
-    NetifIter { current: 0 as *const gnrc_netif_t }
+    NetifIter {
+        current: 0 as *const gnrc_netif_t,
+    }
 }
 
-pub struct IPv6Addr
-{
+pub struct IPv6Addr {
     inner: ipv6_addr_t,
 }
 
-impl ::core::str::FromStr for IPv6Addr
-{
+impl ::core::str::FromStr for IPv6Addr {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -59,14 +58,21 @@ impl ::core::str::FromStr for IPv6Addr
         let mut with_null = [0u8; 32 + 7 + 1]; // 32 nibbles + 7 colons + null byte
         if s.len() > with_null.len() - 1 {
             // Obviously too long to be a valid plain address
-            return Err(())
+            return Err(());
         }
         with_null[..s.len()].copy_from_slice(s);
 
         // FIXME: use MaybeUninit when available
-        let mut ret: Self = Self { inner: ipv6_addr_t { u8: [0; 16]} };
+        let mut ret: Self = Self {
+            inner: ipv6_addr_t { u8: [0; 16] },
+        };
 
-        let conversion_result = unsafe { ipv6_addr_from_str(&mut ret.inner, libc::CStr::from_bytes_with_nul_unchecked(&with_null).as_ptr()) };
+        let conversion_result = unsafe {
+            ipv6_addr_from_str(
+                &mut ret.inner,
+                libc::CStr::from_bytes_with_nul_unchecked(&with_null).as_ptr(),
+            )
+        };
 
         match conversion_result as usize {
             0 => Err(()),
@@ -75,12 +81,13 @@ impl ::core::str::FromStr for IPv6Addr
     }
 }
 
-impl ::core::fmt::Debug for IPv6Addr
-{
+impl ::core::fmt::Debug for IPv6Addr {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         let as_u8 = unsafe { &self.inner.u8 };
-        write!(f, "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:\
-            {:02x}{:02x}:{:02x}{:02x}",
+        write!(
+            f,
+            "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:\
+             {:02x}{:02x}:{:02x}{:02x}",
             as_u8[0],
             as_u8[1],
             as_u8[2],
@@ -96,23 +103,24 @@ impl ::core::fmt::Debug for IPv6Addr
             as_u8[12],
             as_u8[13],
             as_u8[14],
-            as_u8[15], 
-            )
+            as_u8[15],
+        )
     }
 }
 
-impl IPv6Addr
-{
+impl IPv6Addr {
     pub unsafe fn as_ptr(&self) -> *const ipv6_addr_t {
         &self.inner
     }
 
     /// Given a ipv6_addr_t, copy the data out into an IPv6Addr.
-    /// 
+    ///
     /// That might be inefficient in many cases, and there might be a way to get an &IPv6Addr
     /// newtyped from a &ipv6_addr_t, but right now this was simple to do.
     pub fn clone_from_ptr(raw: *const ipv6_addr_t) -> Self {
-        IPv6Addr { inner: unsafe { *raw } }
+        IPv6Addr {
+            inner: unsafe { *raw },
+        }
     }
 }
 
@@ -125,13 +133,14 @@ impl IPv6Addr
 // null-terminated strings and mutating memory.
 pub fn split_ipv6_address(input: &str) -> Result<(IPv6Addr, Option<kernel_pid_t>), &'static str> {
     let mut s = input.splitn(2, "%");
-    let addr = s.next()
+    let addr = s
+        .next()
         .ok_or("No address")?
         .parse()
         .map_err(|_| "Unparsable address")?;
     let interface = match s.next() {
         None => None,
-        Some(x) => Some(x.parse().map_err(|_| "Non-numeric interface identifier")?)
+        Some(x) => Some(x.parse().map_err(|_| "Non-numeric interface identifier")?),
     };
 
     Ok((addr, interface))
@@ -154,13 +163,13 @@ impl<'a> Iterator for SnipIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let s = self.pointer;
         if s == 0 as *const _ {
-            return None
+            return None;
         }
         let s = unsafe { *s };
         self.pointer = s.next;
         Some(PktsnipPart {
             data: unsafe { ::core::slice::from_raw_parts(::core::mem::transmute(s.data), s.size) },
-            type_: s.type_
+            type_: s.type_,
         })
     }
 }
@@ -216,12 +225,20 @@ impl Pktsnip {
     }
 
     pub fn iter_snips(&self) -> SnipIter {
-        SnipIter { pointer: self.0, datalifetime: PhantomData }
+        SnipIter {
+            pointer: self.0,
+            datalifetime: PhantomData,
+        }
     }
 }
 
 impl ::core::fmt::Debug for Pktsnip {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        write!(f, "Pktsnip {{ length {}, in {} snips }}", self.len(), self.count())
+        write!(
+            f,
+            "Pktsnip {{ length {}, in {} snips }}",
+            self.len(),
+            self.count()
+        )
     }
 }

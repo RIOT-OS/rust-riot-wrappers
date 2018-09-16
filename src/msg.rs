@@ -1,9 +1,7 @@
-use riot_sys::{self, kernel_pid_t, msg_send, msg_receive, msg_send_receive, msg_reply, msg_t};
-use riot_sys::libc;
-use thread::{
-    KernelPID,
-};
 use core::marker::PhantomData;
+use riot_sys::libc;
+use riot_sys::{self, kernel_pid_t, msg_receive, msg_reply, msg_send, msg_send_receive, msg_t};
+use thread::KernelPID;
 
 mod pid_converted {
     //! See thread::status_converted.
@@ -29,7 +27,9 @@ pub enum MsgSender {
 impl MsgSender {
     fn from_pid(pid: kernel_pid_t) -> Self {
         match pid {
-            x if x >= pid_converted::KERNEL_PID_FIRST && x <= pid_converted::KERNEL_PID_LAST => MsgSender::Thread(KernelPID(x)),
+            x if x >= pid_converted::KERNEL_PID_FIRST && x <= pid_converted::KERNEL_PID_LAST => {
+                MsgSender::Thread(KernelPID(x))
+            }
             pid_converted::KERNEL_PID_ISR => MsgSender::ISR,
             _ => MsgSender::Invalid,
         }
@@ -42,8 +42,7 @@ pub enum MsgSendError {
     InvalidPID,
 }
 
-pub trait Msg
-{
+pub trait Msg {
     fn get_sender(&self) -> MsgSender;
     fn get_type(&self) -> u16;
     fn send(self, target: &KernelPID) -> Result<(), MsgSendError>;
@@ -53,14 +52,14 @@ pub trait Msg
 
 /// Helper trait to implement Msg for the various Msg value styles. This is not supposed to be
 /// public, but leaks due to the implementation.
-pub trait WrapsMsgT
-{
+pub trait WrapsMsgT {
     fn extract(self) -> msg_t;
     fn view(&self) -> &msg_t;
 }
 
 impl<T> Msg for T
-    where T: WrapsMsgT
+where
+    T: WrapsMsgT,
 {
     fn send(self, target: &KernelPID) -> Result<(), MsgSendError> {
         let mut m = self.extract();
@@ -99,14 +98,17 @@ impl<T> Msg for T
 /// Build a default (empty, theoretically uninitialized) msg_t. To be used only until MaybeUninit
 /// becomes usable.
 fn empty_msg() -> msg_t {
-    msg_t { sender_pid: 0, type_: 0, content: riot_sys::msg_t__bindgen_ty_1 {value: 0} }
+    msg_t {
+        sender_pid: 0,
+        type_: 0,
+        content: riot_sys::msg_t__bindgen_ty_1 { value: 0 },
+    }
 }
 
 /// An initialized message with inaccessible value.
 pub struct OpaqueMsg(msg_t);
 
-impl OpaqueMsg
-{
+impl OpaqueMsg {
     pub fn receive() -> OpaqueMsg {
         let mut m = empty_msg();
         let _ = unsafe { msg_receive(&mut m) };
@@ -114,41 +116,58 @@ impl OpaqueMsg
     }
 }
 
-impl ::core::fmt::Debug for OpaqueMsg
-{
+impl ::core::fmt::Debug for OpaqueMsg {
     fn fmt(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        write!(formatter, "OpaqueMsg {{ from {:?}, type 0x{:x} }}", self.get_sender(), self.get_type())
+        write!(
+            formatter,
+            "OpaqueMsg {{ from {:?}, type 0x{:x} }}",
+            self.get_sender(),
+            self.get_type()
+        )
     }
 }
 
 impl WrapsMsgT for OpaqueMsg {
-    fn extract(self) -> msg_t { self.0 }
-    fn view(&self) -> &msg_t { &self.0 }
+    fn extract(self) -> msg_t {
+        self.0
+    }
+    fn view(&self) -> &msg_t {
+        &self.0
+    }
 }
 
 /// An initialized message of a type that needs no access to a value
 pub struct EmptyMsg(msg_t);
 
-impl EmptyMsg
-{
+impl EmptyMsg {
     pub fn new(type_: u16) -> Self {
-        EmptyMsg(msg_t { type_, ..empty_msg() })
+        EmptyMsg(msg_t {
+            type_,
+            ..empty_msg()
+        })
     }
 }
 
 impl WrapsMsgT for EmptyMsg {
-    fn extract(self) -> msg_t { self.0 }
-    fn view(&self) -> &msg_t { &self.0 }
+    fn extract(self) -> msg_t {
+        self.0
+    }
+    fn view(&self) -> &msg_t {
+        &self.0
+    }
 }
 
 /// An initialized message of a type whose payload is numeric
 #[derive(Debug)]
 pub struct NumericMsg(msg_t);
 
-impl NumericMsg
-{
+impl NumericMsg {
     pub fn new(type_: u16, value: u32) -> Self {
-        NumericMsg(msg_t { type_, content: riot_sys::msg_t__bindgen_ty_1 { value: value }, ..empty_msg() })
+        NumericMsg(msg_t {
+            type_,
+            content: riot_sys::msg_t__bindgen_ty_1 { value: value },
+            ..empty_msg()
+        })
     }
 
     /// Interpret an opaque message as a numeric one. The caller needs to ensure that the message
@@ -164,13 +183,17 @@ impl NumericMsg
 }
 
 impl WrapsMsgT for NumericMsg {
-    fn extract(self) -> msg_t { self.0 }
-    fn view(&self) -> &msg_t { &self.0 }
+    fn extract(self) -> msg_t {
+        self.0
+    }
+    fn view(&self) -> &msg_t {
+        &self.0
+    }
 }
 
 pub struct ContainerMsg<T> {
     message: msg_t,
-    t: PhantomData<T>
+    t: PhantomData<T>,
 }
 
 // The tricky part will be creating a Container from an OpaqueMsg -- there we'll have to know for
@@ -179,14 +202,24 @@ pub struct ContainerMsg<T> {
 // T needs to be Send. If you want to pass around raw pointers as RIOT does in GNRC, wrap them like
 // Pktsnip.
 impl<T> ContainerMsg<T>
-    where T: Sized + Send
+where
+    T: Sized + Send,
 {
     pub fn new(type_: u16, value: T) -> Self {
-        use ::core::mem::size_of;
-        assert!(size_of::<T>() <= size_of::<*mut libc::c_void>(), "Type too large to send");
+        use core::mem::size_of;
+        assert!(
+            size_of::<T>() <= size_of::<*mut libc::c_void>(),
+            "Type too large to send"
+        );
         ContainerMsg {
-            message: msg_t { type_, content: riot_sys::msg_t__bindgen_ty_1 { ptr: unsafe { ::core::mem::transmute_copy(&value) } }, ..empty_msg() },
-            t: PhantomData
+            message: msg_t {
+                type_,
+                content: riot_sys::msg_t__bindgen_ty_1 {
+                    ptr: unsafe { ::core::mem::transmute_copy(&value) },
+                },
+                ..empty_msg()
+            },
+            t: PhantomData,
         }
     }
 
@@ -195,6 +228,9 @@ impl<T> ContainerMsg<T>
     }
 
     pub unsafe fn recognize(msg: OpaqueMsg) -> Self {
-        ContainerMsg { message: msg.extract(), t: PhantomData }
+        ContainerMsg {
+            message: msg.extract(),
+            t: PhantomData,
+        }
     }
 }

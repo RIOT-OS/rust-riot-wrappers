@@ -1,29 +1,25 @@
-use riot_sys::libc::{
-    CStr,
-    c_void,
-    c_uint,
-};
+use riot_sys::libc::{c_uint, c_void, CStr};
 use riot_sys::{
-    COAP_FORMAT_NONE,
-    COAP_GET,
     coap_get_blockopt,
     coap_hdr_t,
     coap_opt_add_uint,
-    COAP_OPT_BLOCK2,
-    COAP_OPT_CONTENT_FORMAT,
     coap_opt_finish,
-    COAP_OPT_FINISH_NONE,
-    COAP_OPT_FINISH_PAYLOAD,
-    COAP_OPT_OBSERVE,
     coap_pkt_t,
     coap_resource_t,
-    COAP_TYPE_ACK,
-    COAP_TYPE_CON,
     gcoap_finish,
     gcoap_listener_t,
     gcoap_register_listener,
     gcoap_resp_init,
     memmove,
+    COAP_FORMAT_NONE,
+    COAP_GET,
+    COAP_OPT_BLOCK2,
+    COAP_OPT_CONTENT_FORMAT,
+    COAP_OPT_FINISH_NONE,
+    COAP_OPT_FINISH_PAYLOAD,
+    COAP_OPT_OBSERVE,
+    COAP_TYPE_ACK,
+    COAP_TYPE_CON,
 };
 const COAP_OPT_ETAG: u16 = 4;
 const COAP_OPT_SIZE2: u16 = 28;
@@ -104,13 +100,13 @@ impl<'a> ::core::fmt::Write for BlockWriter<'a> {
             s_to_copy = &s[..copy_bytes]
         }
 
-        self.data[self.cursor as usize..self.cursor as usize + s_to_copy.len()].copy_from_slice(s_to_copy);
+        self.data[self.cursor as usize..self.cursor as usize + s_to_copy.len()]
+            .copy_from_slice(s_to_copy);
 
         self.cursor += s.len() as isize;
         Ok(())
     }
 }
-
 
 /// A representation of the incoming or outgoing data on the server side of a request. This
 /// includes the coap_pkt_t pre-parsed header and option pointers as well as the memory area
@@ -122,13 +118,23 @@ pub struct PacketBuffer {
 }
 
 impl PacketBuffer {
-    pub fn response(&mut self, code: u32, format: u32, data_generator: impl FnOnce(&mut PayloadWriter)) -> isize {
+    pub fn response(
+        &mut self,
+        code: u32,
+        format: u32,
+        data_generator: impl FnOnce(&mut PayloadWriter),
+    ) -> isize {
         let init_success = unsafe { gcoap_resp_init(self.pkt, self.buf, self.len, code) };
         if init_success != 0 {
             return -1;
         }
-        let buf = unsafe { ::core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize) };
-        let mut writer = PayloadWriter { data: buf, cursor: 0 };
+        let buf = unsafe {
+            ::core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize)
+        };
+        let mut writer = PayloadWriter {
+            data: buf,
+            cursor: 0,
+        };
         data_generator(&mut writer);
         unsafe { gcoap_finish(self.pkt, writer.cursor, format) }
     }
@@ -137,12 +143,20 @@ impl PacketBuffer {
     /// a 64byte block (given the typical 128byte limit of gcoap) based on the requested block. An
     /// ETag is calculated from a checksum of the whole message, which is rendered again and again
     /// for each block.
-    pub fn response_blockwise(&mut self, code: u32, format: u32, data_generator: impl FnOnce(&mut BlockWriter)) -> isize {
+    pub fn response_blockwise(
+        &mut self,
+        code: u32,
+        format: u32,
+        data_generator: impl FnOnce(&mut BlockWriter),
+    ) -> isize {
         let mut blknum: u32 = 0;
         let mut szx: c_uint = 6;
-        match unsafe { coap_get_blockopt(self.pkt, COAP_OPT_BLOCK2 as u16, &mut blknum, &mut szx) } {
-            -1 => { szx = 6; },
-            _ => () // ignore more flag
+        match unsafe { coap_get_blockopt(self.pkt, COAP_OPT_BLOCK2 as u16, &mut blknum, &mut szx) }
+        {
+            -1 => {
+                szx = 6;
+            }
+            _ => (), // ignore more flag
         }
 
         // The rest of this code assumes we ran gcoap_resp_init, but it'd only give us 8 bytes of
@@ -160,11 +174,13 @@ impl PacketBuffer {
             hdr.code = code as u8;
 
             let headroom = coap_get_total_hdr_len(&*self.pkt) + 25 /* used to be 8 */;
-            (*self.pkt).payload      = self.buf.offset(headroom as isize);
-            (*self.pkt).payload_len  = self.len as u16 - headroom as u16;
+            (*self.pkt).payload = self.buf.offset(headroom as isize);
+            (*self.pkt).payload_len = self.len as u16 - headroom as u16;
         }
 
-        let buf = unsafe { ::core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize) };
+        let buf = unsafe {
+            ::core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize)
+        };
 
         // Decrease block size until we'll fit into what has been pre-allocated
         let mut blksize: usize;
@@ -174,15 +190,23 @@ impl PacketBuffer {
                 break;
             }
             blknum *= 2;
-            szx = szx.checked_sub(1).expect("Buffer too small for smalles block size");
+            szx = szx
+                .checked_sub(1)
+                .expect("Buffer too small for smalles block size");
         }
 
-        let mut writer = BlockWriter { data: &mut buf[..blksize], cursor: -(blksize as isize * blknum as isize), etag: crc64::Digest::new(crc64::ECMA) };
+        let mut writer = BlockWriter {
+            data: &mut buf[..blksize],
+            cursor: -(blksize as isize * blknum as isize),
+            etag: crc64::Digest::new(crc64::ECMA),
+        };
         data_generator(&mut writer);
 
         let bytes_to_send = match writer.bytes_in_buffer() {
-            None => { unimplemented!("Respond with error"); }
-            Some(x) => x
+            None => {
+                unimplemented!("Respond with error");
+            }
+            Some(x) => x,
         };
         let total_remaining_bytes = writer.cursor;
         let more = writer.did_overflow();
@@ -217,7 +241,13 @@ impl PacketBuffer {
         if blknum == 0 {
             // As we're in Block 0, the cursor gives the full length already and does not need the
             // block offset added.
-            unsafe { coap_opt_add_uint(self.pkt, COAP_OPT_SIZE2 as u16, total_remaining_bytes as u32) };
+            unsafe {
+                coap_opt_add_uint(
+                    self.pkt,
+                    COAP_OPT_SIZE2 as u16,
+                    total_remaining_bytes as u32,
+                )
+            };
         }
 
         // Not calling gcvoap_finish as that'd overwrite all options we just set.
@@ -227,14 +257,25 @@ impl PacketBuffer {
         // set observe, set content format: moved to top
 
         // Like the other coap_opt functions, this contains assertions that it does not overflow.
-        unsafe { coap_opt_finish(self.pkt, if bytes_to_send != 0 {
-            COAP_OPT_FINISH_PAYLOAD as u16
-        } else {
-            COAP_OPT_FINISH_NONE as u16
-        } ) };
+        unsafe {
+            coap_opt_finish(
+                self.pkt,
+                if bytes_to_send != 0 {
+                    COAP_OPT_FINISH_PAYLOAD as u16
+                } else {
+                    COAP_OPT_FINISH_NONE as u16
+                },
+            )
+        };
 
         // They might easily alias.
-        unsafe { memmove((*self.pkt).payload as *mut _, bytes_to_send_start as *mut _, bytes_to_send) };
+        unsafe {
+            memmove(
+                (*self.pkt).payload as *mut _,
+                bytes_to_send_start as *mut _,
+                bytes_to_send,
+            )
+        };
 
         // FIXME this is bad pointer arithmetic
         (unsafe { (*self.pkt).payload } as usize + bytes_to_send - self.buf as usize) as isize
@@ -266,22 +307,23 @@ pub struct Resource<'a, R> {
     _path: &'a CStr,
     resources: [coap_resource_t; 1],
     listener: gcoap_listener_t,
-    registered: bool, // 
+    registered: bool, //
 }
 
 impl<'a, R> Resource<'a, R>
-    // R must be Send because it'll be executed in the gcoap thread
-    where R: Send + FnMut(&mut PacketBuffer) -> isize
+// R must be Send because it'll be executed in the gcoap thread
+where
+    R: Send + FnMut(&mut PacketBuffer) -> isize,
 {
     pub fn new(path: &'a CStr, methods: u32, callback: R) -> Self {
         Resource {
             callback,
             _path: path,
-            resources: [ coap_resource_t {
+            resources: [coap_resource_t {
                 path: path.as_ptr(),
                 methods: methods,
                 handler: None,
-                context: 0 as *mut _
+                context: 0 as *mut _,
             }],
             listener: gcoap_listener_t {
                 resources: 0 as *const _,
@@ -292,7 +334,12 @@ impl<'a, R> Resource<'a, R>
         }
     }
 
-    unsafe extern "C" fn call_handler(pkt: *mut coap_pkt_t, buf: *mut u8, len: usize, context: *mut c_void) -> isize {
+    unsafe extern "C" fn call_handler(
+        pkt: *mut coap_pkt_t,
+        buf: *mut u8,
+        len: usize,
+        context: *mut c_void,
+    ) -> isize {
         let s = context as *mut Resource<'a, R>;
         let s = &mut *s;
         let cb = &mut s.callback;

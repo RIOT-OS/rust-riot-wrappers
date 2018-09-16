@@ -1,7 +1,7 @@
 extern crate bindgen;
 
 use bindgen::builder;
-use bindgen::callbacks::{ParseCallbacks, IntKind};
+use bindgen::callbacks::{IntKind, ParseCallbacks};
 use std::env;
 
 #[derive(Debug)]
@@ -25,7 +25,6 @@ impl ParseCallbacks for ReportRiotDefinesAsCfg {
 }
 
 fn main() {
-
     let sourcefile = env::var("RIOT_EXPANDED_HEADER")
         .expect("Please set RIOT_EXPANDED_HEADER, see README of the riot-sys crate for details.");
 

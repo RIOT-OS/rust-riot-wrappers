@@ -8,10 +8,8 @@ pub struct I2CDevice {
     dev: i2c_t,
 }
 
-impl I2CDevice
-{
-    pub fn new(dev: i2c_t) -> Self
-    {
+impl I2CDevice {
+    pub fn new(dev: i2c_t) -> Self {
         I2CDevice { dev }
     }
 }
@@ -28,25 +26,44 @@ pub enum Error {
 #[cfg(riot_module_periph_i2c)]
 mod regular {
     use super::*;
-    use riot_sys::{i2c_acquire, i2c_release, i2c_read_bytes, i2c_write_bytes};
     use riot_sys::libc;
+    use riot_sys::{i2c_acquire, i2c_read_bytes, i2c_release, i2c_write_bytes};
 
-    impl blocking::i2c::WriteRead for I2CDevice
-    {
+    impl blocking::i2c::WriteRead for I2CDevice {
         type Error = Error;
 
-        fn write_read(&mut self, address: u8, bytes: &[u8], buffer: &mut [u8]) -> Result<(), Self::Error>
-        {
+        fn write_read(
+            &mut self,
+            address: u8,
+            bytes: &[u8],
+            buffer: &mut [u8],
+        ) -> Result<(), Self::Error> {
             let err = unsafe { i2c_acquire(self.dev) };
             if err != 0 {
                 return Err(Error::AcquireError);
             }
-            let err = unsafe { i2c_write_bytes(self.dev, address as u16, bytes.as_ptr() as *const libc::c_void, bytes.len(), 0) };
+            let err = unsafe {
+                i2c_write_bytes(
+                    self.dev,
+                    address as u16,
+                    bytes.as_ptr() as *const libc::c_void,
+                    bytes.len(),
+                    0,
+                )
+            };
             if err != 0 {
                 unsafe { i2c_release(self.dev) };
                 return Err(Error::WriteError(err));
             }
-            let err = unsafe { i2c_read_bytes(self.dev, address as u16, buffer.as_ptr() as *mut libc::c_void, buffer.len(), 0) };
+            let err = unsafe {
+                i2c_read_bytes(
+                    self.dev,
+                    address as u16,
+                    buffer.as_ptr() as *mut libc::c_void,
+                    buffer.len(),
+                    0,
+                )
+            };
             if err != 0 {
                 unsafe { i2c_release(self.dev) };
                 return Err(Error::ReadError(err));
@@ -62,12 +79,15 @@ mod regular {
 mod not_actually_i2c {
     use super::*;
 
-    impl blocking::i2c::WriteRead for I2CDevice
-    {
+    impl blocking::i2c::WriteRead for I2CDevice {
         type Error = Error;
 
-        fn write_read(&mut self, _address: u8, _bytes: &[u8], _buffer: &mut [u8]) -> Result<(), Self::Error>
-        {
+        fn write_read(
+            &mut self,
+            _address: u8,
+            _bytes: &[u8],
+            _buffer: &mut [u8],
+        ) -> Result<(), Self::Error> {
             Err(Error::DeviceNotFound)
         }
     }

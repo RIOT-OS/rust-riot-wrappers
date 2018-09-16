@@ -2,8 +2,8 @@
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     use thread;
 
-    use stdio;
     use core::fmt::Write;
+    use stdio;
 
     // I *guess* it's OK for a panic to simply make a thread into a zombie -- this does allow other
     // threads (including spawned Rust threads) to continue, but my layman's understanding of
@@ -11,7 +11,12 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     // by someone else ever again.
     let mut stdout = stdio::Stdio {};
     let me = thread::get_pid();
-    writeln!(stdout, "Error in thread {:?} ({}):", me, me.get_name().unwrap_or("unnamed"));
+    writeln!(
+        stdout,
+        "Error in thread {:?} ({}):",
+        me,
+        me.get_name().unwrap_or("unnamed")
+    );
     writeln!(stdout, "{}", info);
 
     // Not trying any unwinding -- this thread is just dead, won't be re-claimed, any mutexes it
@@ -22,5 +27,7 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
 }
 
 // This is only needed to build the i686 version
-#[lang="eh_personality"]
-fn rust_eh_personality() {loop {}}
+#[lang = "eh_personality"]
+fn rust_eh_personality() {
+    loop {}
+}

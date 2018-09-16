@@ -8,7 +8,7 @@ use core::intrinsics::transmute;
 // pub const THREAD_AUTO_FREE: i32 = 2;
 // pub const THREAD_CREATE_WOUT_YIELD: i32 = 4;
 // pub const THREAD_CREATE_STACKTEST: i32 = 8;
-// 
+//
 // // wrongly detected as u32, it's actually used as a u8
 // pub const THREAD_PRIORITY_MIN: i8 = 15;
 // pub const THREAD_PRIORITY_IDLE: i8 = 15;
@@ -77,31 +77,29 @@ impl Status {
 
     fn from_int(status: i32) -> Self {
         match status {
-             status_converted::STATUS_NOT_FOUND => Status::NotFound,
-             status_converted::STATUS_STOPPED => Status::Stopped,
-             status_converted::STATUS_SLEEPING => Status::Sleeping,
-             status_converted::STATUS_MUTEX_BLOCKED => Status::MutexBlocked,
-             status_converted::STATUS_RECEIVE_BLOCKED => Status::ReceiveBlocked,
-             status_converted::STATUS_SEND_BLOCKED => Status::SendBlocked,
-             status_converted::STATUS_REPLY_BLOCKED => Status::ReplyBlocked,
-             status_converted::STATUS_FLAG_BLOCKED_ANY => Status::FlagBlockedAny,
-             status_converted::STATUS_FLAG_BLOCKED_ALL => Status::FlagBlockedAll,
-             status_converted::STATUS_MBOX_BLOCKED => Status::MboxBlocked,
-             status_converted::STATUS_RUNNING => Status::Running,
-             status_converted::STATUS_PENDING => Status::Pending,
-             _ => Status::Other,
+            status_converted::STATUS_NOT_FOUND => Status::NotFound,
+            status_converted::STATUS_STOPPED => Status::Stopped,
+            status_converted::STATUS_SLEEPING => Status::Sleeping,
+            status_converted::STATUS_MUTEX_BLOCKED => Status::MutexBlocked,
+            status_converted::STATUS_RECEIVE_BLOCKED => Status::ReceiveBlocked,
+            status_converted::STATUS_SEND_BLOCKED => Status::SendBlocked,
+            status_converted::STATUS_REPLY_BLOCKED => Status::ReplyBlocked,
+            status_converted::STATUS_FLAG_BLOCKED_ANY => Status::FlagBlockedAny,
+            status_converted::STATUS_FLAG_BLOCKED_ALL => Status::FlagBlockedAll,
+            status_converted::STATUS_MBOX_BLOCKED => Status::MboxBlocked,
+            status_converted::STATUS_RUNNING => Status::Running,
+            status_converted::STATUS_PENDING => Status::Pending,
+            _ => Status::Other,
         }
     }
 }
 
-impl KernelPID
-{
+impl KernelPID {
     pub fn all_pids() -> impl Iterator<Item = KernelPID> {
         (raw::KERNEL_PID_FIRST as i16..raw::KERNEL_PID_LAST as i16).map(|i| KernelPID(i))
     }
 
-    pub fn get_name(&self) -> Option<&str>
-    {
+    pub fn get_name(&self) -> Option<&str> {
         let ptr = unsafe { raw::thread_getname(self.0) };
         if ptr == 0 as *const libc::c_char {
             return None;
@@ -114,31 +112,27 @@ impl KernelPID
         Some(name)
     }
 
-    pub fn get_status(&self) -> Status
-    {
+    pub fn get_status(&self) -> Status {
         let status = unsafe { raw::thread_getstatus(self.0) };
         Status::from_int(status)
     }
 
-    pub fn wakeup(&self) -> Result<(), ()>
-    {
+    pub fn wakeup(&self) -> Result<(), ()> {
         let success = unsafe { raw::thread_wakeup(self.0) };
         match success {
             1 => Ok(()),
             // Actuall STATUS_NOT_FOUND, but all the others are then all error cases.
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
 
-pub fn get_pid() -> KernelPID
-{
+pub fn get_pid() -> KernelPID {
     // implementing the static thread_getpid function:
     KernelPID(unsafe { ::core::ptr::read_volatile(&raw::sched_active_pid) })
 }
 
-pub fn sleep()
-{
+pub fn sleep() {
     unsafe { raw::thread_sleep() }
 }
 
@@ -149,15 +143,15 @@ pub struct Thread<'a, R> {
 }
 
 impl<'a, R> Thread<'a, R>
-    where R: Send + FnMut(),
+where
+    R: Send + FnMut(),
 {
-    pub fn prepare(
-            stack: &'a mut [u8],
-            closure: R,
-            name: &'a libc::CStr,
-        ) -> Self
-    {
-        Thread { stack, name, closure }
+    pub fn prepare(stack: &'a mut [u8], closure: R, name: &'a libc::CStr) -> Self {
+        Thread {
+            stack,
+            name,
+            closure,
+        }
     }
 
     // As with saul::ContainedRegistration start, we can't do this in the original constructor as
@@ -165,19 +159,18 @@ impl<'a, R> Thread<'a, R>
     // move around between the invocation of start (where the pointer to self or self.closure is
     // passed out to the OS thread) and the start of the thread, which for low-priorized or
     // WOUT_YIELD threads can be a later time.
-    pub fn start(
-        &mut self,
-        priority: i8,
-        flags: i32,
-    ) -> KernelPID {
-        let pid = unsafe { raw::thread_create(
-            transmute(self.stack.as_mut_ptr()), self.stack.len() as i32,
-            priority,
-            flags,
-            Some(Self::run),
-            transmute(&mut self.closure),
-            self.name.as_ptr(),
-            ) };
+    pub fn start(&mut self, priority: i8, flags: i32) -> KernelPID {
+        let pid = unsafe {
+            raw::thread_create(
+                transmute(self.stack.as_mut_ptr()),
+                self.stack.len() as i32,
+                priority,
+                flags,
+                Some(Self::run),
+                transmute(&mut self.closure),
+                self.name.as_ptr(),
+            )
+        };
         KernelPID(pid)
     }
 

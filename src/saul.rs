@@ -16,8 +16,7 @@ struct ContainedRegistration<R> {
     registered: bool,
 }
 
-unsafe extern "C" fn no_writes(_dev: *const libc::c_void, _res: *mut raw::phydat_t) -> i32
-{
+unsafe extern "C" fn no_writes(_dev: *const libc::c_void, _res: *mut raw::phydat_t) -> i32 {
     -(raw::ENODEV as i32)
 }
 
@@ -26,7 +25,8 @@ pub trait SimpleSensor {
 }
 
 pub fn create_simple_sensor<R>(name: &libc::CStr, type_: u8, read: R) -> impl SimpleSensor
-    where R: FnMut(&mut raw::phydat_t) -> i32
+where
+    R: FnMut(&mut raw::phydat_t) -> i32,
 {
     ContainedRegistration {
         driver: raw::saul_driver_t {
@@ -46,7 +46,8 @@ pub fn create_simple_sensor<R>(name: &libc::CStr, type_: u8, read: R) -> impl Si
 }
 
 impl<R> ContainedRegistration<R>
-    where R: FnMut(&mut raw::phydat_t) -> i32
+where
+    R: FnMut(&mut raw::phydat_t) -> i32,
 {
     // This could do much more in terms of hiding the internals, but phydat_t is sufficiently easy
     // to use right now.
@@ -59,13 +60,13 @@ impl<R> ContainedRegistration<R>
 }
 
 impl<R> SimpleSensor for ContainedRegistration<R>
-    where R: FnMut(&mut raw::phydat_t) -> i32
+where
+    R: FnMut(&mut raw::phydat_t) -> i32,
 {
     /// Do everything that could not be done in the constructor but needs the result to stay pinned
     /// -- even if it isn't officially expressed through any Pin marker, this hopefully doesn't
     /// move any more.
-    fn start(&mut self) -> Result<(), ()>
-    {
+    fn start(&mut self) -> Result<(), ()> {
         self.registration.driver = &self.driver;
         self.registration.dev = self as *mut Self as *mut libc::c_void;
         self.driver.read = Some(ContainedRegistration::<R>::run_read);
@@ -75,8 +76,8 @@ impl<R> SimpleSensor for ContainedRegistration<R>
             0 => {
                 self.registered = true;
                 Ok(())
-            },
-            _ => Err(())
+            }
+            _ => Err(()),
         }
     }
 }
