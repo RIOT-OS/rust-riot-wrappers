@@ -313,10 +313,12 @@ impl<'a, R> Resource<'a, R>
     }
 }
 
+/// Resources can not be dropped, for they can not be unregistered from gcoap (there is no
+/// gcoap_unregister_listener function).
 impl<'a, R> Drop for Resource<'a, R> {
     fn drop(&mut self) {
         if self.registered {
-            panic!("Regsitered resources mus tnever be dropped, there is no gcoap_unregister_listener.")
+            panic!("Registered resources must never be dropped")
         }
     }
 }
