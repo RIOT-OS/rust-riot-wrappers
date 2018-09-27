@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(try_from)]
+#![feature(never_type)]
 #![feature(ptr_offset_from)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
 
@@ -24,3 +25,5 @@ pub mod msg;
 
 #[cfg(feature = "set_panic_handler")]
 mod panic;
+
+pub mod main;
