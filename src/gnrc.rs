@@ -3,6 +3,7 @@ use riot_sys::{
     gnrc_netif_iter,
     gnrc_netif_t,
     gnrc_nettype_t,
+    gnrc_pktbuf_add,
     gnrc_pktbuf_hold,
     gnrc_pktbuf_release_error,
     gnrc_pktsnip_t,
@@ -174,35 +175,49 @@ impl<'a> Iterator for SnipIter<'a> {
     }
 }
 
+/// Base trait for Pktsnip modes (Shared and Writable)
+pub trait Mode {}
+
+/// Marker type indicating a Pktsnip is not writable (the default in GNRC)
+pub struct Shared();
+impl Mode for Shared {}
+/// Marker type indicating that a Pktsnip is writable by the reference owner
+pub struct Writable();
+impl Mode for Writable {}
+
 /// Wrapper type around gnrc_pktsnip_t that takes care of the reference counting involved.
-pub struct Pktsnip(*mut gnrc_pktsnip_t);
+pub struct Pktsnip<M: Mode> {
+    ptr: *mut gnrc_pktsnip_t,
+    _phantom: PhantomData<M>,
+}
 
 /// Pktsnip can be send because any volatile fields are accessed through the appropriate functions
 /// (hold, release), and the non-volatile fields are only written to by threads that made sure they
 /// obtained a COW copy using start_write.
-unsafe impl Send for Pktsnip {}
+unsafe impl Send for Pktsnip<Shared> {}
 
-impl From<*mut gnrc_pktsnip_t> for Pktsnip {
+impl<M: Mode> From<*mut gnrc_pktsnip_t> for Pktsnip<M> {
     /// Accept this pointer as the refcounting wrapper's responsibility
+    // FIXME should this be unsafe?
     fn from(input: *mut gnrc_pktsnip_t) -> Self {
-        Pktsnip(input)
+        Pktsnip { ptr: input, _phantom: PhantomData }
     }
 }
 
-impl Clone for Pktsnip {
-    fn clone(&self) -> Pktsnip {
-        unsafe { gnrc_pktbuf_hold(self.0, 1) };
-        Pktsnip(self.0)
+impl Clone for Pktsnip<Shared> {
+    fn clone(&self) -> Pktsnip<Shared> {
+        unsafe { gnrc_pktbuf_hold(self.ptr, 1) };
+        Pktsnip { ..*self }
     }
 }
 
-impl Drop for Pktsnip {
+impl<M: Mode> Drop for Pktsnip<M> {
     fn drop(&mut self) {
-        unsafe { gnrc_pktbuf_release_error(self.0, GNRC_NETERR_SUCCESS) }
+        unsafe { gnrc_pktbuf_release_error(self.ptr, GNRC_NETERR_SUCCESS) }
     }
 }
 
-impl Pktsnip {
+impl<M: Mode> Pktsnip<M> {
     pub fn len(&self) -> usize {
         // Implementing the static function gnrc_pkt_len
         self.iter_snips().map(|s| s.data.len()).sum()
@@ -213,12 +228,13 @@ impl Pktsnip {
         self.iter_snips().count()
     }
 
+    // Wrapper around gnrc_ipv6_get_header
     pub fn get_ipv6_hdr(&self) -> Option<&ipv6_hdr_t> {
-        let hdr = unsafe { gnrc_ipv6_get_header(self.0) };
+        let hdr = unsafe { gnrc_ipv6_get_header(self.ptr) };
         if hdr == 0 as *mut _ {
             None
         } else {
-            // It's OK to hand out a reference: self.0 is immutable in its data areas, and hdr
+            // It's OK to hand out a reference: self.ptr is immutable in its data areas, and hdr
             // should point somewhere in there
             Some(unsafe { &*hdr })
         }
@@ -226,13 +242,52 @@ impl Pktsnip {
 
     pub fn iter_snips(&self) -> SnipIter {
         SnipIter {
-            pointer: self.0,
+            pointer: self.ptr,
             datalifetime: PhantomData,
         }
     }
+
+    // This is like a wrapper around gnrc_pktsnip_search_type, but gien how simple that function
+    // is, wrapping it to correct lifetimes would be more verbose than just re-implementing it.
+    pub fn search_type(&self, type_: gnrc_nettype_t) -> Option<PktsnipPart> {
+        self.iter_snips().filter(|x| x.type_ == type_).next()
+    }
+
+    /// Return the data of only the first snip of self.
+    pub fn get_data(&self) -> &[u8] {
+        self.iter_snips().next().unwrap().data
+    }
+
+    /// Relinquish the safe Pktsnip into a pointer. The caller is responsible for calling
+    /// gnrc_pktbuf_release on the result, or passing it on to someone who will.
+    pub unsafe fn to_ptr(self) -> *mut gnrc_pktsnip_t {
+        let ptr = self.ptr;
+        ::core::mem::forget(self);
+        ptr
+    }
 }
 
-impl ::core::fmt::Debug for Pktsnip {
+impl<'a> Pktsnip<Writable> {
+    /// Allocate an uninitialized pktsnip. That its data is uninitialized is currently not
+    /// expressed in Rust as the author thinks it's harmless (any u8 is a valid u8, and the
+    /// compiler can't know that we're receiving uninitialized memory here so it can't take any
+    /// shortcuts if someone ever read from it).
+    pub fn allocate(next: Option<Pktsnip<Shared>>, size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
+        let next = next.map(|s| unsafe { s.to_ptr() }).unwrap_or(0 as *mut _);
+        let snip = unsafe { gnrc_pktbuf_add(next, 0 as *const _, size, nettype) };
+        if snip == 0 as *mut _ {
+            return None;
+        }
+        // I *think* it's safe to not call gnrc_start_write as it's obviously my packet
+        Some(snip.into())
+    }
+
+    pub fn get_data_mut(&'a mut self) -> &'a mut [u8] {
+        unsafe { ::core::slice::from_raw_parts_mut(::core::mem::transmute((*self.ptr).data), (*self.ptr).size) }
+    }
+}
+
+impl<M: Mode> ::core::fmt::Debug for Pktsnip<M> {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(
             f,
