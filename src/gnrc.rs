@@ -9,6 +9,7 @@ use riot_sys::{
     gnrc_pktsnip_t,
     gnrc_ipv6_hdr_build,
     gnrc_udp_hdr_build,
+    gnrc_netif_hdr_build,
     ipv6_addr_from_str,
     ipv6_addr_t,
     ipv6_hdr_t,
@@ -268,7 +269,7 @@ impl<M: Mode> Pktsnip<M> {
         ptr
     }
 
-    pub fn udp_hdr_build(self, src: u16, dst: u16) -> Option<Pktsnip<Shared>> {
+    pub fn udp_hdr_build(self, src: u16, dst: u16) -> Option<Pktsnip<Writable>> {
         let snip = unsafe { gnrc_udp_hdr_build(self.to_ptr(), src, dst) };
         if snip == 0 as *mut _ {
             None
@@ -277,7 +278,7 @@ impl<M: Mode> Pktsnip<M> {
         }
     }
 
-    pub fn ipv6_hdr_build(self, src: Option<&IPv6Addr>, dst: Option<&IPv6Addr>) -> Option<Pktsnip<Shared>> {
+    pub fn ipv6_hdr_build(self, src: Option<&IPv6Addr>, dst: Option<&IPv6Addr>) -> Option<Pktsnip<Writable>> {
         let src = src.map(|s| unsafe { s.as_ptr() }).unwrap_or(0 as *mut _);
         let dst = dst.map(|d| unsafe { d.as_ptr() }).unwrap_or(0 as *mut _);
         let snip = unsafe { gnrc_ipv6_hdr_build(self.to_ptr(), src, dst) };
@@ -287,6 +288,27 @@ impl<M: Mode> Pktsnip<M> {
             Some(snip.into())
         }
     }
+
+    // Coercing gnrc_netif_hdr_build into the same interface as udp_ and ipv6_ until I find out why
+    // it's different.
+    pub fn netif_hdr_build(self, src: Option<&[u8]>, dst: Option<&[u8]>) -> Option<Pktsnip<Writable>> {
+        let (src, src_len) = src.map(|s| (s.as_ptr(), s.len()) ).unwrap_or((0 as *const _, 0));
+        let (dst, dst_len) = dst.map(|d| (d.as_ptr(), d.len()) ).unwrap_or((0 as *const _, 0));
+        // "as *mut": I'm assuming the C signature is just missing its const
+        let snip = unsafe { gnrc_netif_hdr_build(src as *mut _, src_len as u8, dst as *mut _, dst_len as u8) };
+        if snip == 0 as *mut _ {
+            None
+        } else {
+            unsafe { (*snip).next = self.to_ptr() };
+            Some(snip.into())
+        }
+    }
+
+    /// Allocate and prepend an uninitialized snip of given size and type to self, returning a new
+    /// (writable) snip.
+    pub fn add(self, size: usize, nettype: gnrc_nettype_t) -> Option<Pktsnip<Writable>> {
+        Pktsnip::<Writable>::_add(Some(self), size, nettype)
+    }
 }
 
 impl<'a> Pktsnip<Writable> {
@@ -294,7 +316,14 @@ impl<'a> Pktsnip<Writable> {
     /// expressed in Rust as the author thinks it's harmless (any u8 is a valid u8, and the
     /// compiler can't know that we're receiving uninitialized memory here so it can't take any
     /// shortcuts if someone ever read from it).
-    pub fn allocate(next: Option<Pktsnip<Shared>>, size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
+    pub fn allocate(size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
+        let next: Option<Self> = None;
+        Self::_add(next, size, nettype)
+    }
+
+    /// Actual wrapper around gnrc_pktbuf_add. Split into two API functions because .add() makes
+    /// sense as a method, and with None as next it's more of a constructor function.
+    fn _add(next: Option<Pktsnip<impl Mode>>, size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
         let next = next.map(|s| unsafe { s.to_ptr() }).unwrap_or(0 as *mut _);
         let snip = unsafe { gnrc_pktbuf_add(next, 0 as *const _, size, nettype) };
         if snip == 0 as *mut _ {
