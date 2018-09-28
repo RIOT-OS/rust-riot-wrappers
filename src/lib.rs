@@ -26,4 +26,9 @@ pub mod msg;
 #[cfg(feature = "set_panic_handler")]
 mod panic;
 
+#[cfg(feature = "with_jnet")]
+extern crate jnet;
+#[cfg(feature = "with_jnet")]
+mod jnet_implementations;
+
 pub mod main;

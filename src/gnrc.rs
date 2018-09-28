@@ -5,6 +5,7 @@ use riot_sys::{
     gnrc_nettype_t,
     gnrc_pktbuf_add,
     gnrc_pktbuf_hold,
+    gnrc_pktbuf_realloc_data,
     gnrc_pktbuf_release_error,
     gnrc_pktsnip_t,
     gnrc_ipv6_hdr_build,
@@ -335,6 +336,17 @@ impl<'a> Pktsnip<Writable> {
 
     pub fn get_data_mut(&'a mut self) -> &'a mut [u8] {
         unsafe { ::core::slice::from_raw_parts_mut(::core::mem::transmute((*self.ptr).data), (*self.ptr).size) }
+    }
+
+    pub fn realloc_data(&mut self, size: usize) -> Result<(), ()> {
+        let result = unsafe { gnrc_pktbuf_realloc_data(self.ptr, size) };
+        if result == 0 {
+            Ok(())
+        } else {
+            // Actually only on ENOMEM
+            Err(())
+        }
+
     }
 }
 

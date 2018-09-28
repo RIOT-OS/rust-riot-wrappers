@@ -7,11 +7,13 @@ authors = ["chrysn <chrysn@fsfe.org>"]
 embedded-hal = "0.2.0"
 riot-sys = { path = "../riot-sys" }
 crc = { version = "^1", default-features = false }
+jnet = { git = "https://github.com/chrysn-pull-requests/jnet", branch="optional-payload-marker", optional = true } # see https://github.com/japaric/jnet/pull/3
 
 [build-dependencies]
 # bindgen = "0.40.0" # 0.40 does not have support for the str_macro callback
 bindgen = { git = "https://github.com/chrysn-pull-requests/rust-bindgen", branch="str_macro" }
 
 [features]
-default = ["set_panic_handler"]
+default = ["set_panic_handler", "with_jnet"]
 set_panic_handler = []
+with_jnet = ["jnet"]
