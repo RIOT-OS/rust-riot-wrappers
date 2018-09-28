@@ -7,6 +7,8 @@ use riot_sys::{
     gnrc_pktbuf_hold,
     gnrc_pktbuf_release_error,
     gnrc_pktsnip_t,
+    gnrc_ipv6_hdr_build,
+    gnrc_udp_hdr_build,
     ipv6_addr_from_str,
     ipv6_addr_t,
     ipv6_hdr_t,
@@ -264,6 +266,26 @@ impl<M: Mode> Pktsnip<M> {
         let ptr = self.ptr;
         ::core::mem::forget(self);
         ptr
+    }
+
+    pub fn udp_hdr_build(self, src: u16, dst: u16) -> Option<Pktsnip<Shared>> {
+        let snip = unsafe { gnrc_udp_hdr_build(self.to_ptr(), src, dst) };
+        if snip == 0 as *mut _ {
+            None
+        } else {
+            Some(snip.into())
+        }
+    }
+
+    pub fn ipv6_hdr_build(self, src: Option<&IPv6Addr>, dst: Option<&IPv6Addr>) -> Option<Pktsnip<Shared>> {
+        let src = src.map(|s| unsafe { s.as_ptr() }).unwrap_or(0 as *mut _);
+        let dst = dst.map(|d| unsafe { d.as_ptr() }).unwrap_or(0 as *mut _);
+        let snip = unsafe { gnrc_ipv6_hdr_build(self.to_ptr(), src, dst) };
+        if snip == 0 as *mut _ {
+            None
+        } else {
+            Some(snip.into())
+        }
     }
 }
 
