@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 use core::iter::Iterator;
+use core::mem::forget;
 
 use riot_sys::{
     gnrc_ipv6_get_header,
@@ -133,15 +134,16 @@ impl<M: Mode> Pktsnip<M> {
     /// gnrc_pktbuf_release on the result, or passing it on to someone who will.
     pub unsafe fn to_ptr(self) -> *mut gnrc_pktsnip_t {
         let ptr = self.ptr;
-        ::core::mem::forget(self);
+        forget(self);
         ptr
     }
 
     pub fn udp_hdr_build(self, src: u16, dst: u16) -> Option<Pktsnip<Writable>> {
-        let snip = unsafe { gnrc_udp_hdr_build(self.to_ptr(), src, dst) };
+        let snip = unsafe { gnrc_udp_hdr_build(self.ptr, src, dst) };
         if snip == 0 as *mut _ {
             None
         } else {
+            forget(self);
             Some(snip.into())
         }
     }
@@ -149,10 +151,11 @@ impl<M: Mode> Pktsnip<M> {
     pub fn ipv6_hdr_build(self, src: Option<&IPv6Addr>, dst: Option<&IPv6Addr>) -> Option<Pktsnip<Writable>> {
         let src = src.map(|s| unsafe { s.as_ptr() }).unwrap_or(0 as *mut _);
         let dst = dst.map(|d| unsafe { d.as_ptr() }).unwrap_or(0 as *mut _);
-        let snip = unsafe { gnrc_ipv6_hdr_build(self.to_ptr(), src, dst) };
+        let snip = unsafe { gnrc_ipv6_hdr_build(self.ptr, src, dst) };
         if snip == 0 as *mut _ {
             None
         } else {
+            forget(self);
             Some(snip.into())
         }
     }
@@ -175,7 +178,7 @@ impl<M: Mode> Pktsnip<M> {
     /// Allocate and prepend an uninitialized snip of given size and type to self, returning a new
     /// (writable) snip.
     pub fn add(self, size: usize, nettype: gnrc_nettype_t) -> Option<Pktsnip<Writable>> {
-        Pktsnip::<Writable>::_add(Some(self), size, nettype)
+        Pktsnip::<Writable>::_add(Some(self), 0 as *const _, size, nettype)
     }
 }
 
@@ -186,17 +189,24 @@ impl<'a> Pktsnip<Writable> {
     /// shortcuts if someone ever read from it).
     pub fn allocate(size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
         let next: Option<Self> = None;
-        Self::_add(next, size, nettype)
+        Self::_add(next, 0 as *const _, size, nettype)
+    }
+
+    /// Allocate a pktsnip and copy the slice into it.
+    pub fn allocate_from(data: &[u8], nettype: gnrc_nettype_t) -> Option<Self> {
+        let next: Option<Self> = None;
+        Self::_add(next, data.as_ptr(), data.len(), nettype)
     }
 
     /// Actual wrapper around gnrc_pktbuf_add. Split into two API functions because .add() makes
     /// sense as a method, and with None as next it's more of a constructor function.
-    fn _add(next: Option<Pktsnip<impl Mode>>, size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
-        let next = next.map(|s| unsafe { s.to_ptr() }).unwrap_or(0 as *mut _);
-        let snip = unsafe { gnrc_pktbuf_add(next, 0 as *const _, size, nettype) };
+    fn _add(next: Option<Pktsnip<impl Mode>>, data: *const u8, size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
+        let next = next.map(|s| s.ptr).unwrap_or(0 as *mut _);
+        let snip = unsafe { gnrc_pktbuf_add(next, data as *const _, size, nettype) };
         if snip == 0 as *mut _ {
             return None;
         }
+        forget(next);
         // I *think* it's safe to not call gnrc_start_write as it's obviously my packet
         Some(snip.into())
     }
