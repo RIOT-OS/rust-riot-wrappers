@@ -1,9 +1,4 @@
-use riot_sys::{
-    gnrc_nettype_t,
-    gnrc_netreg_entry_t,
-    gnrc_netreg_register,
-    gnrc_netreg_unregister,
-};
+use riot_sys::{gnrc_netreg_entry_t, gnrc_netreg_register, gnrc_netreg_unregister, gnrc_nettype_t};
 
 pub struct Registration<'a> {
     nettype: gnrc_nettype_t,

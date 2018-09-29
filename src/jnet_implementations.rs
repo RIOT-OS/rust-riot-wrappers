@@ -1,5 +1,5 @@
+use gnrc::pktbuf::{Mode, Pktsnip, Writable};
 use jnet;
-use gnrc::pktbuf::{Pktsnip, Mode, Writable};
 
 impl<M: Mode> ::core::convert::AsRef<[u8]> for Pktsnip<M> {
     fn as_ref(&self) -> &[u8] {

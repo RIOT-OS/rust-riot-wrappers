@@ -4,10 +4,10 @@
 #![feature(ptr_offset_from)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
 
+extern crate byteorder;
 extern crate crc;
 extern crate embedded_hal;
 extern crate riot_sys;
-extern crate byteorder;
 
 #[cfg(riot_module_saul)]
 pub mod saul;

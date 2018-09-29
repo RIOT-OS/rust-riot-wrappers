@@ -1,18 +1,18 @@
-use core::marker::PhantomData;
 use core::iter::Iterator;
+use core::marker::PhantomData;
 use core::mem::forget;
 
 use riot_sys::{
     gnrc_ipv6_get_header,
+    gnrc_ipv6_hdr_build,
+    gnrc_netif_hdr_build,
     gnrc_nettype_t,
     gnrc_pktbuf_add,
     gnrc_pktbuf_hold,
     gnrc_pktbuf_realloc_data,
     gnrc_pktbuf_release_error,
     gnrc_pktsnip_t,
-    gnrc_ipv6_hdr_build,
     gnrc_udp_hdr_build,
-    gnrc_netif_hdr_build,
     ipv6_hdr_t,
     GNRC_NETERR_SUCCESS,
 };
@@ -72,7 +72,10 @@ impl<M: Mode> From<*mut gnrc_pktsnip_t> for Pktsnip<M> {
     /// Accept this pointer as the refcounting wrapper's responsibility
     // FIXME should this be unsafe?
     fn from(input: *mut gnrc_pktsnip_t) -> Self {
-        Pktsnip { ptr: input, _phantom: PhantomData }
+        Pktsnip {
+            ptr: input,
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -148,7 +151,11 @@ impl<M: Mode> Pktsnip<M> {
         }
     }
 
-    pub fn ipv6_hdr_build(self, src: Option<&IPv6Addr>, dst: Option<&IPv6Addr>) -> Option<Pktsnip<Writable>> {
+    pub fn ipv6_hdr_build(
+        self,
+        src: Option<&IPv6Addr>,
+        dst: Option<&IPv6Addr>,
+    ) -> Option<Pktsnip<Writable>> {
         let src = src.map(|s| unsafe { s.as_ptr() }).unwrap_or(0 as *mut _);
         let dst = dst.map(|d| unsafe { d.as_ptr() }).unwrap_or(0 as *mut _);
         let snip = unsafe { gnrc_ipv6_hdr_build(self.ptr, src, dst) };
@@ -162,11 +169,21 @@ impl<M: Mode> Pktsnip<M> {
 
     // Coercing gnrc_netif_hdr_build into the same interface as udp_ and ipv6_ until I find out why
     // it's different.
-    pub fn netif_hdr_build(self, src: Option<&[u8]>, dst: Option<&[u8]>) -> Option<Pktsnip<Writable>> {
-        let (src, src_len) = src.map(|s| (s.as_ptr(), s.len()) ).unwrap_or((0 as *const _, 0));
-        let (dst, dst_len) = dst.map(|d| (d.as_ptr(), d.len()) ).unwrap_or((0 as *const _, 0));
+    pub fn netif_hdr_build(
+        self,
+        src: Option<&[u8]>,
+        dst: Option<&[u8]>,
+    ) -> Option<Pktsnip<Writable>> {
+        let (src, src_len) = src
+            .map(|s| (s.as_ptr(), s.len()))
+            .unwrap_or((0 as *const _, 0));
+        let (dst, dst_len) = dst
+            .map(|d| (d.as_ptr(), d.len()))
+            .unwrap_or((0 as *const _, 0));
         // "as *mut": I'm assuming the C signature is just missing its const
-        let snip = unsafe { gnrc_netif_hdr_build(src as *mut _, src_len as u8, dst as *mut _, dst_len as u8) };
+        let snip = unsafe {
+            gnrc_netif_hdr_build(src as *mut _, src_len as u8, dst as *mut _, dst_len as u8)
+        };
         if snip == 0 as *mut _ {
             None
         } else {
@@ -200,7 +217,12 @@ impl<'a> Pktsnip<Writable> {
 
     /// Actual wrapper around gnrc_pktbuf_add. Split into two API functions because .add() makes
     /// sense as a method, and with None as next it's more of a constructor function.
-    fn _add(next: Option<Pktsnip<impl Mode>>, data: *const u8, size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
+    fn _add(
+        next: Option<Pktsnip<impl Mode>>,
+        data: *const u8,
+        size: usize,
+        nettype: gnrc_nettype_t,
+    ) -> Option<Self> {
         let next = next.map(|s| s.ptr).unwrap_or(0 as *mut _);
         let snip = unsafe { gnrc_pktbuf_add(next, data as *const _, size, nettype) };
         if snip == 0 as *mut _ {
@@ -212,7 +234,12 @@ impl<'a> Pktsnip<Writable> {
     }
 
     pub fn get_data_mut(&'a mut self) -> &'a mut [u8] {
-        unsafe { ::core::slice::from_raw_parts_mut(::core::mem::transmute((*self.ptr).data), (*self.ptr).size) }
+        unsafe {
+            ::core::slice::from_raw_parts_mut(
+                ::core::mem::transmute((*self.ptr).data),
+                (*self.ptr).size,
+            )
+        }
     }
 
     pub fn realloc_data(&mut self, size: usize) -> Result<(), ()> {
@@ -223,7 +250,6 @@ impl<'a> Pktsnip<Writable> {
             // Actually only on ENOMEM
             Err(())
         }
-
     }
 }
 
@@ -240,6 +266,9 @@ impl<M: Mode> ::core::fmt::Debug for Pktsnip<M> {
 
 impl Into<Pktsnip<Shared>> for Pktsnip<Writable> {
     fn into(self) -> Pktsnip<Shared> {
-        Pktsnip { ptr: unsafe { self.to_ptr() }, _phantom: PhantomData }
+        Pktsnip {
+            ptr: unsafe { self.to_ptr() },
+            _phantom: PhantomData,
+        }
     }
 }

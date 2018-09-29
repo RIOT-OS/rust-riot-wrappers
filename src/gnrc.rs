@@ -1,6 +1,6 @@
-pub mod pktbuf;
-pub mod netreg;
 pub mod netapi;
+pub mod netreg;
+pub mod pktbuf;
 
 use riot_sys::{
     gnrc_netif_iter,

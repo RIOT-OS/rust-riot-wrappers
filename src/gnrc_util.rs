@@ -4,14 +4,14 @@
 //! least for the purpose of the author's experiments. It may turn out that they'd make nice
 //! additions to the RIOT API, or are completely misguided.
 
-use gnrc::IPv6Addr;
 use gnrc::pktbuf::{Pktsnip, Shared};
+use gnrc::IPv6Addr;
 use thread::KernelPID;
 
 use riot_sys::{
     gnrc_netif_hdr_t,
-    gnrc_nettype_t_GNRC_NETTYPE_UDP as GNRC_NETTYPE_UDP,
     gnrc_nettype_t_GNRC_NETTYPE_NETIF as GNRC_NETTYPE_NETIF,
+    gnrc_nettype_t_GNRC_NETTYPE_UDP as GNRC_NETTYPE_UDP,
     udp_hdr_t,
 };
 
@@ -39,7 +39,7 @@ impl RoundtripData for NetifRoundtripData {
             pid: incoming.search_type(GNRC_NETTYPE_NETIF).map(|s| {
                 let netif_hdr: &gnrc_netif_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
                 KernelPID(netif_hdr.if_pid)
-            })
+            }),
         }
     }
 
@@ -49,7 +49,8 @@ impl RoundtripData for NetifRoundtripData {
             Some(KernelPID(pid)) => unsafe {
                 let mut netif = payload.netif_hdr_build(None, None)?;
 
-                let data: &mut gnrc_netif_hdr_t = ::core::mem::transmute(netif.get_data_mut().as_ptr());
+                let data: &mut gnrc_netif_hdr_t =
+                    ::core::mem::transmute(netif.get_data_mut().as_ptr());
                 data.if_pid = pid;
 
                 Some(netif.into())
@@ -81,8 +82,10 @@ impl<N: RoundtripData> RoundtripData for IPv6RoundtripDataFull<N> {
 
     fn wrap(self, payload: Pktsnip<Shared>) -> Option<Pktsnip<Shared>> {
         self.next.wrap(
-            payload.ipv6_hdr_build(Some(&self.local), Some(&self.remote))?
-            .into())
+            payload
+                .ipv6_hdr_build(Some(&self.local), Some(&self.remote))?
+                .into(),
+        )
     }
 }
 
@@ -97,21 +100,26 @@ pub struct UDPRoundtripDataFull<N: RoundtripData> {
 
 impl<N: RoundtripData> RoundtripData for UDPRoundtripDataFull<N> {
     fn from_incoming(incoming: &Pktsnip<Shared>) -> Self {
-        let (src, dst) = incoming.search_type(GNRC_NETTYPE_UDP).map(|s| {
-            let hdr: &udp_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
-            use byteorder::{NetworkEndian, ByteOrder};
-            (
-                NetworkEndian::read_u16(&unsafe { (*hdr).src_port.u8 }),
-                NetworkEndian::read_u16(&unsafe { (*hdr).dst_port.u8 }),
-            )
-        }).unwrap();
+        let (src, dst) = incoming
+            .search_type(GNRC_NETTYPE_UDP)
+            .map(|s| {
+                let hdr: &udp_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
+                use byteorder::{ByteOrder, NetworkEndian};
+                (
+                    NetworkEndian::read_u16(&unsafe { (*hdr).src_port.u8 }),
+                    NetworkEndian::read_u16(&unsafe { (*hdr).dst_port.u8 }),
+                )
+            }).unwrap();
 
-        Self { remote: src, local: dst, next: N::from_incoming(incoming) }
+        Self {
+            remote: src,
+            local: dst,
+            next: N::from_incoming(incoming),
+        }
     }
 
     fn wrap(self, payload: Pktsnip<Shared>) -> Option<Pktsnip<Shared>> {
-        self.next.wrap(
-            payload.udp_hdr_build(self.local, self.remote)?
-            .into())
+        self.next
+            .wrap(payload.udp_hdr_build(self.local, self.remote)?.into())
     }
 }
