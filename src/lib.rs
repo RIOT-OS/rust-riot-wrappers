@@ -7,6 +7,7 @@
 extern crate crc;
 extern crate embedded_hal;
 extern crate riot_sys;
+extern crate byteorder;
 
 #[cfg(riot_module_saul)]
 pub mod saul;
@@ -19,6 +20,7 @@ pub mod thread;
 pub mod gcoap;
 #[cfg(riot_module_gnrc)]
 pub mod gnrc;
+pub mod gnrc_util;
 pub mod i2c;
 #[cfg(riot_module_core_msg)]
 pub mod msg;

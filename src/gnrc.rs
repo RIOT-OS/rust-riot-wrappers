@@ -360,3 +360,9 @@ impl<M: Mode> ::core::fmt::Debug for Pktsnip<M> {
         )
     }
 }
+
+impl Into<Pktsnip<Shared>> for Pktsnip<Writable> {
+    fn into(self) -> Pktsnip<Shared> {
+        Pktsnip { ptr: unsafe { self.to_ptr() }, _phantom: PhantomData }
+    }
+}
