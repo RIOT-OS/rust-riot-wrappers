@@ -31,7 +31,7 @@ fn coap_get_token_len(pkt: &coap_pkt_t) -> usize {
     (unsafe { (*pkt.hdr).ver_t_tkl & 0xfu8 }) as usize
 }
 
-use crc::{crc64, Hasher64};
+use crc::crc64;
 
 pub const GET: u32 = COAP_GET;
 
@@ -57,7 +57,7 @@ impl<'a> ::core::fmt::Write for PayloadWriter<'a> {
 pub struct BlockWriter<'a> {
     data: &'a mut [u8],
     cursor: isize,
-    etag: crc64::Digest,
+    etag: u64,
 }
 
 impl<'a> BlockWriter<'a> {
@@ -78,7 +78,7 @@ impl<'a> ::core::fmt::Write for BlockWriter<'a> {
     fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
         let mut s = s.as_bytes();
 
-        self.etag.write(s);
+        self.etag = crc64::update(self.etag, &crc64::ECMA_TABLE, s);
 
         if self.cursor >= self.data.len() as isize {
             // Still counting up to give a reliable Size2
@@ -198,7 +198,7 @@ impl PacketBuffer {
         let mut writer = BlockWriter {
             data: &mut buf[..blksize],
             cursor: -(blksize as isize * blknum as isize),
-            etag: crc64::Digest::new(crc64::ECMA),
+            etag: 0,
         };
         data_generator(&mut writer);
 
@@ -222,7 +222,7 @@ impl PacketBuffer {
             (*self.pkt).options_len = 0;
         }
 
-        let etag = writer.etag.sum64();
+        let etag = writer.etag;
         let etag = etag as u32; // FIXME: stripping to 4 bytes b/c there's no coap_opt_add_bytes option
         unsafe { coap_opt_add_uint(self.pkt, COAP_OPT_ETAG, etag) };
 
