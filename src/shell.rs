@@ -67,6 +67,10 @@ where
         // This would save us the LIMIT, but I can't yet say
         //     where R: Fn(impl Iterator<Item=&str>>) -> i32
         // (yet?)
+        //
+        // FIXME: Update with what the demo application does for CoAP handling, probably for both
+        // cases that currently have a LIMIT.
+        //
         // let argv = argv.iter().map(|ptr| unsafe { libc::CStr::from_ptr_with_lifetime(*ptr, &marker) }.to_bytes()).peekable();
         //
         // Instead, using a LIMIT:
