@@ -118,12 +118,10 @@ impl OpaqueMsg {
 
 impl ::core::fmt::Debug for OpaqueMsg {
     fn fmt(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        write!(
-            formatter,
-            "OpaqueMsg {{ from {:?}, type 0x{:x} }}",
-            self.get_sender(),
-            self.get_type()
-        )
+        formatter.debug_struct("OpaqueMsg")
+            .field("from", &self.get_sender())
+            .field("type", &self.get_type())
+            .finish()
     }
 }
 

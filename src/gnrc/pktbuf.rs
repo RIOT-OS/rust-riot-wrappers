@@ -255,12 +255,10 @@ impl<'a> Pktsnip<Writable> {
 
 impl<M: Mode> ::core::fmt::Debug for Pktsnip<M> {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        write!(
-            f,
-            "Pktsnip {{ length {}, in {} snips }}",
-            self.len(),
-            self.count()
-        )
+        f.debug_struct("Pktsnip")
+            .field("length", &self.len())
+            .field("snips", &self.count())
+            .finish()
     }
 }
 

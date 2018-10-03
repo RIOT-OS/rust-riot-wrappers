@@ -55,9 +55,9 @@ impl<'a> ::core::fmt::Write for PayloadWriter<'a> {
 }
 
 pub struct BlockWriter<'a> {
-    data: &'a mut [u8],
-    cursor: isize,
-    etag: u64,
+    pub data: &'a mut [u8],
+    pub cursor: isize,
+    pub etag: u64,
 }
 
 impl<'a> BlockWriter<'a> {
