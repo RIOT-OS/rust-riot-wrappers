@@ -76,11 +76,7 @@ mod regular {
     impl blocking::i2c::Write for I2CDevice {
         type Error = Error;
 
-        fn write(
-            &mut self,
-            address: u8,
-            bytes: &[u8],
-        ) -> Result<(), Self::Error> {
+        fn write(&mut self, address: u8, bytes: &[u8]) -> Result<(), Self::Error> {
             let err = unsafe { i2c_acquire(self.dev) };
             if err != 0 {
                 return Err(Error::AcquireError);
@@ -106,11 +102,7 @@ mod regular {
     impl blocking::i2c::Read for I2CDevice {
         type Error = Error;
 
-        fn read(
-            &mut self,
-            address: u8,
-            buffer: &mut [u8],
-        ) -> Result<(), Self::Error> {
+        fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
             let err = unsafe { i2c_acquire(self.dev) };
             if err != 0 {
                 return Err(Error::AcquireError);
