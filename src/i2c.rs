@@ -142,4 +142,20 @@ mod not_actually_i2c {
             Err(Error::DeviceNotFound)
         }
     }
+
+    impl blocking::i2c::Write for I2CDevice {
+        type Error = Error;
+
+        fn write(&mut self, address: u8, bytes: &[u8]) -> Result<(), Self::Error> {
+            Err(Error::DeviceNotFound)
+        }
+    }
+
+    impl blocking::i2c::Read for I2CDevice {
+        type Error = Error;
+
+        fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
+            Err(Error::DeviceNotFound)
+        }
+    }
 }

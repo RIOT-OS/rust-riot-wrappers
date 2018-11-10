@@ -24,6 +24,8 @@ pub mod gnrc_util;
 pub mod i2c;
 #[cfg(riot_module_core_msg)]
 pub mod msg;
+
+#[cfg(riot_module_periph_spi)]
 pub mod spi;
 
 #[cfg(feature = "set_panic_handler")]
