@@ -28,6 +28,9 @@ pub mod msg;
 #[cfg(riot_module_periph_spi)]
 pub mod spi;
 
+#[cfg(riot_module_periph_adc)]
+pub mod adc;
+
 #[cfg(feature = "set_panic_handler")]
 mod panic;
 

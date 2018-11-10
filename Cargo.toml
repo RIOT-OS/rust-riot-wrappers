@@ -4,7 +4,8 @@ version = "0.1.0"
 authors = ["chrysn <chrysn@fsfe.org>"]
 
 [dependencies]
-embedded-hal = "0.2.0"
+embedded-hal = { version = "0.2.2", features = ["unproven"] }
+nb = "0.1.1"
 riot-sys = { path = "../riot-sys" }
 crc = { version = "^1", default-features = false }
 jnet = { git = "https://github.com/chrysn-pull-requests/jnet", branch="optional-payload-marker", optional = true } # see https://github.com/japaric/jnet/pull/3
