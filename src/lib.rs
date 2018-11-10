@@ -31,6 +31,8 @@ pub mod spi;
 #[cfg(riot_module_periph_adc)]
 pub mod adc;
 
+pub mod mutex;
+
 #[cfg(feature = "set_panic_handler")]
 mod panic;
 
