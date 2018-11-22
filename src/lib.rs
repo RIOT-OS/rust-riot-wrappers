@@ -32,6 +32,8 @@ pub mod spi;
 pub mod adc;
 
 pub mod mutex;
+#[cfg(riot_module_pthread)]
+pub mod rwlock;
 
 #[cfg(feature = "set_panic_handler")]
 mod panic;
