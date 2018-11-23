@@ -10,9 +10,8 @@ pub struct RwLock<T> {
     data: T,
 }
 
-unsafe impl<T> Sync for RwLock<T> where
-    T: Send + Sync
-{}
+unsafe impl<T: Send> Send for RwLock<T> { }
+unsafe impl<T: Send + Sync> Sync for RwLock<T> { }
 
 impl<T> RwLock<T> {
     pub fn new(t: T) -> RwLock<T> {
