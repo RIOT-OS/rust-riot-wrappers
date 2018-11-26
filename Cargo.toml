@@ -17,8 +17,11 @@ embedded-hal = { version = "0.2.2", features = ["unproven"] }
 nb = "0.1.1"
 riot-sys = "0.2.0"
 crc = { version = "^1", default-features = false }
-jnet = { git = "https://github.com/chrysn-pull-requests/jnet", branch="optional-payload-marker", optional = true } # see https://github.com/japaric/jnet/pull/3
 byteorder = { version="1", default-features = false }
+
+# Disabled by default because jnet is not available on crates.io
+# If you need the version of this library that has it available, us it from the repository.
+#jnet = { git = "https://github.com/chrysn-pull-requests/jnet", branch="optional-payload-marker", optional = true } # see https://github.com/japaric/jnet/pull/3
 
 [build-dependencies]
 shlex = "0.1.1"
@@ -26,4 +29,6 @@ shlex = "0.1.1"
 [features]
 default = ["set_panic_handler"]
 set_panic_handler = []
-with_jnet = ["jnet"]
+
+# See jnet dependency
+#with_jnet = ["jnet"]
