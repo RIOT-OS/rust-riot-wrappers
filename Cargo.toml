@@ -15,7 +15,7 @@ license = "LGPL-2.1"
 [dependencies]
 embedded-hal = { version = "0.2.2", features = ["unproven"] }
 nb = "0.1.1"
-riot-sys = { path = "../riot-sys" }
+riot-sys = "0.1.0"
 crc = { version = "^1", default-features = false }
 jnet = { git = "https://github.com/chrysn-pull-requests/jnet", branch="optional-payload-marker", optional = true } # see https://github.com/japaric/jnet/pull/3
 byteorder = { version="1", default-features = false }
