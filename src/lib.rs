@@ -20,6 +20,7 @@ pub mod thread;
 pub mod gcoap;
 #[cfg(riot_module_gnrc)]
 pub mod gnrc;
+#[cfg(riot_module_gnrc)]
 pub mod gnrc_util;
 pub mod i2c;
 #[cfg(riot_module_core_msg)]
