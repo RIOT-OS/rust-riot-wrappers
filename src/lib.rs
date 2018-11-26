@@ -34,6 +34,7 @@ pub mod adc;
 pub mod mutex;
 #[cfg(riot_module_pthread)]
 pub mod rwlock;
+#[cfg(riot_module_xtimer)]
 pub mod delay;
 
 #[cfg(feature = "set_panic_handler")]
