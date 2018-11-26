@@ -22,7 +22,7 @@ byteorder = { version="1", default-features = false }
 
 [build-dependencies]
 # bindgen = "0.40.0" # 0.40 does not have support for the str_macro callback
-bindgen = { git = "https://github.com/chrysn-pull-requests/rust-bindgen", branch="str_macro" }
+bindgen = { git = "https://github.com/rust-lang/rust-bindgen" }
 
 [features]
 default = ["set_panic_handler"]
