@@ -37,7 +37,7 @@ See the riot-examples_ repository for complete setup examples.
 On the use of bindgen
 ---------------------
 
-This module uses a RIOT_EXPANDED_HEADERS environment variable as does riot-sys,
+This module uses a RIOT_CFLAGS environment variable as does riot-sys,
 and decides from it which modules to enable: If MODULE_SAUL is not set, the
 saul module will not be built in. Bindgen is used only to extract those
 settings, not to generate code (that's for riot-sys to do).

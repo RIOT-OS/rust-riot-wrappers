@@ -21,8 +21,7 @@ jnet = { git = "https://github.com/chrysn-pull-requests/jnet", branch="optional-
 byteorder = { version="1", default-features = false }
 
 [build-dependencies]
-# bindgen = "0.40.0" # 0.40 does not have support for the str_macro callback
-bindgen = { git = "https://github.com/rust-lang/rust-bindgen" }
+shlex = "0.1.1"
 
 [features]
 default = ["set_panic_handler"]
