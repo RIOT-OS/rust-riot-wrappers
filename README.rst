@@ -1,6 +1,12 @@
-This crate contains wrappers around the RIOT C API exposed by riot-sys and
+This crate contains wrappers around the `RIOT Operating System`_'s C API exposed by riot-sys and
 makes an attempt to provide idiomatic Rust wrappers (eg. implementing
 embedded-hal for peripherals, implementing fmt::Write for stdio) around those.
+
+The `crate documentation`_ outlines which modules are available, and which
+other crates' traits they implement.
+
+.. _`RIOT Operating System`: https://riot-os.org/
+.. _`crate documentation`: https://docs.rs/riot-wrappers/
 
 On the use of bindgen
 ---------------------
@@ -20,3 +26,12 @@ in), but the crate not being a module makes that hard.
 
 This automagic way is convenient now; later iterations might be more explicit
 and profit from better integration.
+
+License
+-------
+
+This crate is licensed under the same terms as of the LGPL 2.1, following the
+license terms of the RIOT Operating System.
+
+It is maintained by Christian M. Amsüss <ca@etonomy.org> as part of the etonomy
+project, see <https://etonomy.org/>.

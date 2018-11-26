@@ -1,7 +1,16 @@
 [package]
 name = "riot-wrappers"
 version = "0.1.0"
-authors = ["chrysn <chrysn@fsfe.org>"]
+authors = ["Christian M. Amsüss <ca@etonomy.org>"]
+
+description = "Rust API wrappers for the RIOT operating system"
+documentation = "https://docs.rs/riot-wrappers/"
+repository = "https://gitlab.com/etonomy/riot-wrappers"
+readme = "README.rst"
+keywords = ["riot", "riot-os", "iot", "bindings"]
+categories = ["api-bindings", "no-std"]
+license = "LGPL-2.1"
+
 
 [dependencies]
 embedded-hal = { version = "0.2.2", features = ["unproven"] }
