@@ -8,6 +8,32 @@ other crates' traits they implement.
 .. _`RIOT Operating System`: https://riot-os.org/
 .. _`crate documentation`: https://docs.rs/riot-wrappers/
 
+Library and run-time components
+-------------------------------
+
+The riot-wrappers crate tries to stay out of the way by default to enable
+various types of applications (ie. not only "Rust application running atop
+RIOT", but also "RIOT module / driver implemented in Rust" or others).
+
+To facilitate what is currently the best explored use case ("Rust application
+running atop RIOT"), applications can use the ``main!`` macro to wrap a regular
+Rust function like ``fn main() -> ()`` into a function that's exported with
+proper name and signature to serve as ``main`` function in RIOT.
+
+When that is used, it also makes sense to enable the ``set_panic_handler``
+feature. It implements a panic handler that outputs the panic message to RIOT's
+standard output, and puts the affected thread to sleep permanently.  (There is
+no unwinding or similar; threads in RIOT are not really expected to terminate
+and be restarted).
+
+With such a main function and panic handler, a Rust crate can be built as a
+static library and linked as a part of the RIOT build process without the need
+for application specific C code.
+
+See the riot-examples_ repository for complete setup examples.
+
+.. _riot-examples: https://gitlab.com/etonomy/riot-examples
+
 On the use of bindgen
 ---------------------
 
