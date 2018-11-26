@@ -25,6 +25,6 @@ byteorder = { version="1", default-features = false }
 bindgen = { git = "https://github.com/chrysn-pull-requests/rust-bindgen", branch="str_macro" }
 
 [features]
-default = ["set_panic_handler", "with_jnet"]
+default = ["set_panic_handler"]
 set_panic_handler = []
 with_jnet = ["jnet"]
