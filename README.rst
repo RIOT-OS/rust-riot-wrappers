@@ -37,13 +37,13 @@ See the riot-examples_ repository for complete setup examples.
 
 .. _riot-examples: https://gitlab.com/etonomy/riot-examples
 
-On the use of bindgen
----------------------
+On environment variables
+------------------------
 
 This module uses a RIOT_CFLAGS environment variable as does riot-sys,
 and decides from it which modules to enable: If MODULE_SAUL is not set, the
-saul module will not be built in. Bindgen is used only to extract those
-settings, not to generate code (that's for riot-sys to do).
+saul module will not be built in. This is achieved by parsing the
+``-DMODULE_...`` flags of the environment variable.
 
 This makes things very auto-magical, and I'm not yet sure whether that's the
 best way for things to be. The Cargo way would be that the crate using
