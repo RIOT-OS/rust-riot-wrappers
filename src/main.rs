@@ -20,8 +20,8 @@ macro_rules! riot_main {
     ($main:ident) => {
         #[export_name = "main"]
         pub extern "C" fn c_main() -> u32 {
-            $main();
-            0
+            use riot_wrappers::main::Termination;
+            $main().report()
         }
     };
 }
