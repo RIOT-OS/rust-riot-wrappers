@@ -5,8 +5,11 @@ embedded-hal for peripherals, implementing fmt::Write for stdio) around those.
 The `crate documentation`_ outlines which modules are available, and which
 other crates' traits they implement.
 
+For practical use and an introduction, see the examples_.
+
 .. _`RIOT Operating System`: https://riot-os.org/
 .. _`crate documentation`: https://docs.rs/riot-wrappers/
+.. _examples: https://gitlab.com/etonomy/riot-examples/
 
 Library and run-time components
 -------------------------------
