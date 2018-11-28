@@ -7,7 +7,7 @@ description = "Rust API wrappers for the RIOT operating system"
 documentation = "https://docs.rs/riot-wrappers/"
 repository = "https://gitlab.com/etonomy/riot-wrappers"
 readme = "README.md"
-keywords = ["riot", "riot-os", "iot", "bindings"]
+keywords = ["riot", "riot-os", "iot", "bindings", "embedded-hal-impl"]
 categories = ["api-bindings", "no-std"]
 license = "LGPL-2.1"
 
