@@ -1,15 +1,13 @@
-This crate contains wrappers around the `RIOT Operating System`_'s C API exposed by riot-sys and
+This crate contains wrappers around the [RIOT Operating
+System](https://riot-os.org/)'s C API exposed by riot-sys and
 makes an attempt to provide idiomatic Rust wrappers (eg. implementing
 embedded-hal for peripherals, implementing fmt::Write for stdio) around those.
 
-The `crate documentation`_ outlines which modules are available, and which
-other crates' traits they implement.
+The [crate documentation](https://docs.rs/riot-wrappers/) outlines which
+modules are available, and which other crates' traits they implement.
 
-For practical use and an introduction, see the examples_.
-
-.. _`RIOT Operating System`: https://riot-os.org/
-.. _`crate documentation`: https://docs.rs/riot-wrappers/
-.. _examples: https://gitlab.com/etonomy/riot-examples/
+For practical use and an introduction, see the
+[examples](https://gitlab.com/etonomy/riot-examples/).
 
 Library and run-time components
 -------------------------------
@@ -33,17 +31,16 @@ With such a main function and panic handler, a Rust crate can be built as a
 static library and linked as a part of the RIOT build process without the need
 for application specific C code.
 
-See the riot-examples_ repository for complete setup examples.
-
-.. _riot-examples: https://gitlab.com/etonomy/riot-examples
+See the [riot-examples](https://gitlab.com/etonomy/riot-examples) repository
+for complete setup examples.
 
 On environment variables
 ------------------------
 
-This module uses a RIOT_CFLAGS environment variable as does riot-sys,
-and decides from it which modules to enable: If MODULE_SAUL is not set, the
+This module uses a `RIOT_CFLAGS` environment variable as does riot-sys,
+and decides from it which modules to enable: If `MODULE_SAUL` is not set, the
 saul module will not be built in. This is achieved by parsing the
-``-DMODULE_...`` flags of the environment variable.
+`-DMODULE_...` flags of the environment variable.
 
 This makes things very auto-magical, and I'm not yet sure whether that's the
 best way for things to be. The Cargo way would be that the crate using
