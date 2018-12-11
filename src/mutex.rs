@@ -58,7 +58,7 @@ impl<'a, T> Drop for MutexGuard<'a, T> {
 impl<'a, T> MutexGuard<'a, T> {
     /// Put the current thread to sleep right after unlocking the mutex. This is equivalent to
     /// calling mutex_unlock_and_sleep in RIOT.
-    fn unlock_and_sleep(self) {
+    pub fn unlock_and_sleep(self) {
         let m = &self.mutex.mutex;
         ::core::mem::forget(self);
         unsafe { riot_sys::mutex_unlock_and_sleep(m as *const _ as *mut _) };

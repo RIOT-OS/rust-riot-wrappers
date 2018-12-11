@@ -81,7 +81,7 @@ where
         if argc > LIMIT as i32 {
             // Might not even be my own handler, but as long as everyone has the same limit, why
             // not err out early.
-            writeln!(stdio, "Not processing: too many arguments");
+            writeln!(stdio, "Not processing: too many arguments").unwrap();
             return Some(1);
         }
         let argc = argc as usize;

@@ -5,7 +5,7 @@ impl ADCLine {
     /// be called once. (A safe abstraction would need to check which RIOT devices have been
     /// initialized already).
     pub unsafe fn init(line: riot_sys::adc_t) -> Result<Self, i32> {
-        let success = unsafe { riot_sys::adc_init(line) };
+        let success = riot_sys::adc_init(line);
         match success {
             0 => Ok(ADCLine(line)),
             e => Err(e),

@@ -11,13 +11,15 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     // by someone else ever again.
     let mut stdout = stdio::Stdio {};
     let me = thread::get_pid();
-    writeln!(
+
+    // Ignoring any errors -- there's not much we can do any more.
+    let _ = writeln!(
         stdout,
         "Error in thread {:?} ({}):",
         me,
         me.get_name().unwrap_or("unnamed")
     );
-    writeln!(stdout, "{}", info);
+    let _ = writeln!(stdout, "{}", info);
 
     // Not trying any unwinding -- this thread is just dead, won't be re-claimed, any mutexes it
     // holds are just held indefinitely rather than throwing poison errors.

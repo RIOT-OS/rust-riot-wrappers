@@ -59,7 +59,7 @@ impl<E: fmt::Debug> Termination for Result<!, E> {
         match self {
             Err(err) => {
                 let mut stdout = stdio::Stdio {};
-                writeln!(stdout, "Error: {:?}", err);
+                writeln!(stdout, "Error: {:?}", err).unwrap();
                 1
             }
             _ => unreachable!(),

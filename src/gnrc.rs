@@ -8,7 +8,6 @@ use riot_sys::{
     ipv6_addr_from_str,
     ipv6_addr_t,
     kernel_pid_t,
-    GNRC_NETERR_SUCCESS,
 };
 
 use core::iter::Iterator;
