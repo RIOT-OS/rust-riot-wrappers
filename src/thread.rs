@@ -176,8 +176,7 @@ where
         name: &'a libc::CStr,
         priority: i8,
         flags: i32,
-    ) -> Result<Self, raw::kernel_pid_t>
-    {
+    ) -> Result<Self, raw::kernel_pid_t> {
         let pid = unsafe {
             raw::thread_create(
                 transmute(stack.as_mut_ptr()),
@@ -197,7 +196,7 @@ where
         Ok(Thread {
             stack,
             _closure: PhantomData,
-            pid: KernelPID(pid)
+            pid: KernelPID(pid),
         })
     }
 
@@ -218,13 +217,15 @@ where
     // actually still our process. A proper wait would need the wrapped closure to finally send
     // some kind of signal to something that's allocated ... somewhere located within the Thread
     // struct that's not known by the time the thread is spawned.
-    pub fn get_status(&self) -> Status{
+    pub fn get_status(&self) -> Status {
         let running_status = self.pid.get_status();
         let running_tcb = unsafe { riot_sys::thread_get(self.pid.0) };
 
         // FIXME: Rather than doing pointer comparisons, it'd be nicer to just get the stack's
         // calculated thread control block (TCB) position and look right in there.
-        if running_tcb >= &self.stack[0] as *const u8 as *mut _ && running_tcb <= &self.stack[self.stack.len()- 1] as *const u8 as *mut _ {
+        if running_tcb >= &self.stack[0] as *const u8 as *mut _
+            && running_tcb <= &self.stack[self.stack.len() - 1] as *const u8 as *mut _
+        {
             running_status
         } else {
             Status::Stopped
@@ -239,10 +240,8 @@ where
     /// panic if the thread is not actually done yet.
     pub fn reap(self) {
         match self.get_status() {
-            Status::Stopped => {
-                core::mem::forget(self)
-            },
-            _ => panic!("Attempted to reap running process")
+            Status::Stopped => core::mem::forget(self),
+            _ => panic!("Attempted to reap running process"),
         }
     }
 }

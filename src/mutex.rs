@@ -1,4 +1,4 @@
-use ::core::ops::{Deref, DerefMut};
+use core::ops::{Deref, DerefMut};
 
 /// A mutual exclusion primitive useful for protecting shared data
 ///
@@ -20,7 +20,12 @@ impl<T> Mutex<T> {
     /// allocated in ROM, so additional work is needed here.
     pub const fn new(t: T) -> Mutex<T> {
         // FIXME: Expanded version of static function mutex_init
-        Mutex { data: t, mutex: riot_sys::mutex_t { queue: riot_sys::list_node_t { next: 0 as *mut _ } } }
+        Mutex {
+            data: t,
+            mutex: riot_sys::mutex_t {
+                queue: riot_sys::list_node_t { next: 0 as *mut _ },
+            },
+        }
     }
 
     pub fn lock(&self) -> MutexGuard<T> {
@@ -37,11 +42,11 @@ impl<T> Mutex<T> {
     }
 }
 
-unsafe impl<T: Send> Send for Mutex<T> { }
-unsafe impl<T: Send> Sync for Mutex<T> { }
+unsafe impl<T: Send> Send for Mutex<T> {}
+unsafe impl<T: Send> Sync for Mutex<T> {}
 
 pub struct MutexGuard<'a, T> {
-    mutex: &'a Mutex<T>
+    mutex: &'a Mutex<T>,
 }
 
 impl<'a, T> Drop for MutexGuard<'a, T> {
@@ -70,6 +75,6 @@ impl<'a, T> Deref for MutexGuard<'a, T> {
 
 impl<'a, T> DerefMut for MutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *(&self.mutex.data as *const _ as *mut  _)}
+        unsafe { &mut *(&self.mutex.data as *const _ as *mut _) }
     }
 }

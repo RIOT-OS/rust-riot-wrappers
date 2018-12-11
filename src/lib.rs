@@ -32,11 +32,11 @@ pub mod spi;
 #[cfg(riot_module_periph_adc)]
 pub mod adc;
 
+#[cfg(riot_module_xtimer)]
+pub mod delay;
 pub mod mutex;
 #[cfg(riot_module_pthread)]
 pub mod rwlock;
-#[cfg(riot_module_xtimer)]
-pub mod delay;
 
 #[cfg(feature = "set_panic_handler")]
 mod panic;
@@ -46,5 +46,5 @@ extern crate jnet;
 #[cfg(feature = "with_jnet")]
 mod jnet_implementations;
 
-pub mod main;
 pub mod interrupt;
+pub mod main;
