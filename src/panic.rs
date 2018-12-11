@@ -1,9 +1,9 @@
 #[panic_handler]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
-    use thread;
+    use crate::thread;
 
     use core::fmt::Write;
-    use stdio;
+    use crate::stdio;
 
     // I *guess* it's OK for a panic to simply make a thread into a zombie -- this does allow other
     // threads (including spawned Rust threads) to continue, but my layman's understanding of

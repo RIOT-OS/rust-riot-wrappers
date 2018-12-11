@@ -8,7 +8,7 @@ impl ADCLine {
         let success = unsafe { riot_sys::adc_init(line) };
         match success {
             0 => Ok(ADCLine(line)),
-            e => Err(success),
+            e => Err(e),
         }
     }
 }

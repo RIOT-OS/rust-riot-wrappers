@@ -17,7 +17,7 @@ use riot_sys::{
     GNRC_NETERR_SUCCESS,
 };
 
-use gnrc::IPv6Addr;
+use crate::gnrc::IPv6Addr;
 
 #[derive(Debug)]
 pub struct PktsnipPart<'a> {

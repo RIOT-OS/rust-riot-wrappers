@@ -4,9 +4,9 @@
 //! least for the purpose of the author's experiments. It may turn out that they'd make nice
 //! additions to the RIOT API, or are completely misguided.
 
-use gnrc::pktbuf::{Pktsnip, Shared};
-use gnrc::IPv6Addr;
-use thread::KernelPID;
+use crate::gnrc::pktbuf::{Pktsnip, Shared};
+use crate::gnrc::IPv6Addr;
+use crate::thread::KernelPID;
 
 use riot_sys::{
     gnrc_netif_hdr_t,

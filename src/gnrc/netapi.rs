@@ -7,7 +7,7 @@ use riot_sys::{
     GNRC_NETERR_SUCCESS,
 };
 
-use gnrc::pktbuf::{Pktsnip, Shared};
+use crate::gnrc::pktbuf::{Pktsnip, Shared};
 
 // Re-implementations of the static functions
 unsafe fn gnrc_netapi_dispatch_send(
