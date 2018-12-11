@@ -2,6 +2,7 @@
 name = "riot-wrappers"
 version = "0.2.2"
 authors = ["Christian M. Amsüss <ca@etonomy.org>"]
+edition = "2018"
 
 description = "Rust API wrappers for the RIOT operating system"
 documentation = "https://docs.rs/riot-wrappers/"
