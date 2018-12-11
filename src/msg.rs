@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
+use crate::thread::KernelPID;
 use riot_sys::libc;
 use riot_sys::{self, kernel_pid_t, msg_receive, msg_reply, msg_send, msg_send_receive, msg_t};
-use crate::thread::KernelPID;
 
 mod pid_converted {
     //! See thread::status_converted.

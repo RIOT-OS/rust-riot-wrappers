@@ -1,7 +1,7 @@
 use core::fmt::Write;
+use crate::stdio;
 use riot_sys::libc;
 use riot_sys::{shell_command_t, shell_run};
-use crate::stdio;
 
 // not repr(C) for as long as run() copies over all the inner commands, but there might be a time
 // when we pack it into something null-terminatable from the outside and then repr(C) would help

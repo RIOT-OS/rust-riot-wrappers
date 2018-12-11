@@ -2,13 +2,7 @@ pub mod netapi;
 pub mod netreg;
 pub mod pktbuf;
 
-use riot_sys::{
-    gnrc_netif_iter,
-    gnrc_netif_t,
-    ipv6_addr_from_str,
-    ipv6_addr_t,
-    kernel_pid_t,
-};
+use riot_sys::{gnrc_netif_iter, gnrc_netif_t, ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
 
 use core::iter::Iterator;
 use riot_sys::libc;
