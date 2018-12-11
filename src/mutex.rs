@@ -14,7 +14,11 @@ pub struct Mutex<T> {
 }
 
 impl<T> Mutex<T> {
-    pub fn new(t: T) -> Mutex<T> {
+    /// Create a new mutex
+    ///
+    /// The const property probably not usable yet -- at least in first tests, mutexes got
+    /// allocated in ROM, so additional work is needed here.
+    pub const fn new(t: T) -> Mutex<T> {
         // FIXME: Expanded version of static function mutex_init
         Mutex { data: t, mutex: riot_sys::mutex_t { queue: riot_sys::list_node_t { next: 0 as *mut _ } } }
     }
