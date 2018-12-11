@@ -47,3 +47,4 @@ extern crate jnet;
 mod jnet_implementations;
 
 pub mod main;
+pub mod interrupt;
