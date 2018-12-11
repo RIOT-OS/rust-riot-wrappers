@@ -230,6 +230,21 @@ where
             Status::Stopped
         }
     }
+
+    /// Assert that the thread has terminated, and release all references by consuming the self
+    /// struct.
+    ///
+    /// Unlike a (POSIX) wait, this will not block (for there is no SIGCHLDish thing in RIOT --
+    /// whoever wants to be notified would need to make their threads send an explicit signal), but
+    /// panic if the thread is not actually done yet.
+    pub fn reap(self) {
+        match self.get_status() {
+            Status::Stopped => {
+                core::mem::forget(self)
+            },
+            _ => panic!("Attempted to reap running process")
+        }
+    }
 }
 
 impl<'a, R> Drop for Thread<'a, R> {
