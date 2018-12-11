@@ -1,4 +1,4 @@
-use gnrc::pktbuf::{Mode, Pktsnip, Writable};
+use crate::gnrc::pktbuf::{Mode, Pktsnip, Writable};
 use jnet;
 
 impl<M: Mode> ::core::convert::AsRef<[u8]> for Pktsnip<M> {
@@ -15,7 +15,7 @@ impl ::core::convert::AsMut<[u8]> for Pktsnip<Writable> {
 
 // Those two could be deduplicated with AsMut, but we don't define AsMut here
 impl<'a> jnet::Resize for &'a mut Pktsnip<Writable> {
-    fn slice_from(&mut self, offset: u16) {
+    fn slice_from(&mut self, _offset: u16) {
         // Not sure that's possible with Pktsnips
         unimplemented!();
     }
@@ -26,7 +26,7 @@ impl<'a> jnet::Resize for &'a mut Pktsnip<Writable> {
 }
 
 impl<'a> jnet::Resize for Pktsnip<Writable> {
-    fn slice_from(&mut self, offset: u16) {
+    fn slice_from(&mut self, _offset: u16) {
         // Not sure that's possible with Pktsnips
         unimplemented!();
     }
