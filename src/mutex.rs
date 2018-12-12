@@ -1,4 +1,9 @@
 use core::ops::{Deref, DerefMut};
+// For correctness considerations, all uses of UnsafeCell can be ignored here; the only reason why
+// an UnsafeCell is used is to indicate to the linker that a static mutex still needs to be
+// allocated in .data and not in .text. (In other words: This is what allows transmuting the & to
+// the inner data into a &mut).
+use core::cell::UnsafeCell;
 
 /// A mutual exclusion primitive useful for protecting shared data
 ///
@@ -9,33 +14,30 @@ use core::ops::{Deref, DerefMut};
 ///
 /// Several methods (into_inner, get_mut) are not implemented until they're actually needed.
 pub struct Mutex<T> {
-    mutex: riot_sys::mutex_t,
-    data: T,
+    mutex: UnsafeCell<riot_sys::mutex_t>,
+    data: UnsafeCell<T>,
 }
 
 impl<T> Mutex<T> {
     /// Create a new mutex
-    ///
-    /// The const property probably not usable yet -- at least in first tests, mutexes got
-    /// allocated in ROM, so additional work is needed here.
     pub const fn new(t: T) -> Mutex<T> {
-        // FIXME: Expanded version of static function mutex_init
         Mutex {
-            data: t,
-            mutex: riot_sys::mutex_t {
+            data: UnsafeCell::new(t),
+            // FIXME: Expanded version of static function mutex_init
+            mutex: UnsafeCell::new(riot_sys::mutex_t {
                 queue: riot_sys::list_node_t { next: 0 as *mut _ },
-            },
+            }),
         }
     }
 
     pub fn lock(&self) -> MutexGuard<T> {
         // FIXME here and in try_unlock: Expanded version of static function is used
-        unsafe { riot_sys::_mutex_lock(&self.mutex as *const _ as *mut _, 1) };
+        unsafe { riot_sys::_mutex_lock(self.mutex.get(), 1) };
         MutexGuard { mutex: &self }
     }
 
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        match unsafe { riot_sys::_mutex_lock(&self.mutex as *const _ as *mut _, 0) } {
+        match unsafe { riot_sys::_mutex_lock(self.mutex.get(), 0) } {
             1 => Some(MutexGuard { mutex: &self }),
             _ => None,
         }
@@ -51,7 +53,7 @@ pub struct MutexGuard<'a, T> {
 
 impl<'a, T> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
-        unsafe { riot_sys::mutex_unlock(&self.mutex.mutex as *const _ as *mut _) }
+        unsafe { riot_sys::mutex_unlock(self.mutex.mutex.get()) }
     }
 }
 
@@ -61,7 +63,7 @@ impl<'a, T> MutexGuard<'a, T> {
     pub fn unlock_and_sleep(self) {
         let m = &self.mutex.mutex;
         ::core::mem::forget(self);
-        unsafe { riot_sys::mutex_unlock_and_sleep(m as *const _ as *mut _) };
+        unsafe { riot_sys::mutex_unlock_and_sleep(m.get()) };
     }
 }
 
@@ -69,12 +71,12 @@ impl<'a, T> Deref for MutexGuard<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        &self.mutex.data
+        unsafe { &*self.mutex.data.get() }
     }
 }
 
 impl<'a, T> DerefMut for MutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *(&self.mutex.data as *const _ as *mut _) }
+        unsafe { &mut *(self.mutex.data.get()) }
     }
 }
