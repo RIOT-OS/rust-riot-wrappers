@@ -96,17 +96,6 @@ where
     }
 }
 
-/// Build a default (empty, theoretically uninitialized) msg_t. To be used only until MaybeUninit
-/// becomes usable. FIXME (given that MaybeUninit is now used) how are the remaining cases best
-/// handled?
-const fn empty_msg() -> msg_t {
-    msg_t {
-        sender_pid: 0,
-        type_: 0,
-        content: riot_sys::msg_t__bindgen_ty_1 { value: 0 },
-    }
-}
-
 /// An initialized message with inaccessible value.
 pub struct OpaqueMsg(msg_t);
 
@@ -144,7 +133,7 @@ impl EmptyMsg {
     pub fn new(type_: u16) -> Self {
         EmptyMsg(msg_t {
             type_,
-            ..empty_msg()
+            ..msg_t::default()
         })
     }
 }
@@ -167,7 +156,7 @@ impl NumericMsg {
         NumericMsg(msg_t {
             type_,
             content: riot_sys::msg_t__bindgen_ty_1 { value: value },
-            ..empty_msg()
+            ..msg_t::default()
         })
     }
 
@@ -218,7 +207,7 @@ where
                 content: riot_sys::msg_t__bindgen_ty_1 {
                     ptr: unsafe { ::core::mem::transmute_copy(&value) },
                 },
-                ..empty_msg()
+                ..msg_t::default()
             },
             t: PhantomData,
         }
