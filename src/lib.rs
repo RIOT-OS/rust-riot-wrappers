@@ -2,6 +2,7 @@
 #![feature(try_from)]
 #![feature(never_type)]
 #![feature(ptr_offset_from)]
+#![feature(maybe_uninit)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
 
 extern crate byteorder;

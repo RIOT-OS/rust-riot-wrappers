@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use core::mem::MaybeUninit;
 use crate::thread::KernelPID;
 use riot_sys::libc;
 use riot_sys::{self, kernel_pid_t, msg_receive, msg_reply, msg_send, msg_send_receive, msg_t};
@@ -96,8 +97,9 @@ where
 }
 
 /// Build a default (empty, theoretically uninitialized) msg_t. To be used only until MaybeUninit
-/// becomes usable.
-fn empty_msg() -> msg_t {
+/// becomes usable. FIXME (given that MaybeUninit is now used) how are the remaining cases best
+/// handled?
+const fn empty_msg() -> msg_t {
     msg_t {
         sender_pid: 0,
         type_: 0,
@@ -110,9 +112,9 @@ pub struct OpaqueMsg(msg_t);
 
 impl OpaqueMsg {
     pub fn receive() -> OpaqueMsg {
-        let mut m = empty_msg();
-        let _ = unsafe { msg_receive(&mut m) };
-        OpaqueMsg(m)
+        let mut m: MaybeUninit<msg_t> = MaybeUninit::uninitialized();
+        let _ = unsafe { msg_receive(m.as_mut_ptr()) };
+        OpaqueMsg(unsafe { m.into_inner() })
     }
 }
 

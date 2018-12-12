@@ -5,6 +5,7 @@ pub mod pktbuf;
 use riot_sys::{gnrc_netif_iter, gnrc_netif_t, ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
 
 use core::iter::Iterator;
+use core::mem::MaybeUninit;
 use riot_sys::libc;
 
 struct NetifIter {
@@ -51,21 +52,18 @@ impl ::core::str::FromStr for IPv6Addr {
         }
         with_null[..s.len()].copy_from_slice(s);
 
-        // FIXME: use MaybeUninit when available
-        let mut ret: Self = Self {
-            inner: ipv6_addr_t { u8: [0; 16] },
-        };
+        let mut inner: MaybeUninit<ipv6_addr_t> = MaybeUninit::uninitialized();
 
         let conversion_result = unsafe {
             ipv6_addr_from_str(
-                &mut ret.inner,
+                inner.as_mut_ptr(),
                 libc::CStr::from_bytes_with_nul_unchecked(&with_null).as_ptr(),
             )
         };
 
         match conversion_result as usize {
             0 => Err(()),
-            _ => Ok(ret),
+            _ => Ok(Self { inner: unsafe { inner.into_inner() } }),
         }
     }
 }
