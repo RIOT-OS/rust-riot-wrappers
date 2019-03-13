@@ -103,7 +103,7 @@ impl OpaqueMsg {
     pub fn receive() -> OpaqueMsg {
         let mut m: MaybeUninit<msg_t> = MaybeUninit::uninitialized();
         let _ = unsafe { msg_receive(m.as_mut_ptr()) };
-        OpaqueMsg(unsafe { m.into_inner() })
+        OpaqueMsg(unsafe { m.into_initialized() })
     }
 }
 
