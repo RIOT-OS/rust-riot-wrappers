@@ -29,16 +29,26 @@ pub struct RegistrationScope {
 
 impl RegistrationScope {
     // FIXME: Generalize SingleHandlerListener::get_listener into a trait
-    pub fn register<'scope, 'handler: 'scope, H: Handler>(&'scope mut self, handler: &'handler mut SingleHandlerListener<'handler, H>) {
+    pub fn register<'scope, 'handler, P>(&'scope mut self, handler: &'handler mut P) where
+        'handler: 'scope,
+        P: 'handler + ListenerProvider
+    {
         // Unsafe: Moving in a pointer to an internal structure to which we were given an exclusive
         // reference that outlives self -- and whoever can create a Self guarantees that
         // deregister_all() will be called before the end of this self's lifetime.
-        unsafe { gcoap_register_listener(handler.get_listener()) };
+        unsafe { gcoap_register_listener(handler.get_listener() as *mut _) };
     }
 
     fn deregister_all(&mut self) {
         panic!("Registration callback returned, but Gcoap does not allow deregistration.");
     }
+}
+
+pub trait ListenerProvider {
+    /// Provide an exclusive reference to the underlying gcoap listener. The function is marked
+    /// unsafe as the returned value contains raw pointers that will later be dereferenced, and
+    /// returning arbitrary pointers would make RegistratinScope::register() pass bad data on to C.
+    unsafe fn get_listener<'a>(&'a mut self) -> &'a mut gcoap_listener_t;
 }
 
 pub struct SingleHandlerListener<'a, H> {
@@ -75,15 +85,6 @@ where
         }
     }
 
-    pub fn get_listener(&mut self) -> *mut gcoap_listener_t {
-        self.listener.resources = &self.resource;
-        self.listener.resources_len = 1;
-        self.listener.next = 0 as *mut _;
-
-        &mut self.listener as *mut _
-    }
-
-
     unsafe extern "C" fn call_handler(
         pkt: *mut coap_pkt_t,
         buf: *mut u8,
@@ -95,6 +96,20 @@ where
         let mut pb = PacketBuffer { pkt, buf, len };
         H::handle(h, &mut pb)
     }
+}
+
+impl<'a, H> ListenerProvider for SingleHandlerListener<'a, H>
+where
+    H: 'a + Handler
+{
+    unsafe fn get_listener(&mut self) -> &mut gcoap_listener_t {
+        self.listener.resources = &self.resource;
+        self.listener.resources_len = 1;
+        self.listener.next = 0 as *mut _;
+
+        &mut self.listener
+    }
+
 }
 
 pub trait Handler {
