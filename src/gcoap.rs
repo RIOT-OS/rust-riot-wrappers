@@ -95,6 +95,20 @@ pub trait Handler {
     fn handle(&mut self, pkt: &mut PacketBuffer) -> isize;
 }
 
+/// A wrapper that implements gnrc::Handler for closures. This allows easy compact writing of
+/// ad-hoc handlers.
+pub struct ClosureHandler<H>(pub H) where
+    H: FnMut(&mut PacketBuffer) -> isize
+;
+impl<H> Handler for ClosureHandler<H> where
+    H: FnMut(&mut PacketBuffer) -> isize
+{
+    fn handle(&mut self, pkt: &mut PacketBuffer) -> isize {
+        self.0(pkt)
+    }
+}
+
+
 // Questionable code starts here
 
 use riot_sys::libc::{c_uint};
