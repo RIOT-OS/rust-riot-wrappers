@@ -47,18 +47,24 @@ pub struct SingleHandlerListener<'a, H> {
     listener: gcoap_listener_t,
 }
 
+/// A combination of the coap_resource_t and gcoap_listener_t structs with only a single resource
+/// (Compared to many resources, this allows easier creation in Rust at the expense of larger
+/// memory consumption and slower lookups in Gcoap).
+///
+/// A listener `l` can be hooked into the global Gcoap registry using `scope(|x| { x.register(l)
+/// })`.
 impl<'a, H> SingleHandlerListener<'a, H>
 where
     H: 'a + Handler
 {
-    pub fn new(path: &'a CStr, handler: &'a mut H) -> Self
+    pub fn new(path: &'a CStr, methods: u32, handler: &'a mut H) -> Self
     {
         SingleHandlerListener {
             _phantom: PhantomData,
             resource: coap_resource_t {
                 path: path.as_ptr(),
                 handler: Some(Self::call_handler),
-                methods: 0xff, // A good handler checks anyway
+                methods: methods,
                 context: handler as *mut _ as *mut c_void,
             },
             listener: gcoap_listener_t {
@@ -402,80 +408,6 @@ impl PacketBuffer {
                 return -1;
             }
             gcoap_finish(self.pkt, 0, COAP_FORMAT_NONE)
-        }
-    }
-}
-
-/// A single registerable resource. It wraps the two distinct concepts of a gcoap_listener and a
-/// gcoap_resource into a single entity, thus avoiding the issues with a LIMIT present in the shell
-/// module as well as the need to sort the resources by path, at the expense of being a wasteful
-/// linked list.
-pub struct Resource<'a, R> {
-    callback: R,
-    // This is redundant with the pointer stored in the listener, but correctly captures its
-    // lifetime.
-    _path: &'a CStr,
-    resources: [coap_resource_t; 1],
-    listener: gcoap_listener_t,
-    registered: bool, //
-}
-
-impl<'a, R> Resource<'a, R>
-// R must be Send because it'll be executed in the gcoap thread
-where
-    R: Send + FnMut(&mut PacketBuffer) -> isize,
-{
-    pub fn new(path: &'a CStr, methods: u32, callback: R) -> Self {
-        Resource {
-            callback,
-            _path: path,
-            resources: [coap_resource_t {
-                path: path.as_ptr(),
-                methods: methods,
-                handler: None,
-                context: 0 as *mut _,
-            }],
-            listener: gcoap_listener_t {
-                resources: 0 as *const _,
-                resources_len: 1,
-                next: 0 as *mut _,
-            },
-            registered: false,
-        }
-    }
-
-    unsafe extern "C" fn call_handler(
-        pkt: *mut coap_pkt_t,
-        buf: *mut u8,
-        len: usize,
-        context: *mut c_void,
-    ) -> isize {
-        let s = context as *mut Resource<'a, R>;
-        let s = &mut *s;
-        let cb = &mut s.callback;
-        let mut pb = PacketBuffer { pkt, buf, len };
-        cb(&mut pb)
-    }
-
-    // FIXME: Make sure this stays pinned while registered.
-    pub fn register(&mut self) {
-        // Set up all the internal links to make the listener valid
-        self.resources[0].handler = Some(Self::call_handler);
-        self.resources[0].context = self as *mut _ as *mut c_void;
-        self.listener.resources = self.resources.as_ptr();
-
-        unsafe { gcoap_register_listener(&mut self.listener) };
-
-        self.registered = true;
-    }
-}
-
-/// Resources can not be dropped, for they can not be unregistered from gcoap (there is no
-/// gcoap_unregister_listener function).
-impl<'a, R> Drop for Resource<'a, R> {
-    fn drop(&mut self) {
-        if self.registered {
-            panic!("Registered resources must never be dropped")
         }
     }
 }
