@@ -85,3 +85,21 @@ mod nativestdio {
 pub use self::nativestdio::Stdio;
 #[cfg(riot_module_stdio_uart)]
 pub use self::regular::Stdio;
+
+// Copied and adapted from Rust 1.32.0
+#[macro_export]
+macro_rules! dbg {
+    ($val:expr) => {
+        match $val {
+            tmp => {
+                use riot_wrappers::stdio::Stdio;
+                use core::fmt::Write;
+                writeln!(Stdio { }, "[{}:{}] {} = {:#?}",
+                    file!(), line!(), stringify!($val), &tmp);
+                tmp
+            }
+        }
+    }
+}
+
+pub use dbg;
