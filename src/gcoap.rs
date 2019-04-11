@@ -1,13 +1,109 @@
-use riot_sys::libc::{c_uint, c_void, CStr};
+// There is some questionably scoped code in the lower half of this module (it made requirements on
+// data staying in a place that was not justified from the type system). This is being changed.
+
+use riot_sys::{coap_resource_t, gcoap_listener_t, coap_pkt_t};
+use riot_sys::libc::{CStr, c_void};
+use core::marker::PhantomData;
+
+/// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
+/// callback. When the callback terminates, the registered handlers are deregistered again,
+/// theoretically allowing the registration of non-'static handlers.
+///
+/// As there is currently no way to unregister handlers, this function panics when the callback
+/// terminates.
+pub fn scope<F>(callback: F)
+where
+    F: FnOnce(&mut RegistrationScope)
+{
+    let mut r = RegistrationScope { _private: () };
+
+    callback(&mut r);
+
+    r.deregister_all();
+}
+
+// Could we allow users the creation of 'static RegistrationScopes? Like thread::spawn.
+pub struct RegistrationScope {
+    _private: ()
+}
+
+impl RegistrationScope {
+    // FIXME: Generalize SingleHandlerListener::get_listener into a trait
+    pub fn register<'scope, 'handler: 'scope, H: Handler>(&'scope mut self, handler: &'handler mut SingleHandlerListener<'handler, H>) {
+        // Unsafe: Moving in a pointer to an internal structure to which we were given an exclusive
+        // reference that outlives self -- and whoever can create a Self guarantees that
+        // deregister_all() will be called before the end of this self's lifetime.
+        unsafe { gcoap_register_listener(handler.get_listener()) };
+    }
+
+    fn deregister_all(&mut self) {
+        panic!("Registration callback returned, but Gcoap does not allow deregistration.");
+    }
+}
+
+pub struct SingleHandlerListener<'a, H> {
+    _phantom: PhantomData<&'a H>,
+    resource: coap_resource_t,
+    listener: gcoap_listener_t,
+}
+
+impl<'a, H> SingleHandlerListener<'a, H>
+where
+    H: 'a + Handler
+{
+    pub fn new(path: &'a CStr, handler: &'a mut H) -> Self
+    {
+        SingleHandlerListener {
+            _phantom: PhantomData,
+            resource: coap_resource_t {
+                path: path.as_ptr(),
+                handler: Some(Self::call_handler),
+                methods: 0xff, // A good handler checks anyway
+                context: handler as *mut _ as *mut c_void,
+            },
+            listener: gcoap_listener_t {
+                resources: 0 as *const _,
+                resources_len: 0,
+                next: 0 as *mut _,
+            }
+        }
+    }
+
+    pub fn get_listener(&mut self) -> *mut gcoap_listener_t {
+        self.listener.resources = &self.resource;
+        self.listener.resources_len = 1;
+        self.listener.next = 0 as *mut _;
+
+        &mut self.listener as *mut _
+    }
+
+
+    unsafe extern "C" fn call_handler(
+        pkt: *mut coap_pkt_t,
+        buf: *mut u8,
+        len: usize,
+        context: *mut c_void,
+    ) -> isize {
+        let h = context as *mut H;
+        let h = &mut *h;
+        let mut pb = PacketBuffer { pkt, buf, len };
+        H::handle(h, &mut pb)
+    }
+}
+
+pub trait Handler {
+    fn handle(&mut self, pkt: &mut PacketBuffer) -> isize;
+}
+
+// Questionable code starts here
+
+use riot_sys::libc::{c_uint};
 use riot_sys::{
     coap_get_blockopt,
     coap_hdr_t,
     coap_opt_add_uint,
     coap_opt_finish,
-    coap_pkt_t,
-    coap_resource_t,
     gcoap_finish,
-    gcoap_listener_t,
     gcoap_register_listener,
     gcoap_resp_init,
     memmove,
