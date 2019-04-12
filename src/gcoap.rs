@@ -137,6 +137,7 @@ use riot_sys::{
     coap_get_blockopt,
     coap_hdr_t,
     coap_opt_add_uint,
+    coap_opt_add_opaque,
     coap_opt_finish,
     gcoap_finish,
     gcoap_register_listener,
@@ -242,6 +243,7 @@ impl<'a> ::core::fmt::Write for BlockWriter<'a> {
 /// A representation of the incoming or outgoing data on the server side of a request. This
 /// includes the coap_pkt_t pre-parsed header and option pointers as well as the memory area
 /// dedicated to returning the packet.
+#[derive(Debug)]
 pub struct PacketBuffer {
     pkt: *mut coap_pkt_t,
     buf: *mut u8,
@@ -249,6 +251,89 @@ pub struct PacketBuffer {
 }
 
 impl PacketBuffer {
+    pub fn get_code_raw(&self) -> u8 {
+        // FIXME inlining static coap_get_code_detail
+        unsafe { (*(*self.pkt).hdr).code }
+    }
+
+    fn get_total_hdr_len(&self) -> usize {
+        unsafe { coap_get_total_hdr_len(&*self.pkt) }
+    }
+
+    /// Take a message that came in as a request and configure it such that options and payload can
+    /// be added. The response code is set to 5.00 Internal Server Error as a precaution.
+    ///
+    /// This is similar to gcoap_resp_init, but does not try to reserve any space for options.
+    ///
+    /// The options list is set to empty, and the available payload is configured to span the
+    /// complete available buffer right after the header. Subsequent opt_add_* invocations can then
+    /// push back the buffer.
+    pub fn prepare_response(&mut self) {
+        unsafe {
+            let hdr: &mut coap_hdr_t = &mut *(*self.pkt).hdr;
+            if (hdr.ver_t_tkl & 0x30) >> 4 == COAP_TYPE_CON as u8 {
+                hdr.ver_t_tkl = hdr.ver_t_tkl & 0xcf | ((COAP_TYPE_ACK as u8) << 4);
+            }
+            hdr.code = 5 << 5;
+        }
+
+        let hdrlen = self.get_total_hdr_len();
+        unsafe {
+            (*self.pkt).payload = self.buf.offset(hdrlen as isize);
+            (*self.pkt).payload_len = self.len.saturating_sub(hdrlen) as u16;
+            (*self.pkt).options_len = 0;
+        }
+    }
+
+    pub fn set_code_raw(&mut self, code: u8) {
+        unsafe { (*(*self.pkt).hdr).code  = code };
+    }
+
+    /// Return the total number of bytes in the message, given that `payload_used` bytes were
+    /// written at the payload pointer. Note that those bytes have to include the payload marker.
+    ///
+    /// This measures the distance between the payload pointer in the pkt and the start of the
+    /// buffer. It is the header length after `prepare_response`, and grows as options are added.
+    pub fn get_length(&self, payload_used: usize) -> usize {
+        let own_length = unsafe { (*self.pkt).payload.offset_from(self.buf) };
+        assert!(own_length >= 0);
+        let total_length = own_length as usize + payload_used;
+        assert!(total_length <= self.len);
+        total_length
+    }
+
+    /// A view of the current message payload
+    pub fn payload(&self) -> &[u8] {
+        unsafe {
+            core::slice::from_raw_parts((*self.pkt).payload, (*self.pkt).payload_len as usize)
+        }
+    }
+
+    /// A view of the current message payload
+    pub fn payload_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize)
+        }
+    }
+
+    /// Add an integer value as an option
+    pub fn opt_add_uint(&mut self, optnum: u16, value: u32) -> Result<(), ()> {
+        if unsafe { coap_opt_add_uint(self.pkt, optnum, value) } < 0 {
+            Err(())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Add a binary value as an option
+    pub fn opt_add_opaque(&mut self, optnum: u16, data: &[u8]) -> Result<(), ()> {
+        if unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len()) } < 0 {
+            Err(())
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn response(
         &mut self,
         code: u32,
@@ -304,7 +389,7 @@ impl PacketBuffer {
             }
             hdr.code = code as u8;
 
-            let headroom = coap_get_total_hdr_len(&*self.pkt) + 25 /* used to be 8 */;
+            let headroom = self.get_total_hdr_len() + 25 /* used to be 8 */;
             (*self.pkt).payload = self.buf.offset(headroom as isize);
             (*self.pkt).payload_len = self.len as u16 - headroom as u16;
         }
