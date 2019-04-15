@@ -29,18 +29,20 @@ mod status_converted {
 
     use riot_sys as raw;
 
-    pub const STATUS_NOT_FOUND: i32 = raw::STATUS_NOT_FOUND as i32;
-    pub const STATUS_STOPPED: i32 = raw::STATUS_STOPPED as i32;
-    pub const STATUS_SLEEPING: i32 = raw::STATUS_SLEEPING as i32;
-    pub const STATUS_MUTEX_BLOCKED: i32 = raw::STATUS_MUTEX_BLOCKED as i32;
-    pub const STATUS_RECEIVE_BLOCKED: i32 = raw::STATUS_RECEIVE_BLOCKED as i32;
-    pub const STATUS_SEND_BLOCKED: i32 = raw::STATUS_SEND_BLOCKED as i32;
-    pub const STATUS_REPLY_BLOCKED: i32 = raw::STATUS_REPLY_BLOCKED as i32;
-    pub const STATUS_FLAG_BLOCKED_ANY: i32 = raw::STATUS_FLAG_BLOCKED_ANY as i32;
-    pub const STATUS_FLAG_BLOCKED_ALL: i32 = raw::STATUS_FLAG_BLOCKED_ALL as i32;
-    pub const STATUS_MBOX_BLOCKED: i32 = raw::STATUS_MBOX_BLOCKED as i32;
-    pub const STATUS_RUNNING: i32 = raw::STATUS_RUNNING as i32;
-    pub const STATUS_PENDING: i32 = raw::STATUS_PENDING as i32;
+    // STATUS_NOT_FOUND is not added here as it's not a proper status but rather a sentinel value,
+    // which moreover can't be processed in its current form by bindgen and would need to be copied
+    // over in here by manual expansion of the macro definition.
+    pub const STATUS_STOPPED: i32 = raw::thread_state_t_STATUS_STOPPED as i32;
+    pub const STATUS_SLEEPING: i32 = raw::thread_state_t_STATUS_SLEEPING as i32;
+    pub const STATUS_MUTEX_BLOCKED: i32 = raw::thread_state_t_STATUS_MUTEX_BLOCKED as i32;
+    pub const STATUS_RECEIVE_BLOCKED: i32 = raw::thread_state_t_STATUS_RECEIVE_BLOCKED as i32;
+    pub const STATUS_SEND_BLOCKED: i32 = raw::thread_state_t_STATUS_SEND_BLOCKED as i32;
+    pub const STATUS_REPLY_BLOCKED: i32 = raw::thread_state_t_STATUS_REPLY_BLOCKED as i32;
+    pub const STATUS_FLAG_BLOCKED_ANY: i32 = raw::thread_state_t_STATUS_FLAG_BLOCKED_ANY as i32;
+    pub const STATUS_FLAG_BLOCKED_ALL: i32 = raw::thread_state_t_STATUS_FLAG_BLOCKED_ALL as i32;
+    pub const STATUS_MBOX_BLOCKED: i32 = raw::thread_state_t_STATUS_MBOX_BLOCKED as i32;
+    pub const STATUS_RUNNING: i32 = raw::thread_state_t_STATUS_RUNNING as i32;
+    pub const STATUS_PENDING: i32 = raw::thread_state_t_STATUS_PENDING as i32;
 }
 
 #[derive(Debug)]
@@ -48,7 +50,6 @@ pub enum Status {
     // I would not rely on any properties of the assigned values, but it might make the conversion
     // points easier on the generated code if it can be reasoned down to a simple check of whether
     // it's in range.
-    NotFound = status_converted::STATUS_NOT_FOUND as isize,
     Stopped = status_converted::STATUS_STOPPED as isize,
     Sleeping = status_converted::STATUS_SLEEPING as isize,
     MutexBlocked = status_converted::STATUS_MUTEX_BLOCKED as isize,
@@ -79,7 +80,6 @@ impl Status {
 
     fn from_int(status: i32) -> Self {
         match status {
-            status_converted::STATUS_NOT_FOUND => Status::NotFound,
             status_converted::STATUS_STOPPED => Status::Stopped,
             status_converted::STATUS_SLEEPING => Status::Sleeping,
             status_converted::STATUS_MUTEX_BLOCKED => Status::MutexBlocked,
