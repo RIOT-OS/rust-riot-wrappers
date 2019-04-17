@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(try_from)]
 #![feature(never_type)]
 #![feature(ptr_offset_from)]
 #![feature(maybe_uninit)]
