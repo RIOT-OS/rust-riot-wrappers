@@ -259,21 +259,14 @@ trait ZeroOk {
     fn convert(self) -> Result<(), ()>;
 }
 
-// Use num-traits to get rid of the duplication? Would check for .is_zero() for num::Zero types
-impl ZeroOk for i32 {
+impl<T> ZeroOk for T where
+    T: num_traits::Zero
+{
     fn convert(self) -> Result<(), ()> {
-        match self.into() {
-            0 => Ok(()),
-            _ => Err(()),
-        }
-    }
-}
-
-impl ZeroOk for isize {
-    fn convert(self) -> Result<(), ()> {
-        match self.into() {
-            0 => Ok(()),
-            _ => Err(()),
+        if self.is_zero() {
+            Ok(())
+        } else {
+            Err(())
         }
     }
 }
