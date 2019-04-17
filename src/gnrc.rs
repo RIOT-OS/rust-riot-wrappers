@@ -52,7 +52,7 @@ impl ::core::str::FromStr for IPv6Addr {
         }
         with_null[..s.len()].copy_from_slice(s);
 
-        let mut inner: MaybeUninit<ipv6_addr_t> = MaybeUninit::uninitialized();
+        let mut inner: MaybeUninit<ipv6_addr_t> = MaybeUninit::uninit();
 
         let conversion_result = unsafe {
             ipv6_addr_from_str(
@@ -63,7 +63,7 @@ impl ::core::str::FromStr for IPv6Addr {
 
         match conversion_result as usize {
             0 => Err(()),
-            _ => Ok(Self { inner: unsafe { inner.into_initialized() } }),
+            _ => Ok(Self { inner: unsafe { inner.assume_init() } }),
         }
     }
 }
