@@ -243,6 +243,10 @@ impl<'a> ::core::fmt::Write for BlockWriter<'a> {
 /// A representation of the incoming or outgoing data on the server side of a request. This
 /// includes the coap_pkt_t pre-parsed header and option pointers as well as the memory area
 /// dedicated to returning the packet.
+///
+/// This struct wraps the unsafety of the C API, but does not structurally ensure that valid CoAP
+/// messages are created. (For example, it does not keep the user from adding options after the
+/// payload marker). Use CoAP generalization for that.
 #[derive(Debug)]
 pub struct PacketBuffer {
     pkt: *mut coap_pkt_t,
@@ -250,39 +254,49 @@ pub struct PacketBuffer {
     len: usize,
 }
 
+// Helper for error handling
+trait ZeroOk {
+    fn convert(self) -> Result<(), ()>;
+}
+
+// Use num-traits to get rid of the duplication? Would check for .is_zero() for num::Zero types
+impl ZeroOk for i32 {
+    fn convert(self) -> Result<(), ()> {
+        match self.into() {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+}
+
+impl ZeroOk for isize {
+    fn convert(self) -> Result<(), ()> {
+        match self.into() {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+}
+
 impl PacketBuffer {
+    /// Wrapper for coap_get_code_raw
     pub fn get_code_raw(&self) -> u8 {
-        // FIXME inlining static coap_get_code_detail
+        // FIXME inlining static coap_get_code_raw
         unsafe { (*(*self.pkt).hdr).code }
     }
 
+    /// Wrapper for coap_get_total_hdr_len
     fn get_total_hdr_len(&self) -> usize {
         unsafe { coap_get_total_hdr_len(&*self.pkt) }
     }
 
-    /// Take a message that came in as a request and configure it such that options and payload can
-    /// be added. The response code is set to 5.00 Internal Server Error as a precaution.
+    /// Wrapper for gcoap_resp_init
     ///
-    /// This is similar to gcoap_resp_init, but does not try to reserve any space for options.
-    ///
-    /// The options list is set to empty, and the available payload is configured to span the
-    /// complete available buffer right after the header. Subsequent opt_add_* invocations can then
-    /// push back the buffer.
-    pub fn prepare_response(&mut self) {
-        unsafe {
-            let hdr: &mut coap_hdr_t = &mut *(*self.pkt).hdr;
-            if (hdr.ver_t_tkl & 0x30) >> 4 == COAP_TYPE_CON as u8 {
-                hdr.ver_t_tkl = hdr.ver_t_tkl & 0xcf | ((COAP_TYPE_ACK as u8) << 4);
-            }
-            hdr.code = 5 << 5;
-        }
-
-        let hdrlen = self.get_total_hdr_len();
-        unsafe {
-            (*self.pkt).payload = self.buf.offset(hdrlen as isize);
-            (*self.pkt).payload_len = self.len.saturating_sub(hdrlen) as u16;
-            (*self.pkt).options_len = 0;
-        }
+    /// As it is used and wrapped here, this makes GCOAP_RESP_OPTIONS_BUF bytes unusable, but
+    /// working around that would mean duplicating code. Just set GCOAP_RESP_OPTIONS_BUF to zero to
+    /// keep the overhead low.
+    pub fn resp_init(&mut self, code: u8) -> Result<(), ()> {
+        unsafe { gcoap_resp_init(self.pkt, self.buf, self.len, code.into()) }.convert()
     }
 
     pub fn set_code_raw(&mut self, code: u8) {
@@ -303,13 +317,18 @@ impl PacketBuffer {
     }
 
     /// A view of the current message payload
+    ///
+    /// This is only the CoAP payload after opt_finish has been called; before, it is a view on the
+    /// remaining buffer space after any options that have already been added.
     pub fn payload(&self) -> &[u8] {
         unsafe {
             core::slice::from_raw_parts((*self.pkt).payload, (*self.pkt).payload_len as usize)
         }
     }
 
-    /// A view of the current message payload
+    /// A mutable view of the current message payload
+    ///
+    /// See `payload`.
     pub fn payload_mut(&mut self) -> &mut [u8] {
         unsafe {
             core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize)
@@ -318,21 +337,14 @@ impl PacketBuffer {
 
     /// Add an integer value as an option
     pub fn opt_add_uint(&mut self, optnum: u16, value: u32) -> Result<(), ()> {
-        if unsafe { coap_opt_add_uint(self.pkt, optnum, value) } < 0 {
-            Err(())
-        } else {
-            Ok(())
-        }
+        unsafe { coap_opt_add_uint(self.pkt, optnum, value) }.convert()
     }
 
     /// Add a binary value as an option
     pub fn opt_add_opaque(&mut self, optnum: u16, data: &[u8]) -> Result<(), ()> {
-        if unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len()) } < 0 {
-            Err(())
-        } else {
-            Ok(())
-        }
+        unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len()) }.convert()
     }
+
 
     pub fn response(
         &mut self,
