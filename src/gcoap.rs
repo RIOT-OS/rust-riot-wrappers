@@ -339,6 +339,7 @@ impl PacketBuffer {
     }
 
 
+    #[deprecated]
     pub fn response(
         &mut self,
         code: u32,
@@ -364,6 +365,7 @@ impl PacketBuffer {
     /// a 64byte block (given the typical 128byte limit of gcoap) based on the requested block. An
     /// ETag is calculated from a checksum of the whole message, which is rendered again and again
     /// for each block.
+    #[deprecated]
     pub fn response_blockwise(
         &mut self,
         code: u32,
@@ -505,6 +507,7 @@ impl PacketBuffer {
     // FIXME I'd like to use the type system to ensure that a resposne can be used only once; would
     // be easy if I could have a owned PacketBuffer in the callback, but how can I then ensure that
     // it doesn't get moved to the outside? (Or do I -- expecting non-blocking responses?)
+    #[deprecated]
     pub fn response_empty(&mut self, code: u32) -> isize {
         // This is copied from the static gcoap_response implementation
         unsafe {
