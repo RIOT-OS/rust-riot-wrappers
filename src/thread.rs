@@ -170,6 +170,7 @@ where
     /// .prepare() constructor and a .run() activator. It might be salvagable by having a prepared
     /// Thread and an undroppable returned ThreadHandle that contains a references from .run(), but
     /// that appears to be overly complicated right now).
+    #[deprecated(note="This interface repeats the leakpocalypse, use .scope() instead")]
     pub fn spawn(
         stack: &'a mut [u8],
         closure: &'a mut R,
@@ -250,5 +251,106 @@ impl<'a, R> Drop for Thread<'a, R> {
     fn drop(&mut self) {
         // We don't even know whether it has been started, either
         panic!("Can't drop a Thread because I can't kill the process (or make sure it has died for good)");
+    }
+}
+
+
+pub fn scope<F>(callback: F)
+where
+    F: FnOnce(&mut ThreadScope)
+{
+    let mut s = ThreadScope { _private: () };
+
+    callback(&mut s);
+
+    s.wait_for_all();
+}
+
+pub struct ThreadScope {
+    _private: ()
+}
+
+impl ThreadScope {
+    /// Start a thread in the given stack, in which the closure is run. The thread gets a human
+    /// readable name (ignored in no-DEVHELP mode), and is started with the priority and flags as
+    /// per thread_create documentation.
+    ///
+    /// The returned thread object can safely be discarded; 
+    ///
+    /// Having the closure as a mutable reference (rather than a moved instance) is a bit
+    /// unergonomic as it means that `spawn(..., || { foo }, ..)` one-line invocations are
+    /// impossible, but is necessary as it avoids having the callback sitting in the Thread which
+    /// can't be prevented from moving around on the stack between the point when thread_create is
+    /// called (and the pointer is passed on to RIOT) and the point when the threads starts running
+    /// and that pointer is used. (That was also an issue with the previous design that had a
+    /// .prepare() constructor and a .run() activator. It might be salvagable by having a prepared
+    /// Thread and an undroppable returned ThreadHandle that contains a references from .run(), but
+    /// that appears to be overly complicated right now).
+    pub fn spawn<'scope, 'pieces, R>(&'scope mut self,
+        stack: &'pieces mut [u8],
+        closure: &'pieces mut R,
+        name: &'pieces libc::CStr,
+        priority: i8,
+        flags: i32,
+    ) -> Result<SpawnedThread<'scope>, raw::kernel_pid_t>
+    where
+        'pieces: 'scope,
+        R: Send + FnMut(),
+    {
+        // overwriting name "R" as suggested as "copy[ing] over the parameters" on
+        // https://doc.rust-lang.org/error-index.html#E0401
+        unsafe extern "C" fn run<R>(x: *mut libc::c_void) -> *mut libc::c_void
+        where
+            R: Send + FnMut(),
+        {
+            let closure: &mut R = transmute(x);
+            closure();
+            0 as *mut libc::c_void
+        }
+
+        let pid = unsafe {
+            raw::thread_create(
+                transmute(stack.as_mut_ptr()),
+                stack.len() as i32,
+                priority,
+                flags,
+                Some(run::<R>),
+                transmute(closure),
+                name.as_ptr(),
+            )
+        };
+
+        if pid < 0 {
+            return Err(pid);
+        }
+
+        Ok(SpawnedThread {
+            pid: KernelPID(pid),
+            _phantom: PhantomData,
+        })
+    }
+
+    fn wait_for_all(self) {
+        // a) because not even threads can be waited for, and
+        // b) a ThreadScope doesn't have the dynamic memory to keep track of all N threads it may
+        // have spawned.
+        //
+        // This could be enhanced in the future by at least counting the number of spawned threads
+        // (in constant memory), and panicing unless all the spawned threads have been shut down
+        // properly beforehand.
+        panic!("Can not wait for all threads");
+    }
+}
+
+// The 'scope is currently not necessary, but I anticipate right now that it'll be needed if and
+// when it contains a TCB reference to adaequately query the thread's status.
+pub struct SpawnedThread<'scope> {
+    pid: KernelPID,
+    _phantom: PhantomData<&'scope ()>
+}
+
+impl<'scope> SpawnedThread<'scope> {
+    pub fn get_pid(&self) -> KernelPID {
+        self.pid
     }
 }
