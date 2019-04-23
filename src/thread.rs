@@ -255,94 +255,165 @@ impl<'a, R> Drop for Thread<'a, R> {
 }
 
 
+
+
+/// Internal helper that does all the casting but relies on the caller to establish appropriate
+/// lifetimes.
+///
+/// This also returns a pointer to the created thread's control block inside the stack; that TCB
+/// can be used to get the thread's status even when the thread is already stopped and the PID may
+/// have been reused for a different thread. For short-lived threads that are done before this
+/// function returns, the TCB may be None.
+unsafe fn create<R>(
+        stack: &mut [u8],
+        closure: &mut R,
+        name: &libc::CStr,
+        priority: i8,
+        flags: i32,
+) -> (raw::kernel_pid_t, Option<*mut riot_sys::_thread>)
+where
+    R: Send + FnMut(),
+{
+    // overwriting name "R" as suggested as "copy[ing] over the parameters" on
+    // https://doc.rust-lang.org/error-index.html#E0401
+    unsafe extern "C" fn run<R>(x: *mut libc::c_void) -> *mut libc::c_void
+    where
+        R: Send + FnMut(),
+    {
+        let closure: &mut R = transmute(x);
+        closure();
+        0 as *mut libc::c_void
+    }
+
+    let pid = raw::thread_create(
+        transmute(stack.as_mut_ptr()),
+        stack.len() as i32,
+        priority,
+        flags,
+        Some(run::<R>),
+        closure as *mut R as *mut _,
+        name.as_ptr(),
+    );
+
+    let tcb = riot_sys::thread_get(pid);
+    // FIXME: Rather than doing pointer comparisons, it'd be nicer to just get the stack's
+    // calculated thread control block (TCB) position and look right in there.
+    let tcb = if tcb >= &stack[0] as *const u8 as *mut _
+        && tcb <= &stack[stack.len() - 1] as *const u8 as *mut _
+    {
+        Some(tcb)
+    } else {
+        None
+    };
+
+    (pid, tcb)
+}
+
+/// Create a context for starting threads that take shorter than 'static references.
+///
+/// Inside the scope, threads can be created using the `.spawn()` method of the scope passed in,
+/// similar to the scoped-threads RFC (which resembles crossbeam's threads). Unlike that, the scope
+/// has no dynamic memory of the spawned threads, and no actual way of waiting for a thread. If the
+/// callback returns, the caller has call the scope's `.reap()` method with all the threads that
+/// were launched; otherwise, the program panics.
 pub fn scope<F>(callback: F)
 where
-    F: FnOnce(&mut ThreadScope)
+    F: FnOnce(&mut CountingThreadScope)
 {
-    let mut s = ThreadScope { _private: () };
+    let mut s = CountingThreadScope { threads: 0 };
 
     callback(&mut s);
 
     s.wait_for_all();
 }
 
-pub struct ThreadScope {
-    _private: ()
+pub struct CountingThreadScope {
+    threads: u16, // a counter, but larger than kernel_pid_t
 }
 
-impl ThreadScope {
+impl CountingThreadScope {
     /// Start a thread in the given stack, in which the closure is run. The thread gets a human
     /// readable name (ignored in no-DEVHELP mode), and is started with the priority and flags as
     /// per thread_create documentation.
     ///
-    /// The returned thread object can safely be discarded; 
+    /// The returned thread object can safely be discarded when the scope is not expected to ever
+    /// return, and needs to be passed on to `.reap()` otherwise.
     ///
     /// Having the closure as a mutable reference (rather than a moved instance) is a bit
     /// unergonomic as it means that `spawn(..., || { foo }, ..)` one-line invocations are
     /// impossible, but is necessary as it avoids having the callback sitting in the Thread which
     /// can't be prevented from moving around on the stack between the point when thread_create is
     /// called (and the pointer is passed on to RIOT) and the point when the threads starts running
-    /// and that pointer is used. (That was also an issue with the previous design that had a
-    /// .prepare() constructor and a .run() activator. It might be salvagable by having a prepared
-    /// Thread and an undroppable returned ThreadHandle that contains a references from .run(), but
-    /// that appears to be overly complicated right now).
-    pub fn spawn<'scope, 'pieces, R>(&'scope self,
+    /// and that pointer is used.
+    pub fn spawn<'scope, 'pieces, R>(&'scope mut self,
         stack: &'pieces mut [u8],
         closure: &'pieces mut R,
         name: &'pieces libc::CStr,
         priority: i8,
         flags: i32,
-    ) -> Result<SpawnedThread<'scope>, raw::kernel_pid_t>
+    ) -> Result<CountedThread<'pieces>, raw::kernel_pid_t>
     where
         'pieces: 'scope,
         R: Send + FnMut(),
     {
-        // overwriting name "R" as suggested as "copy[ing] over the parameters" on
-        // https://doc.rust-lang.org/error-index.html#E0401
-        unsafe extern "C" fn run<R>(x: *mut libc::c_void) -> *mut libc::c_void
-        where
-            R: Send + FnMut(),
-        {
-            let closure: &mut R = transmute(x);
-            closure();
-            0 as *mut libc::c_void
-        }
+        self.threads = self.threads.checked_add(1).expect("Thread limit exceeded");
 
-        let pid = unsafe {
-            raw::thread_create(
-                transmute(stack.as_mut_ptr()),
-                stack.len() as i32,
-                priority,
-                flags,
-                Some(run::<R>),
-                transmute(closure),
-                name.as_ptr(),
-            )
-        };
+        let (pid, tcb) = unsafe { create(stack, closure, name, priority, flags) };
 
         if pid < 0 {
             return Err(pid);
         }
 
-        Ok(SpawnedThread {
-            pid: KernelPID(pid),
+        Ok(CountedThread {
+            thread: TrackedThread {
+                pid: KernelPID(pid),
+                tcb: tcb,
+            },
             _phantom: PhantomData,
         })
     }
 
+    /// Assert that the thread has terminated, and remove it from the list of pending threads in
+    /// this context.
+    ///
+    /// Unlike a (POSIX) wait, this will not block (for there is no SIGCHLDish thing in RIOT --
+    /// whoever wants to be notified would need to make their threads send an explicit signal), but
+    /// panic if the thread is not actually done yet.
+    pub fn reap(&mut self, thread: CountedThread) {
+        // FIXME: check whether the counted thread 
+        match thread.get_status() {
+            Status::Stopped => (),
+            _ => panic!("Attempted to reap running process"),
+        }
+
+        self.threads -= 1;
+    }
+
     fn wait_for_all(self) {
-        // a) because not even threads can be waited for, and
-        // b) a ThreadScope doesn't have the dynamic memory to keep track of all N threads it may
-        // have spawned.
-        //
-        // This could be enhanced in the future by at least counting the number of spawned threads
-        // (in constant memory), and panicing unless all the spawned threads have been shut down
-        // properly beforehand.
-        panic!("Can not wait for all threads");
+        if self.threads != 0 {
+            panic!("Not all threads were waited for at scope end");
+        }
     }
 }
 
-static STATIC_SCOPE: ThreadScope = ThreadScope { _private: () };
+// The 'pieces should (FIXME: verify) help ensuring that threads can only be reaped where they were
+// created. (It might make sense to move it into TrackedThread and make the tcb usable for more
+// than just pointer comparison).
+pub struct CountedThread<'pieces> {
+    thread: TrackedThread,
+    _phantom: PhantomData<&'pieces ()>
+}
+
+impl<'pieces> CountedThread<'pieces> {
+    pub fn get_pid(&self) -> KernelPID {
+        self.thread.get_pid()
+    }
+
+    pub fn get_status(&self) -> Status {
+        self.thread.get_status()
+    }
+}
+
 
 pub fn spawn<R>(
         stack: &'static mut [u8],
@@ -350,30 +421,44 @@ pub fn spawn<R>(
         name: &'static libc::CStr,
         priority: i8,
         flags: i32,
-    ) -> Result<SpawnedThread<'static>, raw::kernel_pid_t>
+    ) -> Result<TrackedThread, raw::kernel_pid_t>
 where
     R: Send + FnMut(),
 {
-    STATIC_SCOPE.spawn(stack, closure, name, priority, flags)
+    let (pid, tcb) = unsafe { create(stack, closure, name, priority, flags) };
+
+    if pid < 0 {
+        return Err(pid);
+    }
+
+    Ok(TrackedThread { pid: KernelPID(pid), tcb })
 }
 
-// The 'scope is currently not necessary, but I anticipate right now that it'll be needed if and
-// when it contains a TCB reference to adaequately query the thread's status.
-pub struct SpawnedThread<'scope> {
+/// A thread identified not only by its PID (which can be reused whenever the thread has quit) but
+/// also by a pointer to its thread control block. This gives a TrackedThread a better get_status()
+/// method that reliably reports Stopped even when the PID is reused.
+///
+/// A later implementation may stop actually having the pid in the struct and purely rely on the
+/// tcb (although that'll need to become a lifetime'd reference to a cell by then).
+pub struct TrackedThread {
     pid: KernelPID,
-    _phantom: PhantomData<&'scope ()>
+    tcb: Option<*mut riot_sys::_thread>,
 }
 
-impl<'scope> SpawnedThread<'scope> {
+impl TrackedThread {
     pub fn get_pid(&self) -> KernelPID {
         self.pid
     }
 
     /// Like get_status of a KernelPID, but this returnes Stopped if the PID has been re-used after
     /// our thread has stopped.
-    ///
-    /// FIXME: Should but doesn't yet
     pub fn get_status(&self) -> Status {
-        self.get_pid().get_status()
+        let status = self.pid.get_status();
+        let tcb = unsafe { riot_sys::thread_get(self.pid.0) };
+        if Some(tcb) != self.tcb {
+            Status::Stopped
+        } else {
+            status
+        }
     }
 }
