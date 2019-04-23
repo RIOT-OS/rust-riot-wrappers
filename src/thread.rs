@@ -286,7 +286,7 @@ impl ThreadScope {
     /// .prepare() constructor and a .run() activator. It might be salvagable by having a prepared
     /// Thread and an undroppable returned ThreadHandle that contains a references from .run(), but
     /// that appears to be overly complicated right now).
-    pub fn spawn<'scope, 'pieces, R>(&'scope mut self,
+    pub fn spawn<'scope, 'pieces, R>(&'scope self,
         stack: &'pieces mut [u8],
         closure: &'pieces mut R,
         name: &'pieces libc::CStr,
@@ -342,6 +342,21 @@ impl ThreadScope {
     }
 }
 
+static STATIC_SCOPE: ThreadScope = ThreadScope { _private: () };
+
+pub fn spawn<R>(
+        stack: &'static mut [u8],
+        closure: &'static mut R,
+        name: &'static libc::CStr,
+        priority: i8,
+        flags: i32,
+    ) -> Result<SpawnedThread<'static>, raw::kernel_pid_t>
+where
+    R: Send + FnMut(),
+{
+    STATIC_SCOPE.spawn(stack, closure, name, priority, flags)
+}
+
 // The 'scope is currently not necessary, but I anticipate right now that it'll be needed if and
 // when it contains a TCB reference to adaequately query the thread's status.
 pub struct SpawnedThread<'scope> {
@@ -352,5 +367,13 @@ pub struct SpawnedThread<'scope> {
 impl<'scope> SpawnedThread<'scope> {
     pub fn get_pid(&self) -> KernelPID {
         self.pid
+    }
+
+    /// Like get_status of a KernelPID, but this returnes Stopped if the PID has been re-used after
+    /// our thread has stopped.
+    ///
+    /// FIXME: Should but doesn't yet
+    pub fn get_status(&self) -> Status {
+        self.get_pid().get_status()
     }
 }
