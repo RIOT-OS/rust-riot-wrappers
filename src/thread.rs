@@ -20,28 +20,14 @@ use core::intrinsics::transmute;
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct KernelPID(raw::kernel_pid_t);
 
-impl Into<raw::kernel_pid_t> for &KernelPID {
-    fn into(self) -> raw::kernel_pid_t {
-        self.0
-    }
-}
+pub(crate) mod pid_converted {
+    //! Converting the raw constants into consistently typed ones
+    use riot_sys as raw;
 
-impl Into<raw::kernel_pid_t> for KernelPID {
-    fn into(self) -> raw::kernel_pid_t {
-        self.0
-    }
-}
-
-impl KernelPID {
-    pub fn new(pid: raw::kernel_pid_t) -> Option<Self> {
-        // from static inline pid_is_valid
-        // casts needed due to untypedness of preprocessor constants
-        if pid >= raw::KERNEL_PID_FIRST as i16 && pid <= raw::KERNEL_PID_LAST as i16 {
-            Some(KernelPID(pid))
-        } else {
-            None
-        }
-    }
+    // pub const KERNEL_PID_UNDEF: raw::kernel_pid_t = raw::KERNEL_PID_UNDEF as raw::kernel_pid_t;
+    pub const KERNEL_PID_FIRST: raw::kernel_pid_t = raw::KERNEL_PID_FIRST as raw::kernel_pid_t;
+    pub const KERNEL_PID_LAST: raw::kernel_pid_t = raw::KERNEL_PID_LAST as raw::kernel_pid_t;
+    pub const KERNEL_PID_ISR: raw::kernel_pid_t = raw::KERNEL_PID_ISR as raw::kernel_pid_t;
 }
 
 mod status_converted {
@@ -120,8 +106,18 @@ impl Status {
 }
 
 impl KernelPID {
+    pub fn new(pid: raw::kernel_pid_t) -> Option<Self> {
+        // from static inline pid_is_valid
+        // casts needed due to untypedness of preprocessor constants
+        if pid >= pid_converted::KERNEL_PID_FIRST && pid <= pid_converted::KERNEL_PID_LAST {
+            Some(KernelPID(pid))
+        } else {
+            None
+        }
+    }
+
     pub fn all_pids() -> impl Iterator<Item = KernelPID> {
-        (raw::KERNEL_PID_FIRST as i16..=raw::KERNEL_PID_LAST as i16).map(|i| KernelPID(i))
+        (pid_converted::KERNEL_PID_FIRST..=pid_converted::KERNEL_PID_LAST).map(|i| KernelPID(i))
     }
 
     pub fn get_name(&self) -> Option<&str> {
@@ -149,6 +145,18 @@ impl KernelPID {
             // Actuall STATUS_NOT_FOUND, but all the others are then all error cases.
             _ => Err(()),
         }
+    }
+}
+
+impl Into<raw::kernel_pid_t> for &KernelPID {
+    fn into(self) -> raw::kernel_pid_t {
+        self.0
+    }
+}
+
+impl Into<raw::kernel_pid_t> for KernelPID {
+    fn into(self) -> raw::kernel_pid_t {
+        self.0
     }
 }
 

@@ -4,16 +4,6 @@ use crate::thread::KernelPID;
 use riot_sys::libc;
 use riot_sys::{self, kernel_pid_t, msg_receive, msg_reply, msg_send, msg_send_receive, msg_t};
 
-mod pid_converted {
-    //! See thread::status_converted.
-    use riot_sys as raw;
-
-    // pub const KERNEL_PID_UNDEF: raw::kernel_pid_t = raw::KERNEL_PID_UNDEF as raw::kernel_pid_t;
-    pub const KERNEL_PID_FIRST: raw::kernel_pid_t = raw::KERNEL_PID_FIRST as raw::kernel_pid_t;
-    pub const KERNEL_PID_LAST: raw::kernel_pid_t = raw::KERNEL_PID_LAST as raw::kernel_pid_t;
-    pub const KERNEL_PID_ISR: raw::kernel_pid_t = raw::KERNEL_PID_ISR as raw::kernel_pid_t;
-}
-
 /// The source of a message
 // Ideally this would be represented in memory 1:1 like a KernelPID, but I can't tell Rust that a
 // KernelPID has a valid range from KERNEL_PID_FIRST to KERNEL_PID_LAST and have it use that
@@ -27,7 +17,7 @@ pub enum MsgSender {
 
 impl MsgSender {
     fn from_pid(pid: kernel_pid_t) -> Self {
-        if pid == pid_converted::KERNEL_PID_ISR {
+        if pid == crate::thread::pid_converted::KERNEL_PID_ISR {
             MsgSender::ISR
         } else {
             KernelPID::new(pid)
