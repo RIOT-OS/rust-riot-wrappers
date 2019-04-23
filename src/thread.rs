@@ -16,10 +16,33 @@ use core::intrinsics::transmute;
 // pub const THREAD_PRIORITY_IDLE: i8 = 15;
 // pub const THREAD_PRIORITY_MAIN: i8 = 7;
 
-// FIXME: The argument should not be pub, the constructor should check the range and eg. reject
-// building one with KERNEL_PID_ISR.
+// Possible optimization: Make this NonZero
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct KernelPID(pub raw::kernel_pid_t);
+pub struct KernelPID(raw::kernel_pid_t);
+
+impl Into<raw::kernel_pid_t> for &KernelPID {
+    fn into(self) -> raw::kernel_pid_t {
+        self.0
+    }
+}
+
+impl Into<raw::kernel_pid_t> for KernelPID {
+    fn into(self) -> raw::kernel_pid_t {
+        self.0
+    }
+}
+
+impl KernelPID {
+    pub fn new(pid: raw::kernel_pid_t) -> Option<Self> {
+        // from static inline pid_is_valid
+        // casts needed due to untypedness of preprocessor constants
+        if pid >= raw::KERNEL_PID_FIRST as i16 && pid <= raw::KERNEL_PID_LAST as i16 {
+            Some(KernelPID(pid))
+        } else {
+            None
+        }
+    }
+}
 
 mod status_converted {
     //! Converting the raw constants into consistently typed ones for use in match branches. If

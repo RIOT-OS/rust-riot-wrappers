@@ -27,12 +27,12 @@ pub enum MsgSender {
 
 impl MsgSender {
     fn from_pid(pid: kernel_pid_t) -> Self {
-        match pid {
-            x if x >= pid_converted::KERNEL_PID_FIRST && x <= pid_converted::KERNEL_PID_LAST => {
-                MsgSender::Thread(KernelPID(x))
-            }
-            pid_converted::KERNEL_PID_ISR => MsgSender::ISR,
-            _ => MsgSender::Invalid,
+        if pid == pid_converted::KERNEL_PID_ISR {
+            MsgSender::ISR
+        } else {
+            KernelPID::new(pid)
+                .map(MsgSender::Thread)
+                .unwrap_or(MsgSender::Invalid)
         }
     }
 }
@@ -64,7 +64,7 @@ where
 {
     fn send(self, target: &KernelPID) -> Result<(), MsgSendError> {
         let mut m = self.extract();
-        match unsafe { msg_send(&mut m, target.0) } {
+        match unsafe { msg_send(&mut m, target.into()) } {
             1 => Ok(()),
             0 => Err(MsgSendError::ReceiverNotWaiting),
             _ => Err(MsgSendError::InvalidPID),
@@ -73,7 +73,7 @@ where
 
     fn send_receive(self, target: &KernelPID) -> OpaqueMsg {
         let mut m = self.extract();
-        let _ = unsafe { msg_send_receive(&mut m, &mut m, target.0) };
+        let _ = unsafe { msg_send_receive(&mut m, &mut m, target.into()) };
         OpaqueMsg(m)
     }
 

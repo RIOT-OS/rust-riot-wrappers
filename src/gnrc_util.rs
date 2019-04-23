@@ -38,7 +38,7 @@ impl RoundtripData for NetifRoundtripData {
         Self {
             pid: incoming.search_type(GNRC_NETTYPE_NETIF).map(|s| {
                 let netif_hdr: &gnrc_netif_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
-                KernelPID(netif_hdr.if_pid)
+                KernelPID::new(netif_hdr.if_pid).unwrap()
             }),
         }
     }
@@ -46,12 +46,12 @@ impl RoundtripData for NetifRoundtripData {
     fn wrap(self, payload: Pktsnip<Shared>) -> Option<Pktsnip<Shared>> {
         match self.pid {
             None => Some(payload),
-            Some(KernelPID(pid)) => unsafe {
+            Some(pid) => unsafe {
                 let mut netif = payload.netif_hdr_build(None, None)?;
 
                 let data: &mut gnrc_netif_hdr_t =
                     ::core::mem::transmute(netif.get_data_mut().as_ptr());
-                data.if_pid = pid;
+                data.if_pid = pid.into();
 
                 Some(netif.into())
             },
