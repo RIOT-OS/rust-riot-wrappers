@@ -121,7 +121,7 @@ impl Status {
 
 impl KernelPID {
     pub fn all_pids() -> impl Iterator<Item = KernelPID> {
-        (raw::KERNEL_PID_FIRST as i16..raw::KERNEL_PID_LAST as i16).map(|i| KernelPID(i))
+        (raw::KERNEL_PID_FIRST as i16..=raw::KERNEL_PID_LAST as i16).map(|i| KernelPID(i))
     }
 
     pub fn get_name(&self) -> Option<&str> {
