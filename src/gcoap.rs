@@ -4,6 +4,7 @@
 use riot_sys::{coap_resource_t, gcoap_listener_t, coap_pkt_t};
 use riot_sys::libc::{CStr, c_void};
 use core::marker::PhantomData;
+use core::mem::MaybeUninit;
 
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
@@ -138,6 +139,7 @@ use riot_sys::{
     coap_hdr_t,
     coap_opt_add_uint,
     coap_opt_add_opaque,
+    coap_opt_by_index,
     coap_opt_finish,
     gcoap_finish,
     gcoap_register_listener,
@@ -337,6 +339,29 @@ impl PacketBuffer {
     /// Add a binary value as an option
     pub fn opt_add_opaque(&mut self, optnum: u16, data: &[u8]) -> Result<(), ()> {
         unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len()) }.convert()
+    }
+
+    pub fn options_len(&self) -> u16 {
+        unsafe { (*self.pkt).options_len }
+    }
+
+    pub fn opt_number_by_index(&self, index: u16) -> u16 {
+        assert!(index <= self.options_len());
+        unsafe { (*self.pkt).options[index as usize].opt_num }
+    }
+
+    pub fn opt_by_index_mut(&mut self, index: u16) -> &mut [u8] {
+        assert!(index <= self.options_len());
+        let mut start = MaybeUninit::uninit();
+        let len = unsafe { coap_opt_by_index(self.pkt, index, start.as_mut_ptr()) };
+        unsafe { core::slice::from_raw_parts_mut(start.assume_init(), len) }
+    }
+
+    pub fn opt_by_index(&self, index: u16) -> &[u8] {
+        assert!(index <= self.options_len());
+        let mut start = MaybeUninit::uninit();
+        let len = unsafe { coap_opt_by_index(self.pkt, index, start.as_mut_ptr()) };
+        unsafe { core::slice::from_raw_parts(start.assume_init(), len) }
     }
 
 
