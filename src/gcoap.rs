@@ -254,16 +254,17 @@ pub struct PacketBuffer {
     len: usize,
 }
 
-// Helper for error handling
-trait ZeroOk {
+// Helper for error handling -- turns negative numbers in a negative and everything else into a
+// positive result
+trait NegativeIsError {
     fn convert(self) -> Result<(), ()>;
 }
 
-impl<T> ZeroOk for T where
-    T: num_traits::Zero
+impl<T> NegativeIsError for T where
+    T: num_traits::Zero + core::cmp::PartialOrd,
 {
     fn convert(self) -> Result<(), ()> {
-        if self.is_zero() {
+        if self >= Self::zero() {
             Ok(())
         } else {
             Err(())
