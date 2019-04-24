@@ -46,5 +46,8 @@ extern crate jnet;
 #[cfg(feature = "with_jnet")]
 mod jnet_implementations;
 
+#[cfg(feature = "with_coap_message")]
+pub mod coap_message;
+
 pub mod interrupt;
 pub mod main;
