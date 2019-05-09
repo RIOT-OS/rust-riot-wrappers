@@ -48,6 +48,8 @@ mod jnet_implementations;
 
 #[cfg(feature = "with_coap_message")]
 pub mod coap_message;
+#[cfg(feature = "with_coap_handler")]
+pub mod coap_handler;
 
 pub mod interrupt;
 pub mod main;

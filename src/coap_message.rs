@@ -1,3 +1,6 @@
+/// This module implements coap_message::ReadableMessage for, and a wrapper that provides
+/// coap_message::WritableMessage around RIOT's coap_pkt_t.
+
 use crate::gcoap::PacketBuffer;
 use coap_message::{ReadableMessage, WritableMessage, Code, OptionNumber};
 

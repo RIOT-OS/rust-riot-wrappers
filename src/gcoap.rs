@@ -6,6 +6,8 @@ use riot_sys::libc::{CStr, c_void};
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 
+use coap_handler::BlockWriter;
+
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
 /// theoretically allowing the registration of non-'static handlers.
@@ -165,8 +167,6 @@ fn coap_get_token_len(pkt: &coap_pkt_t) -> usize {
     (unsafe { (*pkt.hdr).ver_t_tkl & 0xfu8 }) as usize
 }
 
-use crc::crc64;
-
 pub const GET: u32 = COAP_GET;
 
 pub struct PayloadWriter<'a> {
@@ -185,60 +185,6 @@ impl<'a> ::core::fmt::Write for PayloadWriter<'a> {
         self.data[self.cursor..self.cursor + s.len()].clone_from_slice(s);
         self.cursor += s.len();
         result
-    }
-}
-
-pub struct BlockWriter<'a> {
-    pub data: &'a mut [u8],
-    pub cursor: isize,
-    pub etag: u64,
-}
-
-impl<'a> BlockWriter<'a> {
-    fn bytes_in_buffer(&self) -> Option<usize> {
-        if self.cursor < 0 {
-            None
-        } else {
-            Some(::core::cmp::min(self.cursor as usize, self.data.len()))
-        }
-    }
-
-    fn did_overflow(&self) -> bool {
-        self.cursor > self.data.len() as isize
-    }
-}
-
-impl<'a> ::core::fmt::Write for BlockWriter<'a> {
-    fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
-        let mut s = s.as_bytes();
-
-        self.etag = crc64::update(self.etag, &crc64::ECMA_TABLE, s);
-
-        if self.cursor >= self.data.len() as isize {
-            // Still counting up to give a reliable Size2
-            self.cursor += s.len() as isize;
-            return Ok(());
-        }
-        if self.cursor < -(s.len() as isize) {
-            self.cursor += s.len() as isize;
-            return Ok(());
-        }
-        if self.cursor < 0 {
-            s = &s[(-self.cursor) as usize..];
-            self.cursor = 0;
-        }
-
-        let mut s_to_copy = s;
-        if self.cursor as usize + s.len() > self.data.len() {
-            let copy_bytes = self.data.len() - self.cursor as usize;
-            s_to_copy = &s[..copy_bytes]
-        }
-
-        self.data[self.cursor as usize..self.cursor as usize + s_to_copy.len()]
-            .copy_from_slice(s_to_copy);
-
-        self.cursor += s.len() as isize;
-        Ok(())
     }
 }
 
@@ -444,11 +390,7 @@ impl PacketBuffer {
                 .expect("Buffer too small for smalles block size");
         }
 
-        let mut writer = BlockWriter {
-            data: &mut buf[..blksize],
-            cursor: -(blksize as isize * blknum as isize),
-            etag: 0,
-        };
+        let mut writer = BlockWriter::new(&mut buf[..blksize], -(blksize as isize * blknum as isize));
         data_generator(&mut writer);
 
         let bytes_to_send = match writer.bytes_in_buffer() {
@@ -457,7 +399,7 @@ impl PacketBuffer {
             }
             Some(x) => x,
         };
-        let total_remaining_bytes = writer.cursor;
+        let total_remaining_bytes = writer.cursor();
         let more = writer.did_overflow();
 
         // Before calling any coap_opt_add_* functions, we'll have to rewind the payload pointer so
@@ -471,7 +413,7 @@ impl PacketBuffer {
             (*self.pkt).options_len = 0;
         }
 
-        let etag = writer.etag;
+        let etag = writer.etag();
         let etag = etag as u32; // FIXME: stripping to 4 bytes b/c there's no coap_opt_add_bytes option
         unsafe { coap_opt_add_uint(self.pkt, COAP_OPT_ETAG, etag) };
 
