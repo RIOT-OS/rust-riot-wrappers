@@ -6,8 +6,6 @@ use riot_sys::libc::{CStr, c_void};
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 
-use coap_handler::BlockWriter;
-
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
 /// theoretically allowing the registration of non-'static handlers.
@@ -115,21 +113,10 @@ where
 
 }
 
+// Can be implemented by application code that'd then need to call some gcoap response functions,
+// but preferably using the coap_handler module (behind the with-coap-handler feature).
 pub trait Handler {
     fn handle(&mut self, pkt: &mut PacketBuffer) -> isize;
-}
-
-/// A wrapper that implements gnrc::Handler for closures. This allows easy compact writing of
-/// ad-hoc handlers.
-pub struct ClosureHandler<H>(pub H) where
-    H: FnMut(&mut PacketBuffer) -> isize
-;
-impl<H> Handler for ClosureHandler<H> where
-    H: FnMut(&mut PacketBuffer) -> isize
-{
-    fn handle(&mut self, pkt: &mut PacketBuffer) -> isize {
-        self.0(pkt)
-    }
 }
 
 
@@ -308,182 +295,5 @@ impl PacketBuffer {
         let mut start = MaybeUninit::uninit();
         let len = unsafe { coap_opt_by_index(self.pkt, index, start.as_mut_ptr()) };
         unsafe { core::slice::from_raw_parts(start.assume_init(), len) }
-    }
-
-
-    #[deprecated]
-    pub fn response(
-        &mut self,
-        code: u32,
-        format: u32,
-        data_generator: impl FnOnce(&mut PayloadWriter),
-    ) -> isize {
-        let init_success = unsafe { gcoap_resp_init(self.pkt, self.buf, self.len, code) };
-        if init_success != 0 {
-            return -1;
-        }
-        let buf = unsafe {
-            ::core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize)
-        };
-        let mut writer = PayloadWriter {
-            data: buf,
-            cursor: 0,
-        };
-        data_generator(&mut writer);
-        unsafe { gcoap_finish(self.pkt, writer.cursor, format) }
-    }
-
-    /// This is an experimental responder that operates just like response, but trims the output to
-    /// a 64byte block (given the typical 128byte limit of gcoap) based on the requested block. An
-    /// ETag is calculated from a checksum of the whole message, which is rendered again and again
-    /// for each block.
-    #[deprecated]
-    pub fn response_blockwise(
-        &mut self,
-        code: u32,
-        format: u32,
-        data_generator: impl FnOnce(&mut BlockWriter),
-    ) -> isize {
-        let mut blknum: u32 = 0;
-        let mut szx: c_uint = 6;
-        match unsafe { coap_get_blockopt(self.pkt, COAP_OPT_BLOCK2 as u16, &mut blknum, &mut szx) }
-        {
-            -1 => {
-                szx = 6;
-            }
-            _ => (), // ignore more flag
-        }
-
-        // The rest of this code assumes we ran gcoap_resp_init, but it'd only give us 8 bytes of
-        // option space which is not enough. We're now beyond using gcoap in here actually, but
-        // still emulating what it does because the rest of this function expects us to.
-        // let init_success = unsafe { gcoap_resp_init(self.pkt, self.buf, self.len, code) };
-        // if init_success != 0 {
-        //     return -1;
-        // }
-        unsafe {
-            let hdr: &mut coap_hdr_t = &mut *(*self.pkt).hdr;
-            if (hdr.ver_t_tkl & 0x30) >> 4 == COAP_TYPE_CON as u8 {
-                hdr.ver_t_tkl = hdr.ver_t_tkl & 0xcf | ((COAP_TYPE_ACK as u8) << 4);
-            }
-            hdr.code = code as u8;
-
-            let headroom = self.get_total_hdr_len() + 25 /* used to be 8 */;
-            (*self.pkt).payload = self.buf.offset(headroom as isize);
-            (*self.pkt).payload_len = self.len as u16 - headroom as u16;
-        }
-
-        let buf = unsafe {
-            ::core::slice::from_raw_parts_mut((*self.pkt).payload, (*self.pkt).payload_len as usize)
-        };
-
-        // Decrease block size until we'll fit into what has been pre-allocated
-        let mut blksize: usize;
-        loop {
-            blksize = 1 << (4 + szx);
-            if blksize < buf.len() {
-                break;
-            }
-            blknum *= 2;
-            szx = szx
-                .checked_sub(1)
-                .expect("Buffer too small for smalles block size");
-        }
-
-        let mut writer = BlockWriter::new(&mut buf[..blksize], -(blksize as isize * blknum as isize));
-        data_generator(&mut writer);
-
-        let bytes_to_send = match writer.bytes_in_buffer() {
-            None => {
-                unimplemented!("Respond with error");
-            }
-            Some(x) => x,
-        };
-        let total_remaining_bytes = writer.cursor();
-        let more = writer.did_overflow();
-
-        // Before calling any coap_opt_add_* functions, we'll have to rewind the payload pointer so
-        // that the functions know where to write (gcoap_finish does that implicitly by having a
-        // buf there and not using gcoap_opt_add functions). The writer can happily live on because
-        // the payload_len limitation tells nanocoap not to write into it.
-        let bytes_to_send_start = unsafe { (*self.pkt).payload };
-        unsafe {
-            (*self.pkt).payload = self.buf.offset(coap_get_total_hdr_len(&*self.pkt) as isize);
-            (*self.pkt).payload_len = bytes_to_send_start.offset_from((*self.pkt).payload) as u16;
-            (*self.pkt).options_len = 0;
-        }
-
-        let etag = writer.etag();
-        let etag = etag as u32; // FIXME: stripping to 4 bytes b/c there's no coap_opt_add_bytes option
-        unsafe { coap_opt_add_uint(self.pkt, COAP_OPT_ETAG, etag) };
-
-        // from gcoap_finish, see below
-        let obsval = unsafe { (*self.pkt).observe_value };
-        let has_observe = blknum == 0 && obsval != u32::max_value(); // inlining static coap_has_observe
-        if has_observe {
-            unsafe { coap_opt_add_uint(self.pkt, COAP_OPT_OBSERVE as u16, obsval) };
-        }
-        unsafe { coap_opt_add_uint(self.pkt, COAP_OPT_CONTENT_FORMAT as u16, format) };
-        // end from gcoap_finish
-
-        let block2 = (blknum << 4) | ((more as u32) << 3) | szx;
-        unsafe { coap_opt_add_uint(self.pkt, COAP_OPT_BLOCK2 as u16, block2) };
-
-        if blknum == 0 {
-            // As we're in Block 0, the cursor gives the full length already and does not need the
-            // block offset added.
-            unsafe {
-                coap_opt_add_uint(
-                    self.pkt,
-                    COAP_OPT_SIZE2 as u16,
-                    total_remaining_bytes as u32,
-                )
-            };
-        }
-
-        // Not calling gcvoap_finish as that'd overwrite all options we just set.
-        // Note that some code was later moved up to keep the sequence
-        // unsafe { gcoap_finish(self.pkt, bytes_to_send, format) }
-
-        // set observe, set content format: moved to top
-
-        // Like the other coap_opt functions, this contains assertions that it does not overflow.
-        unsafe {
-            coap_opt_finish(
-                self.pkt,
-                if bytes_to_send != 0 {
-                    COAP_OPT_FINISH_PAYLOAD as u16
-                } else {
-                    COAP_OPT_FINISH_NONE as u16
-                },
-            )
-        };
-
-        // They might easily alias.
-        unsafe {
-            memmove(
-                (*self.pkt).payload as *mut _,
-                bytes_to_send_start as *mut _,
-                bytes_to_send,
-            )
-        };
-
-        // FIXME this is bad pointer arithmetic
-        (unsafe { (*self.pkt).payload } as usize + bytes_to_send - self.buf as usize) as isize
-    }
-
-    // FIXME I'd like to use the type system to ensure that a resposne can be used only once; would
-    // be easy if I could have a owned PacketBuffer in the callback, but how can I then ensure that
-    // it doesn't get moved to the outside? (Or do I -- expecting non-blocking responses?)
-    #[deprecated]
-    pub fn response_empty(&mut self, code: u32) -> isize {
-        // This is copied from the static gcoap_response implementation
-        unsafe {
-            let init_success = gcoap_resp_init(self.pkt, self.buf, self.len, code);
-            if init_success != 0 {
-                return -1;
-            }
-            gcoap_finish(self.pkt, 0, COAP_FORMAT_NONE)
-        }
     }
 }
