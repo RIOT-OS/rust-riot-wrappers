@@ -1,13 +1,10 @@
 /// This module implements coap_message::ReadableMessage for, and a wrapper that provides
 /// coap_message::WritableMessage around RIOT's coap_pkt_t.
 
-use crate::gcoap::PacketBuffer;
+use crate::gcoap::{PacketBuffer, PacketBufferOptIter, PacketBufferOptIterMut};
 use coap_message::{ReadableMessage, WritableMessage, Code, OptionNumber};
 
-pub struct OptionsIterator<'a> {
-    msg: &'a PacketBuffer,
-    index: core::ops::Range<u16>,
-}
+pub struct OptionsIterator<'a>(PacketBufferOptIter<'a>);
 impl<'a> Iterator for OptionsIterator<'a> {
     type Item = jnet::coap::Option<'a>;
 
@@ -18,9 +15,8 @@ impl<'a> Iterator for OptionsIterator<'a> {
             value: &'b [u8],
         }
 
-        let i = self.index.next()?;
-        let opt_num = self.msg.opt_number_by_index(i);
-        let res = FakeOption { number: opt_num, value: self.msg.opt_by_index(i) };
+        let (opt_num, slice) = self.0.next()?;
+        let res = FakeOption { number: opt_num, value: slice };
         // FIXME add an abstraction that can actually be constructed
         let res: jnet::coap::Option<'a> = unsafe { core::mem::transmute(res) };
         Some(res)
@@ -31,10 +27,7 @@ impl<'a> ReadableMessage<'a> for PacketBuffer {
     type OptionsIter = OptionsIterator<'a>;
 
     fn options(&'a self) -> Self::OptionsIter {
-        OptionsIterator {
-            msg: &self,
-            index: 0..self.options_len(),
-        }
+        OptionsIterator(self.opt_iter())
     }
 
     fn get_code(&self) -> Code {
@@ -112,10 +105,8 @@ impl<'a> WritableMessage for ResponseMessage<'a> {
     where
         F: FnMut(OptionNumber, &mut [u8])
     {
-        let len = self.message.options_len();
-        for i in 0..len {
-            let opt_num = self.message.opt_number_by_index(i);
-            callback(opt_num.into(), self.message.opt_by_index_mut(i));
+        for (opt_num, slice) in self.message.opt_iter_mut() {
+            callback(opt_num.into(), slice);
         }
     }
 }

@@ -1,7 +1,7 @@
 // There is some questionably scoped code in the lower half of this module (it made requirements on
 // data staying in a place that was not justified from the type system). This is being changed.
 
-use riot_sys::{coap_resource_t, gcoap_listener_t, coap_pkt_t};
+use riot_sys::{coap_resource_t, gcoap_listener_t, coap_pkt_t, coap_optpos_t};
 use riot_sys::libc::{CStr, c_void};
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
@@ -128,7 +128,7 @@ use riot_sys::{
     coap_hdr_t,
     coap_opt_add_uint,
     coap_opt_add_opaque,
-    coap_opt_by_index,
+    coap_opt_get_next,
     coap_opt_finish,
     gcoap_finish,
     gcoap_register_listener,
@@ -274,26 +274,61 @@ impl PacketBuffer {
         unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len()) }.convert()
     }
 
-    pub fn options_len(&self) -> u16 {
-        unsafe { (*self.pkt).options_len }
+    pub fn opt_iter<'a>(&'a self) -> PacketBufferOptIter<'a> {
+        PacketBufferOptIter { buffer: self, state: Default::default() }
     }
 
-    pub fn opt_number_by_index(&self, index: u16) -> u16 {
-        assert!(index <= self.options_len());
-        unsafe { (*self.pkt).options[index as usize].opt_num }
+    pub fn opt_iter_mut<'a>(&'a mut self) -> PacketBufferOptIterMut<'a> {
+        PacketBufferOptIterMut { buffer: self, state: Default::default() }
     }
+}
 
-    pub fn opt_by_index_mut(&mut self, index: u16) -> &mut [u8] {
-        assert!(index <= self.options_len());
+pub struct PacketBufferOptIter<'a> {
+    buffer: &'a PacketBuffer,
+    state: coap_optpos_t,
+}
+
+impl<'a> Iterator for PacketBufferOptIter<'a> {
+    type Item = (u16, &'a [u8]);
+
+    fn next(&mut self) -> Option<Self::Item> {
         let mut start = MaybeUninit::uninit();
-        let len = unsafe { coap_opt_by_index(self.pkt, index, start.as_mut_ptr()) };
-        unsafe { core::slice::from_raw_parts_mut(start.assume_init(), len) }
+        let size = unsafe { coap_opt_get_next(&*self.buffer.pkt, &mut self.state, start.as_mut_ptr()) };
+        // unsafe: as promised by coap_opt_get_next documentation
+        let start = unsafe { start.assume_init() };
+        if start == 0 as *mut _ {
+            None
+        } else {
+            // unsafe: that's the parts the coap_opt_get_next documentation promises, and we can
+            // build an 'a-lived slice of it because we hold a &'a reference to the whole
+            // PacketBuffer
+            let slice = unsafe { core::slice::from_raw_parts(start, size) };
+            Some((self.state.opt_num, slice))
+        }
     }
+}
 
-    pub fn opt_by_index(&self, index: u16) -> &[u8] {
-        assert!(index <= self.options_len());
+pub struct PacketBufferOptIterMut<'a> {
+    buffer: &'a mut PacketBuffer,
+    state: coap_optpos_t,
+}
+
+impl<'a> Iterator for PacketBufferOptIterMut<'a> {
+    type Item = (u16, &'a mut [u8]);
+
+    fn next(&mut self) -> Option<Self::Item> {
         let mut start = MaybeUninit::uninit();
-        let len = unsafe { coap_opt_by_index(self.pkt, index, start.as_mut_ptr()) };
-        unsafe { core::slice::from_raw_parts(start.assume_init(), len) }
+        let size = unsafe { coap_opt_get_next(&*self.buffer.pkt, &mut self.state, start.as_mut_ptr()) };
+        // unsafe: as promised by coap_opt_get_next documentation
+        let start = unsafe { start.assume_init() };
+        if start == 0 as *mut _ {
+            None
+        } else {
+            // unsafe: that's the parts the coap_opt_get_next documentation promises, and we can
+            // build an 'a-lived mutable slice of it because we hold a &'a mut reference to the
+            // whole PacketBuffer, and the options do not overlap
+            let slice = unsafe { core::slice::from_raw_parts_mut(start, size) };
+            Some((self.state.opt_num, slice))
+        }
     }
 }
