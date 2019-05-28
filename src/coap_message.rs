@@ -41,7 +41,9 @@ impl<'a> ReadableMessage<'a> for PacketBuffer {
         result
     }
 
-    fn payload(&self) -> &[u8] { unimplemented!() }
+    fn payload(&self) -> &[u8] {
+        self.payload()
+    }
 }
 
 pub struct ResponseMessage<'a> {
