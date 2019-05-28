@@ -92,7 +92,7 @@ macro_rules! dbg {
     ($val:expr) => {
         match $val {
             tmp => {
-                use riot_wrappers::stdio::Stdio;
+                use $crate::stdio::Stdio;
                 use core::fmt::Write;
                 let _ = writeln!(Stdio { }, "[{}:{}] {} = {:#?}",
                     file!(), line!(), stringify!($val), &tmp);
