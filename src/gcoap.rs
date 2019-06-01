@@ -11,16 +11,18 @@ use core::mem::MaybeUninit;
 /// theoretically allowing the registration of non-'static handlers.
 ///
 /// As there is currently no way to unregister handlers, this function panics when the callback
-/// terminates.
-pub fn scope<F>(callback: F)
+/// terminates. (Otherwise, it'd return the callback's return value).
+pub fn scope<F, R>(callback: F) -> R
 where
-    F: FnOnce(&mut RegistrationScope)
+    F: FnOnce(&mut RegistrationScope) -> R,
 {
     let mut r = RegistrationScope { _private: () };
 
-    callback(&mut r);
+    let ret = callback(&mut r);
 
     r.deregister_all();
+
+    ret
 }
 
 // Could we allow users the creation of 'static RegistrationScopes? Like thread::spawn.
