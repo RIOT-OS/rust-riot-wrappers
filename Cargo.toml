@@ -23,11 +23,11 @@ num-traits = { version = "0.2", default-features = false }
 
 # Disabled by default because jnet is not available on crates.io
 # If you need the version of this library that has it available, us it from the repository.
-jnet = { git = "https://github.com/chrysn-pull-requests/jnet", branch="new-constants", optional = true } # see https://github.com/japaric/jnet/pull/3
+#jnet = { git = "https://github.com/chrysn-pull-requests/jnet", branch="new-constants", optional = true } # see https://github.com/japaric/jnet/pull/3
 
 # Disabled by default because the dependency is stil quite unstable
-coap-message = { path = "/home/chrysn/git/crates/coap-message", optional = true }
-coap-handler = { path = "/home/chrysn/git/crates/coap-handler", optional = true }
+#coap-message = { path = "/home/chrysn/git/crates/coap-message", optional = true }
+#coap-handler = { path = "/home/chrysn/git/crates/coap-handler", optional = true }
 
 [build-dependencies]
 shlex = "0.1.1"
@@ -37,7 +37,7 @@ default = ["set_panic_handler"]
 set_panic_handler = []
 
 # See jnet dependency
-with_jnet = ["jnet"]
+#with_jnet = ["jnet"]
 # jnet: temporary dependency until coap-message is standalone
-with_coap_message = ["coap-message", "with_jnet"]
-with_coap_handler = ["coap-handler", "with_coap_message"]
+#with_coap_message = ["coap-message", "with_jnet"]
+#with_coap_handler = ["coap-handler", "with_coap_message"]
