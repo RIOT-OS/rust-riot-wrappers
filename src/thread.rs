@@ -41,17 +41,17 @@ mod status_converted {
     // STATUS_NOT_FOUND is not added here as it's not a proper status but rather a sentinel value,
     // which moreover can't be processed in its current form by bindgen and would need to be copied
     // over in here by manual expansion of the macro definition.
-    pub const STATUS_STOPPED: i32 = raw::thread_state_t_STATUS_STOPPED as i32;
-    pub const STATUS_SLEEPING: i32 = raw::thread_state_t_STATUS_SLEEPING as i32;
-    pub const STATUS_MUTEX_BLOCKED: i32 = raw::thread_state_t_STATUS_MUTEX_BLOCKED as i32;
-    pub const STATUS_RECEIVE_BLOCKED: i32 = raw::thread_state_t_STATUS_RECEIVE_BLOCKED as i32;
-    pub const STATUS_SEND_BLOCKED: i32 = raw::thread_state_t_STATUS_SEND_BLOCKED as i32;
-    pub const STATUS_REPLY_BLOCKED: i32 = raw::thread_state_t_STATUS_REPLY_BLOCKED as i32;
-    pub const STATUS_FLAG_BLOCKED_ANY: i32 = raw::thread_state_t_STATUS_FLAG_BLOCKED_ANY as i32;
-    pub const STATUS_FLAG_BLOCKED_ALL: i32 = raw::thread_state_t_STATUS_FLAG_BLOCKED_ALL as i32;
-    pub const STATUS_MBOX_BLOCKED: i32 = raw::thread_state_t_STATUS_MBOX_BLOCKED as i32;
-    pub const STATUS_RUNNING: i32 = raw::thread_state_t_STATUS_RUNNING as i32;
-    pub const STATUS_PENDING: i32 = raw::thread_state_t_STATUS_PENDING as i32;
+    pub const STATUS_STOPPED: i32 = raw::thread_status_t_STATUS_STOPPED as i32;
+    pub const STATUS_SLEEPING: i32 = raw::thread_status_t_STATUS_SLEEPING as i32;
+    pub const STATUS_MUTEX_BLOCKED: i32 = raw::thread_status_t_STATUS_MUTEX_BLOCKED as i32;
+    pub const STATUS_RECEIVE_BLOCKED: i32 = raw::thread_status_t_STATUS_RECEIVE_BLOCKED as i32;
+    pub const STATUS_SEND_BLOCKED: i32 = raw::thread_status_t_STATUS_SEND_BLOCKED as i32;
+    pub const STATUS_REPLY_BLOCKED: i32 = raw::thread_status_t_STATUS_REPLY_BLOCKED as i32;
+    pub const STATUS_FLAG_BLOCKED_ANY: i32 = raw::thread_status_t_STATUS_FLAG_BLOCKED_ANY as i32;
+    pub const STATUS_FLAG_BLOCKED_ALL: i32 = raw::thread_status_t_STATUS_FLAG_BLOCKED_ALL as i32;
+    pub const STATUS_MBOX_BLOCKED: i32 = raw::thread_status_t_STATUS_MBOX_BLOCKED as i32;
+    pub const STATUS_RUNNING: i32 = raw::thread_status_t_STATUS_RUNNING as i32;
+    pub const STATUS_PENDING: i32 = raw::thread_status_t_STATUS_PENDING as i32;
 }
 
 #[derive(Debug)]
