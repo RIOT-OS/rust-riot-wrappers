@@ -23,7 +23,7 @@ impl<T> Mutex<T> {
     pub const fn new(t: T) -> Mutex<T> {
         Mutex {
             data: UnsafeCell::new(t),
-            // FIXME: Expanded version of static function mutex_init
+            // EXPANDED core/include/mutex.h:74
             mutex: UnsafeCell::new(riot_sys::mutex_t {
                 queue: riot_sys::list_node_t { next: 0 as *mut _ },
             }),
@@ -31,12 +31,13 @@ impl<T> Mutex<T> {
     }
 
     pub fn lock(&self) -> MutexGuard<T> {
-        // FIXME here and in try_unlock: Expanded version of static function is used
+        // EXPANDED core/include/mutex.h:113 (mutex_lock)
         unsafe { riot_sys::_mutex_lock(self.mutex.get(), 1) };
         MutexGuard { mutex: &self }
     }
 
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
+        // EXPANDED core/include/mutex.h:103 (mutex_trylock)
         match unsafe { riot_sys::_mutex_lock(self.mutex.get(), 0) } {
             1 => Some(MutexGuard { mutex: &self }),
             _ => None,

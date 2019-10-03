@@ -53,6 +53,17 @@ in), but the crate not being a module makes that hard.
 This automagic way is convenient now; later iterations might be more explicit
 and profit from better integration.
 
+Code conventions
+----------------
+
+All over the place (until [1344] has been solved), static inline RIOT functions
+or expanded macros are used. To keep track of them, comments in the shape of
+``EXPANDED ${FILE}:${LINE}`` are set; current reference for line numbers is
+6b96f69b55442e3e344a43c725c3d0d9087319fa, and I'll still need to find a way to
+update that automatically / make it complain.
+
+[1344]: https://github.com/rust-lang/rust-bindgen/issues/1344
+
 License
 -------
 

@@ -19,7 +19,7 @@ macro_rules! interrupt {
         pub extern "C" fn $isr_name() -> () {
             $rust_handler();
 
-            // FIXME expanded from static function
+            // EXPANDED cpu/cortexm_common/include/cpu.h:189 (cortexm_isr_end)
             if unsafe { core::ptr::read_volatile(&riot_sys::sched_context_switch_request) } != 0 {
                 unsafe { riot_sys::thread_yield_higher() };
             }

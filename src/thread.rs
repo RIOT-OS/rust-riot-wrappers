@@ -126,7 +126,7 @@ impl Status {
 
 impl KernelPID {
     pub fn new(pid: raw::kernel_pid_t) -> Option<Self> {
-        // from static inline pid_is_valid
+        // EXPANDED core/include/kernel_types.h:94 (from pid_is_valid)
         // casts needed due to untypedness of preprocessor constants
         if pid >= pid_converted::KERNEL_PID_FIRST && pid <= pid_converted::KERNEL_PID_LAST {
             Some(KernelPID(pid))
@@ -180,7 +180,7 @@ impl Into<raw::kernel_pid_t> for KernelPID {
 }
 
 pub fn get_pid() -> KernelPID {
-    // implementing the static thread_getpid function:
+    // EXPANDED core/include/thread.h:418 (thread_getpid)
     KernelPID(unsafe { ::core::ptr::read_volatile(&raw::sched_active_pid) })
 }
 

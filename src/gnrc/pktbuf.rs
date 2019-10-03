@@ -94,12 +94,12 @@ impl<M: Mode> Drop for Pktsnip<M> {
 
 impl<M: Mode> Pktsnip<M> {
     pub fn len(&self) -> usize {
-        // Implementing the static function gnrc_pkt_len
+        // EXPANDED sys/include/net/gnrc/pkt.h:136 gnrc_pkt_len
         self.iter_snips().map(|s| s.data.len()).sum()
     }
 
     pub fn count(&self) -> usize {
-        // Implementing the static function gnrc_pkt_count
+        // EXPANDED sys/include/net/gnrc/pkt.h:180 gnrc_pkt_count
         self.iter_snips().count()
     }
 

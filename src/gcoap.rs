@@ -212,7 +212,7 @@ impl<T> NegativeIsError for T where
 impl PacketBuffer {
     /// Wrapper for coap_get_code_raw
     pub fn get_code_raw(&self) -> u8 {
-        // FIXME inlining static coap_get_code_raw
+        // EXPANDED sys/include/net/nanocoap.h:320 (coap_get_code_raw)
         unsafe { (*(*self.pkt).hdr).code }
     }
 
