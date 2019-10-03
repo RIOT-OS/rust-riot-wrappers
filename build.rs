@@ -9,6 +9,8 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=RIOT_CFLAGS");
 
+    let mut riot_version_count = 0;
+
     for flag in cflags.iter() {
         if flag.starts_with("-DMODULE_") {
             println!("cargo:rustc-cfg=riot_module_{}", flag[9..].to_lowercase());
@@ -20,5 +22,26 @@ fn main() {
                 flag[13..].to_lowercase()
             );
         }
+
+        if flag.starts_with("-DRIOT_CPU=") {
+            println!(
+                "cargo:rustc-cfg=riot_cpu=\"{}\"",
+                flag[11..].to_lowercase()
+            );
+        }
+
+        if flag.starts_with("-DRIOT_VERSION=") {
+            let tail = &flag[15..];
+            let uptodash = tail.split(|x| x == '-').next().expect("Failed to parse RIOT_VERSION"); // Ignoring anything behind the dash
+            let numeric: Vec<u32> = uptodash.split(|x| x == '.').map(|x| x.parse()).collect::<Result<_, _>>().expect("Failed to parse RIOT_VERSION");
+            if numeric < vec![2019, 10] {
+                println!("cargo:rustc-cfg=riot_version_pre2019_10");
+            }
+            riot_version_count += 1;
+        }
+    }
+
+    if riot_version_count != 1 {
+        panic!("RIOT_VERSION missing from the defines.");
     }
 }
