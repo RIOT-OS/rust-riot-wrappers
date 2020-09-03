@@ -143,7 +143,7 @@ pub fn run(commands: &[&mut dyn ShellCommandTrait], line_buf: &mut [u8]) -> ! {
 
     unsafe {
         shell_run(
-            args.as_ptr(),
+            args.as_ptr() as _,
             line_buf.as_mut_ptr() as *mut i8,
             line_buf.len() as i32, // FIXME: panic if len is too large
         )

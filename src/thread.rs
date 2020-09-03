@@ -154,7 +154,7 @@ impl KernelPID {
 
     pub fn get_status(&self) -> Status {
         let status = unsafe { raw::thread_getstatus(self.0) };
-        Status::from_int(status)
+        Status::from_int(status as _)
     }
 
     pub fn wakeup(&self) -> Result<(), ()> {
@@ -237,7 +237,9 @@ where
     let tcb = if tcb >= &stack[0] as *const u8 as *mut _
         && tcb <= &stack[stack.len() - 1] as *const u8 as *mut _
     {
-        Some(tcb)
+        // unsafety: Assuming that C2Rust and and bindgen agree on the layout -- although it's
+        // actually only a pointer anyway
+        Some(core::mem::transmute(tcb))
     } else {
         None
     };
@@ -391,6 +393,8 @@ impl TrackedThread {
     pub fn get_status(&self) -> Status {
         let status = self.pid.get_status();
         let tcb = unsafe { riot_sys::thread_get(self.pid.0) };
+        // unsafe: transmutation between C2Rust and bindgen pointer
+        let tcb = unsafe { core::mem::transmute(tcb) };
         if Some(tcb) != self.tcb {
             Status::Stopped
         } else {
