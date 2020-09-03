@@ -32,13 +32,13 @@ impl<T> Mutex<T> {
 
     pub fn lock(&self) -> MutexGuard<T> {
         // EXPANDED core/include/mutex.h:113 (mutex_lock)
-        unsafe { riot_sys::_mutex_lock(self.mutex.get(), 1) };
+        unsafe { riot_sys::_mutex_lock(self.mutex.get(), &mut 1) };
         MutexGuard { mutex: &self }
     }
 
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
         // EXPANDED core/include/mutex.h:103 (mutex_trylock)
-        match unsafe { riot_sys::_mutex_lock(self.mutex.get(), 0) } {
+        match unsafe { riot_sys::_mutex_lock(self.mutex.get(), &mut 0) } {
             1 => Some(MutexGuard { mutex: &self }),
             _ => None,
         }
