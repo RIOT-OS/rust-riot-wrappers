@@ -1,3 +1,4 @@
+use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
 // For correctness considerations, all uses of UnsafeCell can be ignored here; the only reason why
 // an UnsafeCell is used is to indicate to the linker that a static mutex still needs to be
@@ -21,24 +22,26 @@ pub struct Mutex<T> {
 impl<T> Mutex<T> {
     /// Create a new mutex
     pub const fn new(t: T) -> Mutex<T> {
+        let mut new = MaybeUninit::uninit();
+        unsafe {
+            riot_sys::mutex_init(new.as_mut_ptr() as *mut _ /* INLINE CAST */);
+        };
+        // unsafe: initialized as per C API description
+        // FIXME transmute should be an assume_init but that's not const yet
+        let new = unsafe { core::mem::transmute(new) };
         Mutex {
             data: UnsafeCell::new(t),
-            // EXPANDED core/include/mutex.h:74
-            mutex: UnsafeCell::new(riot_sys::mutex_t {
-                queue: riot_sys::list_node_t { next: 0 as *mut _ },
-            }),
+            mutex: UnsafeCell::new(new),
         }
     }
 
     pub fn lock(&self) -> MutexGuard<T> {
-        // EXPANDED core/include/mutex.h:113 (mutex_lock)
-        unsafe { riot_sys::_mutex_lock(self.mutex.get(), &mut 1) };
+        unsafe { riot_sys::mutex_lock(self.mutex.get() as *mut _ /* INLINE CAST */) };
         MutexGuard { mutex: &self }
     }
 
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        // EXPANDED core/include/mutex.h:103 (mutex_trylock)
-        match unsafe { riot_sys::_mutex_lock(self.mutex.get(), &mut 0) } {
+        match unsafe { riot_sys::mutex_trylock(self.mutex.get() as *mut _ /* INLINE CAST */) } {
             1 => Some(MutexGuard { mutex: &self }),
             _ => None,
         }
