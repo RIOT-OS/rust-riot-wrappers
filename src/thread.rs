@@ -126,9 +126,8 @@ impl Status {
 
 impl KernelPID {
     pub fn new(pid: raw::kernel_pid_t) -> Option<Self> {
-        // EXPANDED core/include/kernel_types.h:94 (from pid_is_valid)
         // casts needed due to untypedness of preprocessor constants
-        if pid >= pid_converted::KERNEL_PID_FIRST && pid <= pid_converted::KERNEL_PID_LAST {
+        if unsafe { raw::pid_is_valid(pid) } != 0 {
             Some(KernelPID(pid))
         } else {
             None
@@ -136,7 +135,12 @@ impl KernelPID {
     }
 
     pub fn all_pids() -> impl Iterator<Item = KernelPID> {
-        (pid_converted::KERNEL_PID_FIRST..=pid_converted::KERNEL_PID_LAST).map(|i| KernelPID(i))
+        // Not constructing the KernelPID manually but going through new serves as a convenient
+        // validation of the construction (all_pids will panic if the rules of pid_is_valid change,
+        // and then this function *should* be reevaluated). As pid_is_valid is static inline, the
+        // compiler should be able to see through the calls down to there that the bounds checked
+        // for there are the very bounds used in the construction here.
+        (pid_converted::KERNEL_PID_FIRST..=pid_converted::KERNEL_PID_LAST).map(|i| KernelPID::new(i).expect("Should be valid by construction"))
     }
 
     pub fn get_name(&self) -> Option<&str> {
