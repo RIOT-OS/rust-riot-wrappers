@@ -51,5 +51,9 @@ pub mod coap_message;
 #[cfg(feature = "with_coap_handler")]
 pub mod coap_handler;
 
+pub mod socket;
+#[cfg(feature = "with_embedded_nal")]
+pub mod socket_embedded_nal;
+
 pub mod interrupt;
 pub mod main;

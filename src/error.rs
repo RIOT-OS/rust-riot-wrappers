@@ -21,6 +21,25 @@ pub struct NumericError {
     pub number: isize,
 }
 
+impl NumericError {
+    /// Construct a NumericError from a riot_sys constant
+    ///
+    /// ```
+    /// let err = NumericError::from(riot_sys::ENOTSUP);
+    /// println!("{}", err); # NumericError { number: -61 }
+    /// ```
+    pub fn from(name: isize) -> Self {
+        NumericError { number: -name }
+    }
+
+    pub fn again_is_wouldblock(self) -> nb::Error<Self> {
+        match -self.number as u32 {
+            riot_sys::EAGAIN => nb::Error::WouldBlock,
+            _ => nb::Error::Other(self)
+        }
+    }
+}
+
 // Would be nice, but there's no strerror
 //
 // impl core::fmt::Display for NumericError {
