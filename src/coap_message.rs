@@ -2,43 +2,51 @@
 /// coap_message::WritableMessage around RIOT's coap_pkt_t.
 
 use crate::gcoap::{PacketBuffer, PacketBufferOptIter, PacketBufferOptIterMut};
-use coap_message::{ReadableMessage, WritableMessage, Code, OptionNumber};
+use coap_message::{ReadableMessage, MinimalWritableMessage, MutableWritableMessage, OptionsIterableMessage, OptionsSortedIterableMessage};
 
-pub struct OptionsIterator<'a>(PacketBufferOptIter<'a>);
-impl<'a> Iterator for OptionsIterator<'a> {
-    type Item = jnet::coap::Option<'a>;
+pub struct MessageOption<'a> {
+    number: u16,
+    value: &'a [u8],
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
+impl<'a> coap_message::MessageOption for MessageOption<'a> {
+    fn number(&self) -> u16 {
+        self.number
+    }
 
-        struct FakeOption<'b> {
-            number: u16,
-            value: &'b [u8],
-        }
-
-        let (opt_num, slice) = self.0.next()?;
-        let res = FakeOption { number: opt_num, value: slice };
-        // FIXME add an abstraction that can actually be constructed
-        let res: jnet::coap::Option<'a> = unsafe { core::mem::transmute(res) };
-        Some(res)
+    fn value(&self) -> &[u8] {
+        self.value
     }
 }
 
-impl<'a> ReadableMessage<'a> for PacketBuffer {
+pub struct OptionsIterator<'a>(PacketBufferOptIter<'a>);
+impl<'a> Iterator for OptionsIterator<'a> {
+    type Item = MessageOption<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (opt_num, slice) = self.0.next()?;
+        Some(MessageOption { number: opt_num, value: slice })
+    }
+}
+
+impl<'a> OptionsIterableMessage<'a> for PacketBuffer {
     type OptionsIter = OptionsIterator<'a>;
+    type MessageOption = MessageOption<'a>;
 
     fn options(&'a self) -> Self::OptionsIter {
         OptionsIterator(self.opt_iter())
     }
+}
 
-    fn get_code(&self) -> Code {
-        let code = self.get_code_raw();
-//         Code(code)
+impl<'a> OptionsSortedIterableMessage<'a> for PacketBuffer {
+    // valid because gcoap just reads options from the message where they are stored in sequence
+}
 
-        // FIXME: not transparent repr, but doing it anyway for the brief period until this all
-        // gets refactored to not depend on jnet types
-        let result: Code = unsafe { core::mem::transmute(code) };
-        assert!(result.class() << 5 | result.detail() == code);
-        result
+impl<'a> ReadableMessage<'a> for PacketBuffer {
+    type Code = u8;
+
+    fn code(&self) -> Self::Code {
+        self.get_code_raw()
     }
 
     fn payload(&self) -> &[u8] {
@@ -70,17 +78,15 @@ impl<'a> ResponseMessage<'a> {
     }
 }
 
-impl<'a> WritableMessage for ResponseMessage<'a> {
-    fn available_space(&self) -> usize {
-        self.message.payload().len()
+impl<'a> MinimalWritableMessage for ResponseMessage<'a> {
+    type Code = u8;
+    type OptionNumber= u16;
+
+    fn set_code(&mut self, code: Self::Code) {
+        self.message.set_code_raw(code);
     }
 
-    fn set_code<C: Into<Code>>(&mut self, code: C) {
-        let code = code.into();
-        self.message.set_code_raw(code.class() << 5 | code.detail());
-    }
-
-    fn add_option(&mut self, number: OptionNumber, value: &[u8]) {
+    fn add_option(&mut self, number: Self::OptionNumber, value: &[u8]) {
         if self.payload_written.is_some() {
             panic!("Options can not be added after payload was added");
         }
@@ -91,6 +97,13 @@ impl<'a> WritableMessage for ResponseMessage<'a> {
         self.payload_mut()[..data.len()].copy_from_slice(data);
         self.truncate(data.len());
     }
+}
+
+impl<'a> MutableWritableMessage for ResponseMessage<'a> {
+    fn available_space(&self) -> usize {
+        self.message.payload().len()
+    }
+
 
     fn payload_mut(&mut self) -> &mut [u8] {
         self.payload_written = Some(0);
@@ -105,7 +118,7 @@ impl<'a> WritableMessage for ResponseMessage<'a> {
 
     fn mutate_options<F>(&mut self, mut callback: F)
     where
-        F: FnMut(OptionNumber, &mut [u8])
+        F: FnMut(Self::OptionNumber, &mut [u8])
     {
         for (opt_num, slice) in self.message.opt_iter_mut() {
             callback(opt_num.into(), slice);

@@ -1,6 +1,7 @@
 // There is some questionably scoped code in the lower half of this module (it made requirements on
 // data staying in a place that was not justified from the type system). This is being changed.
 
+use core::convert::TryInto;
 use riot_sys::{coap_resource_t, gcoap_listener_t, coap_pkt_t, coap_optpos_t};
 use riot_sys::libc::{CStr, c_void};
 use core::marker::PhantomData;
@@ -34,6 +35,9 @@ impl RegistrationScope {
     // FIXME: Generalize SingleHandlerListener::get_listener into a trait
     pub fn register<'scope, 'handler, P>(&'scope mut self, handler: &'handler mut P) where
         'handler: 'scope,
+        // AsMut? hm, probably should re-consider the whole concept of the server ownign a mutable
+        // reference to the resource. that makes simple server-mutable resources, but if they are
+        // to do *anything* fro somewhere else, don't they need interior mutability anyway?
         P: 'handler + ListenerProvider
     {
         // Unsafe: Moving in a pointer to an internal structure to which we were given an exclusive
@@ -70,8 +74,11 @@ impl<'a, H> SingleHandlerListener<'a, H>
 where
     H: 'a + Handler
 {
+    // keeping methods u32 because the sys constants are too
     pub fn new(path: &'a CStr, methods: u32, handler: &'a mut H) -> Self
     {
+        let methods = methods.try_into().unwrap();
+
         SingleHandlerListener {
             _phantom: PhantomData,
             resource: coap_resource_t {
@@ -84,6 +91,7 @@ where
                 resources: 0 as *const _,
                 resources_len: 0,
                 next: 0 as *mut _,
+                link_encoder: None, // FIXME expose
             }
         }
     }
@@ -276,25 +284,42 @@ impl PacketBuffer {
     }
 
     pub fn opt_iter<'a>(&'a self) -> PacketBufferOptIter<'a> {
-        PacketBufferOptIter { buffer: self, state: Default::default() }
+        PacketBufferOptIter { buffer: self, state: None }
     }
 
     pub fn opt_iter_mut<'a>(&'a mut self) -> PacketBufferOptIterMut<'a> {
-        PacketBufferOptIterMut { buffer: self, state: Default::default() }
+        PacketBufferOptIterMut { buffer: self, state: None }
     }
 }
 
 pub struct PacketBufferOptIter<'a> {
     buffer: &'a PacketBuffer,
-    state: coap_optpos_t,
+    state: Option<coap_optpos_t>,
 }
 
 impl<'a> Iterator for PacketBufferOptIter<'a> {
     type Item = (u16, &'a [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {
+        let size;
         let mut start = MaybeUninit::uninit();
-        let size = unsafe { coap_opt_get_next(&*self.buffer.pkt, &mut self.state, start.as_mut_ptr()) };
+        match &mut self.state {
+            None => {
+                let mut state = MaybeUninit::uninit();
+                size = unsafe { coap_opt_get_next(&*self.buffer.pkt, state.as_mut_ptr(), start.as_mut_ptr(), true) };
+                if size < 0 {
+                    return None;
+                }
+                // unsafe: as promised by coap_opt_get_next documentation
+                self.state = Some(unsafe { state.assume_init() });
+            },
+            Some(ref mut state) => {
+                size = unsafe { coap_opt_get_next(&*self.buffer.pkt, state, start.as_mut_ptr(), false) };
+                if size < 0 {
+                    return None;
+                }
+            }
+        }
         // unsafe: as promised by coap_opt_get_next documentation
         let start = unsafe { start.assume_init() };
         if start == 0 as *mut _ {
@@ -303,23 +328,41 @@ impl<'a> Iterator for PacketBufferOptIter<'a> {
             // unsafe: that's the parts the coap_opt_get_next documentation promises, and we can
             // build an 'a-lived slice of it because we hold a &'a reference to the whole
             // PacketBuffer
-            let slice = unsafe { core::slice::from_raw_parts(start, size) };
-            Some((self.state.opt_num, slice))
+            let slice = unsafe { core::slice::from_raw_parts(start, size as usize) };
+            Some((self.state.unwrap().opt_num, slice))
         }
     }
 }
 
 pub struct PacketBufferOptIterMut<'a> {
     buffer: &'a mut PacketBuffer,
-    state: coap_optpos_t,
+    state: Option<coap_optpos_t>,
 }
 
 impl<'a> Iterator for PacketBufferOptIterMut<'a> {
     type Item = (u16, &'a mut [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {
+        let size;
         let mut start = MaybeUninit::uninit();
-        let size = unsafe { coap_opt_get_next(&*self.buffer.pkt, &mut self.state, start.as_mut_ptr()) };
+        match &mut self.state {
+            None => {
+                let mut state = MaybeUninit::uninit();
+                size = unsafe { coap_opt_get_next(&*self.buffer.pkt, state.as_mut_ptr(), start.as_mut_ptr(), true) };
+                if size < 0 {
+                    return None;
+                }
+                // unsafe: as promised by coap_opt_get_next documentation
+                self.state = Some(unsafe { state.assume_init() });
+            },
+            Some(ref mut state) => {
+                size = unsafe { coap_opt_get_next(&*self.buffer.pkt, state, start.as_mut_ptr(), false) };
+                if size < 0 {
+                    return None;
+                }
+            }
+        }
+
         // unsafe: as promised by coap_opt_get_next documentation
         let start = unsafe { start.assume_init() };
         if start == 0 as *mut _ {
@@ -328,8 +371,8 @@ impl<'a> Iterator for PacketBufferOptIterMut<'a> {
             // unsafe: that's the parts the coap_opt_get_next documentation promises, and we can
             // build an 'a-lived mutable slice of it because we hold a &'a mut reference to the
             // whole PacketBuffer, and the options do not overlap
-            let slice = unsafe { core::slice::from_raw_parts_mut(start, size) };
-            Some((self.state.opt_num, slice))
+            let slice = unsafe { core::slice::from_raw_parts_mut(start, size as usize) };
+            Some((self.state.unwrap().opt_num, slice))
         }
     }
 }
