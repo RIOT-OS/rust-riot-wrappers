@@ -23,8 +23,8 @@ num-traits = { version = "0.2", default-features = false }
 
 coap-numbers = { version = "^0.1.0", optional = true, default-features = false }
 
-# Disabled by default because the dependency is stil quite unstable
-coap-message = { git = "https://gitlab.com/chrysn/coap-message/", optional = true }
+# Disabled by default because it's not sure yet how stable they will be from riot-wrappers' side
+coap-message = { version = "0.0.3", optional = true }
 coap-handler = { git = "https://gitlab.com/chrysn/coap-handler/", optional = true }
 
 [build-dependencies]

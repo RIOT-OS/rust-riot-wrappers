@@ -2,7 +2,7 @@
 /// coap_message::WritableMessage around RIOT's coap_pkt_t.
 
 use crate::gcoap::{PacketBuffer, PacketBufferOptIter, PacketBufferOptIterMut};
-use coap_message::{ReadableMessage, MinimalWritableMessage, MutableWritableMessage, OptionsIterableMessage, OptionsSortedIterableMessage};
+use coap_message::{ReadableMessage, MinimalWritableMessage, MutableWritableMessage, WithSortedOptions};
 
 pub struct MessageOption<'a> {
     number: u16,
@@ -29,21 +29,14 @@ impl<'a> Iterator for OptionsIterator<'a> {
     }
 }
 
-impl<'a> OptionsIterableMessage<'a> for PacketBuffer {
-    type OptionsIter = OptionsIterator<'a>;
-    type MessageOption = MessageOption<'a>;
-
-    fn options(&'a self) -> Self::OptionsIter {
-        OptionsIterator(self.opt_iter())
-    }
-}
-
-impl<'a> OptionsSortedIterableMessage<'a> for PacketBuffer {
+impl<'a> WithSortedOptions<'a> for PacketBuffer {
     // valid because gcoap just reads options from the message where they are stored in sequence
 }
 
 impl<'a> ReadableMessage<'a> for PacketBuffer {
     type Code = u8;
+    type OptionsIter = OptionsIterator<'a>;
+    type MessageOption = MessageOption<'a>;
 
     fn code(&self) -> Self::Code {
         self.get_code_raw()
@@ -51,6 +44,10 @@ impl<'a> ReadableMessage<'a> for PacketBuffer {
 
     fn payload(&self) -> &[u8] {
         self.payload()
+    }
+
+    fn options(&'a self) -> Self::OptionsIter {
+        OptionsIterator(self.opt_iter())
     }
 }
 
