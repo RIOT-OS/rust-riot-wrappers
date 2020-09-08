@@ -6,6 +6,7 @@ use riot_sys::{coap_resource_t, gcoap_listener_t, coap_pkt_t, coap_optpos_t};
 use riot_sys::libc::{CStr, c_void};
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
+use crate::error::NegativeErrorExt;
 
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
@@ -198,24 +199,6 @@ pub struct PacketBuffer {
     len: usize,
 }
 
-// Helper for error handling -- turns negative numbers in a negative and everything else into a
-// positive result
-trait NegativeIsError {
-    fn convert(self) -> Result<(), ()>;
-}
-
-impl<T> NegativeIsError for T where
-    T: num_traits::Zero + core::cmp::PartialOrd,
-{
-    fn convert(self) -> Result<(), ()> {
-        if self >= Self::zero() {
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-}
-
 impl PacketBuffer {
     /// Wrapper for coap_get_code_raw
     pub fn get_code_raw(&self) -> u8 {
@@ -237,7 +220,9 @@ impl PacketBuffer {
     /// working around that would mean duplicating code. Just set GCOAP_RESP_OPTIONS_BUF to zero to
     /// keep the overhead low.
     pub fn resp_init(&mut self, code: u8) -> Result<(), ()> {
-        unsafe { gcoap_resp_init(self.pkt, self.buf, self.len, code.into()) }.convert()
+        unsafe { gcoap_resp_init(self.pkt, self.buf, self.len, code.into()) }.negative_to_error()
+            .map_err(|_| ())?;
+        Ok(())
     }
 
     pub fn set_code_raw(&mut self, code: u8) {
@@ -278,12 +263,16 @@ impl PacketBuffer {
 
     /// Add an integer value as an option
     pub fn opt_add_uint(&mut self, optnum: u16, value: u32) -> Result<(), ()> {
-        unsafe { coap_opt_add_uint(self.pkt, optnum, value) }.convert()
+        unsafe { coap_opt_add_uint(self.pkt, optnum, value) }.negative_to_error()
+            .map_err(|_| ())?;
+        Ok(())
     }
 
     /// Add a binary value as an option
     pub fn opt_add_opaque(&mut self, optnum: u16, data: &[u8]) -> Result<(), ()> {
-        unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len()) }.convert()
+        unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len()) }.negative_to_error()
+            .map_err(|_| ())?;
+        Ok(())
     }
 
     pub fn opt_iter<'a>(&'a self) -> PacketBufferOptIter<'a> {

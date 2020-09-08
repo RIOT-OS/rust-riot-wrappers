@@ -12,6 +12,8 @@ extern crate crc;
 extern crate embedded_hal;
 extern crate riot_sys;
 
+pub mod error;
+
 #[cfg(riot_module_saul)]
 pub mod saul;
 #[cfg(riot_module_shell)]
