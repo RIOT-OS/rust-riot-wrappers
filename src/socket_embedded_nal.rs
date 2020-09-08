@@ -7,28 +7,47 @@ use core::mem::MaybeUninit;
 
 use crate::error::NegativeErrorExt;
 
-/// The operating system's network stack, implementing ``embedded_nal::UdpStack``.
+/// The operating system's network stack, used to get an implementation of ``embedded_nal::UdpStack``.
 ///
-/// This is accessed using the static ``STACK`` instance.
-///
-/// The stack can be cloned, as it is not a resource that needs any synchronization. This is not
-/// made implicit as Copy, though (although there's not technical reason not to). That is to alert
-/// users to the difficulties that'd arise when taking ownership of a stack rather than just using
-/// it through a shared reference (which is generally possible in ``embedded_nal``).
-#[derive(Clone)]
-pub struct Stack {
-    _private: (),
+/// Using this is not trivial, as RIOT needs its sockets pinned to memory for their lifetime.
+/// Without a heap allocator, this is achieved by allocating all the required UDP sockets in a
+/// stack object. To ensure that it is not moved, sockets on it can only be created in (and live
+/// only for the duration of) a the `run` callback, which gives the actual implemtation of
+/// UdpStack.
+pub struct Stack<const UDPCOUNT: usize> {
+    udp_sockets: [core::cell::UnsafeCell<MaybeUninit<riot_sys::sock_udp_t>>; UDPCOUNT],
+    udp_sockets_used: core::cell::Cell<usize>,
 }
 
-pub static STACK: Stack = Stack { _private: () };
+pub struct StackAccessor<'a, const UDPCOUNT: usize> {
+    stack: &'a Stack<UDPCOUNT>,
+}
 
-pub struct UdpSocket {
-    socket: riot_sys::sock_udp_t,
+impl<const UDPCOUNT: usize> Stack<UDPCOUNT> {
+    pub fn new() -> Self {
+        Self {
+            // FIXME this should work with #![feature(const_in_array_repeat_expressions)]
+            // udp_sockets: [core::cell::UnsafeCell::new(MaybeUninit::uninit()); UDPCOUNT],
+            // unsafe: OK because neither the array nor UnsafeCell nor MaybeUninit have any
+            // uninhabited states
+            udp_sockets: unsafe { MaybeUninit::uninit().assume_init() },
+            udp_sockets_used: 0.into(),
+        }
+    }
+
+    pub fn run(&self, runner: impl for<'a> FnOnce(StackAccessor<'a, UDPCOUNT>)) {
+        let accessor = StackAccessor { stack: self };
+        runner(accessor)
+    }
+}
+
+pub struct UdpSocket<'a> {
+    socket: &'a mut riot_sys::sock_udp_t,
     timeout_us: u32,
 }
 
-impl embedded_nal::UdpStack for Stack {
-    type UdpSocket = UdpSocket;
+impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDPCOUNT> {
+    type UdpSocket = UdpSocket<'a>;
     type Error = crate::error::NumericError;
 
     fn open(
@@ -36,6 +55,17 @@ impl embedded_nal::UdpStack for Stack {
         remote: embedded_nal::SocketAddr,
         mode: embedded_nal::Mode,
     ) -> Result<Self::UdpSocket, Self::Error> {
+        let index = self.stack.udp_sockets_used.get();
+        if index == UDPCOUNT {
+            return Err(crate::error::NumericError::from(riot_sys::ENOMEM as _));
+        }
+
+        let socket: &'a mut riot_sys::sock_udp_t = unsafe {
+            (&mut *self.stack.udp_sockets[index].get()).get_mut()
+        };
+        // FIXME replace bump allocator with anything more sensible that'd allow freeing
+        self.stack.udp_sockets_used.set(index + 1);
+
         let timeout_us = match mode {
             embedded_nal::Mode::Blocking => riot_sys::SOCK_NO_TIMEOUT,
             embedded_nal::Mode::NonBlocking => 0,
@@ -47,19 +77,15 @@ impl embedded_nal::UdpStack for Stack {
             embedded_nal::SocketAddr::V6(_) => riot_sys::init_SOCK_IPV6_EP_ANY(),
         };
 
-        let mut socket = MaybeUninit::uninit();
-
         let remote: crate::socket::UdpEp = remote.into();
         let remote = remote.into();
 
         (unsafe { riot_sys::sock_udp_create(
-                    socket.as_mut_ptr(),
+                    socket,
                     &local as *const _ as *const _, // INLINE CAST
                     &remote,
                     0) })
             .negative_to_error()?;
-
-        let socket = unsafe { socket.assume_init() };
 
         Ok(UdpSocket {
             socket,
@@ -73,7 +99,7 @@ impl embedded_nal::UdpStack for Stack {
     ) -> Result<(), nb::Error<Self::Error>> {
 
         (unsafe { riot_sys::sock_udp_send(
-                    &mut socket.socket,
+                    &mut *socket.socket,
                     buffer.as_ptr() as _,
                     buffer.len(),
                     0 as *const _,
@@ -89,7 +115,7 @@ impl embedded_nal::UdpStack for Stack {
         buffer: &mut [u8],
     ) -> Result<usize, nb::Error<Self::Error>> {
         (unsafe { riot_sys::sock_udp_recv(
-                    &mut socket.socket,
+                    &mut *socket.socket,
                     buffer.as_mut_ptr() as _,
                     buffer.len(),
                     socket.timeout_us,
