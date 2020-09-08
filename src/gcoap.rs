@@ -219,8 +219,11 @@ impl<T> NegativeIsError for T where
 impl PacketBuffer {
     /// Wrapper for coap_get_code_raw
     pub fn get_code_raw(&self) -> u8 {
-        // EXPANDED sys/include/net/nanocoap.h:320 (coap_get_code_raw)
-        unsafe { (*(*self.pkt).hdr).code }
+        (unsafe {
+            riot_sys::coap_get_code_raw(
+                self.pkt as *mut _ // missing const in C
+                )
+        }) as u8 // odd return type in C
     }
 
     /// Wrapper for coap_get_total_hdr_len
