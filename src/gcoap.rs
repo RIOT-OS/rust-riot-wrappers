@@ -132,7 +132,6 @@ use riot_sys::{
     coap_opt_add_opaque,
     coap_opt_get_next,
     coap_opt_finish,
-    gcoap_finish,
     gcoap_register_listener,
     gcoap_resp_init,
     memmove,
