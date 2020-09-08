@@ -24,8 +24,8 @@ num-traits = { version = "0.2", default-features = false }
 coap-numbers = { version = "^0.1.0", optional = true, default-features = false }
 
 # Disabled by default because the dependency is stil quite unstable
-coap-message = { path = "/home/chrysn/git/crates/coap-message", optional = true }
-coap-handler = { path = "/home/chrysn/git/crates/coap-handler", optional = true }
+coap-message = { git = "https://gitlab.com/chrysn/coap-message/", optional = true }
+coap-handler = { git = "https://gitlab.com/chrysn/coap-handler/", optional = true }
 
 [build-dependencies]
 shlex = "0.1.1"
