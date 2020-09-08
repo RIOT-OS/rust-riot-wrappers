@@ -34,8 +34,5 @@ shlex = "0.1.1"
 default = ["set_panic_handler"]
 set_panic_handler = []
 
-# See jnet dependency
-# with_jnet = ["jnet"]
-# jnet: temporary dependency until coap-message is standalone
 with_coap_message = ["coap-message" ]
 with_coap_handler = ["coap-handler", "coap-numbers", "with_coap_message"]

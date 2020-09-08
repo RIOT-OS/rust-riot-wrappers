@@ -44,11 +44,6 @@ pub mod rwlock;
 #[cfg(feature = "set_panic_handler")]
 mod panic;
 
-#[cfg(feature = "with_jnet")]
-extern crate jnet;
-#[cfg(feature = "with_jnet")]
-mod jnet_implementations;
-
 #[cfg(feature = "with_coap_message")]
 pub mod coap_message;
 #[cfg(feature = "with_coap_handler")]
