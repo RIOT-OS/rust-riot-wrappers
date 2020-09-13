@@ -6,6 +6,8 @@
 #![feature(const_mut_refs)]
 #![feature(const_maybe_uninit_as_ptr)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
+#![feature(maybe_uninit_ref)]
+#![feature(min_const_generics)]
 
 extern crate byteorder;
 extern crate crc;

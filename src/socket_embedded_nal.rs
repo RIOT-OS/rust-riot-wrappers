@@ -14,6 +14,8 @@ use crate::error::NegativeErrorExt;
 /// stack object. To ensure that it is not moved, sockets on it can only be created in (and live
 /// only for the duration of) a the `run` callback, which gives the actual implemtation of
 /// UdpStack.
+///
+/// The number of UDP sockets allocated is configurable using the UDPCOUNT const generic.
 pub struct Stack<const UDPCOUNT: usize> {
     udp_sockets: [core::cell::UnsafeCell<MaybeUninit<riot_sys::sock_udp_t>>; UDPCOUNT],
     udp_sockets_used: core::cell::Cell<usize>,
