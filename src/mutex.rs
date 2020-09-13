@@ -22,12 +22,8 @@ pub struct Mutex<T> {
 impl<T> Mutex<T> {
     /// Create a new mutex
     pub const fn new(t: T) -> Mutex<T> {
-        let mut new = MaybeUninit::uninit();
-        unsafe {
-            riot_sys::mutex_init(new.as_mut_ptr() as *mut _ /* INLINE CAST */);
-        };
-        // unsafe: initialized as per C API description
-        // FIXME transmute should be an assume_init but that's not const yet
+        let new = unsafe { riot_sys::init_MUTEX_INIT() };
+        // unsafe: INLINE CAST
         let new = unsafe { core::mem::transmute(new) };
         Mutex {
             data: UnsafeCell::new(t),
