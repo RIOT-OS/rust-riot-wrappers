@@ -1,7 +1,5 @@
 #![no_std]
 #![feature(never_type)]
-#![feature(ptr_offset_from)]
-#![feature(maybe_uninit)]
 #![feature(const_fn)]
 #![feature(const_mut_refs)]
 #![feature(const_maybe_uninit_as_ptr)]
