@@ -341,6 +341,7 @@ impl CountingThreadScope {
 // The 'pieces should (FIXME: verify) help ensuring that threads can only be reaped where they were
 // created. (It might make sense to move it into TrackedThread and make the tcb usable for more
 // than just pointer comparison).
+#[derive(Debug)]
 pub struct CountedThread<'pieces> {
     thread: TrackedThread,
     _phantom: PhantomData<&'pieces ()>
@@ -382,6 +383,7 @@ where
 ///
 /// A later implementation may stop actually having the pid in the struct and purely rely on the
 /// tcb (although that'll need to become a lifetime'd reference to a cell by then).
+#[derive(Debug)]
 pub struct TrackedThread {
     pid: KernelPID,
     tcb: Option<*mut riot_sys::_thread>,
