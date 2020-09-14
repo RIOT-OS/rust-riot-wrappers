@@ -56,5 +56,8 @@ pub mod socket;
 #[cfg(feature = "with_embedded_nal")]
 pub mod socket_embedded_nal;
 
+#[cfg(riot_module_periph_gpio)]
+pub mod gpio;
+
 pub mod interrupt;
 pub mod main;
