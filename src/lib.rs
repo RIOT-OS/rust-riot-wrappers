@@ -52,8 +52,9 @@ pub mod coap_message;
 #[cfg(feature = "with_coap_handler")]
 pub mod coap_handler;
 
+#[cfg(riot_module_sock)]
 pub mod socket;
-#[cfg(feature = "with_embedded_nal")]
+#[cfg(all(riot_module_sock, feature = "with_embedded_nal"))]
 pub mod socket_embedded_nal;
 
 #[cfg(riot_module_periph_gpio)]
