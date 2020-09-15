@@ -3,6 +3,7 @@
 //!
 //! [embedded-nal]: https://docs.rs/embedded-nal/0.1.0/embedded_nal/
 
+use core::convert::TryInto;
 use core::mem::MaybeUninit;
 
 use crate::error::NegativeErrorExt;
@@ -103,7 +104,8 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDP
         (unsafe { riot_sys::sock_udp_send(
                     &mut *socket.socket,
                     buffer.as_ptr() as _,
-                    buffer.len(),
+                    buffer.len()
+                        .try_into().unwrap(),
                     0 as *const _,
                     ) })
             .negative_to_error()
@@ -119,7 +121,8 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDP
         (unsafe { riot_sys::sock_udp_recv(
                     &mut *socket.socket,
                     buffer.as_mut_ptr() as _,
-                    buffer.len(),
+                    buffer.len()
+                        .try_into().unwrap(),
                     socket.timeout_us,
                     0 as *mut _,
                     ) })

@@ -100,13 +100,14 @@ where
     unsafe extern "C" fn call_handler(
         pkt: *mut coap_pkt_t,
         buf: *mut u8,
-        len: usize,
+        len: u32,
         context: *mut c_void,
-    ) -> isize {
+    ) -> i32 {
         let h = context as *mut H;
         let h = &mut *h;
-        let mut pb = PacketBuffer { pkt, buf, len };
+        let mut pb = PacketBuffer { pkt, buf, len: len.try_into().unwrap() };
         H::handle(h, &mut pb)
+            .try_into().unwrap()
     }
 }
 
@@ -220,7 +221,7 @@ impl PacketBuffer {
     /// working around that would mean duplicating code. Just set GCOAP_RESP_OPTIONS_BUF to zero to
     /// keep the overhead low.
     pub fn resp_init(&mut self, code: u8) -> Result<(), ()> {
-        unsafe { gcoap_resp_init(self.pkt, self.buf, self.len, code.into()) }.negative_to_error()
+        unsafe { gcoap_resp_init(self.pkt, self.buf, self.len.try_into().unwrap(), code.into()) }.negative_to_error()
             .map_err(|_| ())?;
         Ok(())
     }
@@ -238,7 +239,7 @@ impl PacketBuffer {
         let own_length = unsafe { (*self.pkt).payload.offset_from(self.buf) };
         assert!(own_length >= 0);
         let total_length = own_length as usize + payload_used;
-        assert!(total_length <= self.len);
+        assert!(total_length <= self.len.try_into().unwrap());
         total_length
     }
 
@@ -270,7 +271,7 @@ impl PacketBuffer {
 
     /// Add a binary value as an option
     pub fn opt_add_opaque(&mut self, optnum: u16, data: &[u8]) -> Result<(), ()> {
-        unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len()) }.negative_to_error()
+        unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len().try_into().unwrap()) }.negative_to_error()
             .map_err(|_| ())?;
         Ok(())
     }
