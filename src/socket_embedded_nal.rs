@@ -63,9 +63,11 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDP
             return Err(crate::error::NumericError::from(riot_sys::ENOMEM as _));
         }
 
-        let socket: &'a mut riot_sys::sock_udp_t = unsafe {
-            (&mut *self.stack.udp_sockets[index].get()).get_mut()
-        };
+        // We're inside a non-Send (due to the udp_sockets_used that's just cleared us as
+        // the own allocation) function and thus will only ever be the single user of this slot.
+        // Therefore, we can get ourselves a mutable pointer to the content of the UnsafeCell we
+        // now own, and later make a mutable reference out of it
+        let socket: *mut riot_sys::sock_udp_t = self.stack.udp_sockets[index].get() as *mut _;
         // FIXME replace bump allocator with anything more sensible that'd allow freeing
         self.stack.udp_sockets_used.set(index + 1);
 
@@ -89,6 +91,11 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDP
                     &remote,
                     0) })
             .negative_to_error()?;
+
+        // unsafe: This is a manual assume_init (backed by the API), and having an 'a mutable
+        // reference for it is OK because the StackAccessor guarantees that the stack is available
+        // for 'a and won't move.
+        let socket: &'a mut _ = unsafe { &mut *socket };
 
         Ok(UdpSocket {
             socket,
