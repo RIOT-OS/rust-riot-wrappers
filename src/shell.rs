@@ -59,7 +59,7 @@ where
     }
 
     fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int> {
-        let argv: &[*mut i8] = unsafe { ::core::slice::from_raw_parts(argv, argc as usize) };
+        let argv: &[*mut i8] = unsafe { ::core::slice::from_raw_parts(argv as _, argc as usize) };
         let marker = ();
 
         let mut stdio = stdio::Stdio {};
@@ -86,7 +86,7 @@ where
         }
         let argc = argc as usize;
         for i in 0..argc {
-            arg_array[i] = unsafe { libc::CStr::from_ptr_with_lifetime(argv[i], &marker) }
+            arg_array[i] = unsafe { libc::CStr::from_ptr_with_lifetime(argv[i] as _, &marker) }
                 .to_str()
                 .unwrap();
         }
