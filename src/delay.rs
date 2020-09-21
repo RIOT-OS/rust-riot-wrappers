@@ -1,3 +1,7 @@
+//! Delays implemented based on the RIOT XTimer module
+//!
+//! Deprecated in favor of the ztimer module, whose timers provide delay just as well.
+
 use core::convert::{TryInto, TryFrom};
 
 /// RIOT's global XTimer, which implements a the blocking delay traits to put a thread to sleep for
