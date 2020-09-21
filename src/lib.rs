@@ -5,6 +5,7 @@
 #![feature(const_maybe_uninit_as_ptr)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
 #![feature(maybe_uninit_ref)]
+// for embedded-nal stacks with const-sized slots, and ztimer
 #![feature(min_const_generics)]
 
 extern crate byteorder;
