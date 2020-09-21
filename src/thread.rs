@@ -184,13 +184,9 @@ impl Into<raw::kernel_pid_t> for KernelPID {
 }
 
 pub fn get_pid() -> KernelPID {
-    extern "C" {
-        static sched_active_pid: raw::kernel_pid_t;
-    };
-
-    // Still manual expansion because c2rust ignores the volatile
-    // EXPANDED core/include/thread.h:418 (thread_getpid)
-    KernelPID(unsafe { ::core::ptr::read_volatile(&sched_active_pid) })
+    // Ignoring the volatile in thread_getpid because it's probably not necessary (any application
+    // will only ever see a consistent current PID).
+    KernelPID(unsafe { raw::thread_getpid() })
 }
 
 pub fn sleep() {
