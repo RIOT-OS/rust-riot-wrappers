@@ -1,4 +1,4 @@
-#[cfg(riot_module_stdio_uart)]
+#[cfg(not(riot_module_stdio_native))]
 mod regular {
     //! The default implementation of a Rust Stdio object: Write directly to uart_stdio. It does
     //! not go through the C standard library but directly to however uart_stdio is currently
@@ -19,7 +19,7 @@ mod regular {
                 return Ok(());
             }
 
-            let result = unsafe { stdio_write(transmute(data.as_ptr()), len) };
+            let result = unsafe { stdio_write(transmute(data.as_ptr()), len as _) };
 
             if result >= 0 {
                 Ok(())
@@ -31,7 +31,7 @@ mod regular {
 
     impl Stdio {
         pub fn read_raw<'a>(&mut self, buffer: &'a mut [u8]) -> Result<&'a mut [u8], ()> {
-            let bytes_read = unsafe { stdio_read(transmute(buffer.as_mut_ptr()), buffer.len()) };
+            let bytes_read = unsafe { stdio_read(transmute(buffer.as_mut_ptr()), buffer.len() as _) };
             if bytes_read >= 0 {
                 Ok(&mut buffer[..bytes_read as usize])
             } else {
@@ -41,7 +41,7 @@ mod regular {
     }
 }
 
-#[cfg(not(riot_module_stdio_uart))]
+#[cfg(riot_module_stdio_native)]
 mod nativestdio {
     //! A fallback implementation of Stdio that goes through the C standard library. That's rather
     //! inefficient as it'd expect null-terminated strings and thus needs to be fed individual
@@ -81,9 +81,9 @@ mod nativestdio {
     }
 }
 
-#[cfg(not(riot_module_stdio_uart))]
+#[cfg(riot_module_stdio_native)]
 pub use self::nativestdio::Stdio;
-#[cfg(riot_module_stdio_uart)]
+#[cfg(not(riot_module_stdio_native))]
 pub use self::regular::Stdio;
 
 // Copied and adapted from Rust 1.32.0
