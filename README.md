@@ -34,6 +34,13 @@ for application specific C code.
 See the [riot-examples](https://gitlab.com/etonomy/riot-examples) repository
 for complete setup examples.
 
+Supported RIOT versions
+-----------------------
+
+Currently, RIOT this crate targets the latest development version of RIOT. With
+the next release (2020.10), development will hopefully target released
+versions.
+
 On environment variables
 ------------------------
 
