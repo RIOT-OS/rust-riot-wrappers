@@ -30,7 +30,6 @@ pub(crate) mod pid_converted {
     pub const KERNEL_PID_ISR: raw::kernel_pid_t = raw::KERNEL_PID_ISR as raw::kernel_pid_t;
 }
 
-#[cfg(not(riot_version_pre2019_10))]
 mod status_converted {
     //! Converting the raw constants into consistently typed ones for use in match branches. If
     //! that becomes a pattern, it might make sense to introduce a macro that forces a bunch of
@@ -55,23 +54,6 @@ mod status_converted {
     pub const STATUS_PENDING: i32 = raw::thread_status_t_STATUS_PENDING as i32;
 }
 
-#[cfg(riot_version_pre2019_10)] // more precisely, something between 2019.07 and 2019.10
-mod status_converted {
-    //! Legacy version of the above
-    use riot_sys as raw;
-
-    pub const STATUS_STOPPED: i32 = raw::thread_state_t_STATUS_STOPPED as i32;
-    pub const STATUS_SLEEPING: i32 = raw::thread_state_t_STATUS_SLEEPING as i32;
-    pub const STATUS_MUTEX_BLOCKED: i32 = raw::thread_state_t_STATUS_MUTEX_BLOCKED as i32;
-    pub const STATUS_RECEIVE_BLOCKED: i32 = raw::thread_state_t_STATUS_RECEIVE_BLOCKED as i32;
-    pub const STATUS_SEND_BLOCKED: i32 = raw::thread_state_t_STATUS_SEND_BLOCKED as i32;
-    pub const STATUS_REPLY_BLOCKED: i32 = raw::thread_state_t_STATUS_REPLY_BLOCKED as i32;
-    pub const STATUS_FLAG_BLOCKED_ANY: i32 = raw::thread_state_t_STATUS_FLAG_BLOCKED_ANY as i32;
-    pub const STATUS_FLAG_BLOCKED_ALL: i32 = raw::thread_state_t_STATUS_FLAG_BLOCKED_ALL as i32;
-    pub const STATUS_MBOX_BLOCKED: i32 = raw::thread_state_t_STATUS_MBOX_BLOCKED as i32;
-    pub const STATUS_RUNNING: i32 = raw::thread_state_t_STATUS_RUNNING as i32;
-    pub const STATUS_PENDING: i32 = raw::thread_state_t_STATUS_PENDING as i32;
-}
 
 #[derive(Debug)]
 pub enum Status {
@@ -225,9 +207,7 @@ where
     let pid = raw::thread_create(
         transmute(stack.as_mut_ptr()),
         stack.len() as i32,
-        // The 'as _' cast helps with older versions of RIOT that had i8 there (remove this
-        // together with other riot_version_pre2019_10 checks.
-        priority as _,
+        priority,
         flags,
         Some(run::<R>),
         closure as *mut R as *mut _,
