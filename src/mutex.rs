@@ -32,12 +32,16 @@ impl<T> Mutex<T> {
     }
 
     pub fn lock(&self) -> MutexGuard<T> {
-        unsafe { riot_sys::mutex_lock(self.mutex.get() as *mut _ /* INLINE CAST */) };
+        unsafe {
+            riot_sys::mutex_lock(self.mutex.get() as *mut _ /* INLINE CAST */)
+        };
         MutexGuard { mutex: &self }
     }
 
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        match unsafe { riot_sys::mutex_trylock(self.mutex.get() as *mut _ /* INLINE CAST */) } {
+        match unsafe {
+            riot_sys::mutex_trylock(self.mutex.get() as *mut _ /* INLINE CAST */)
+        } {
             1 => Some(MutexGuard { mutex: &self }),
             _ => None,
         }

@@ -2,7 +2,7 @@
 //!
 //! Deprecated in favor of the ztimer module, whose timers provide delay just as well.
 
-use core::convert::{TryInto, TryFrom};
+use core::convert::{TryFrom, TryInto};
 
 /// RIOT's global XTimer, which implements a the blocking delay traits to put a thread to sleep for
 /// some time.
@@ -18,7 +18,10 @@ impl XTimer {
 
     // FIXME consider implementing this for u32 and u64 XTimers, and only use _xtimer_set64 if
     // necessary
-    pub unsafe fn set<T: Into<u64> + Copy>(cb: &mut riot_sys::xtimer_t, delay: impl Into<XTimerTicks<T>>) {
+    pub unsafe fn set<T: Into<u64> + Copy>(
+        cb: &mut riot_sys::xtimer_t,
+        delay: impl Into<XTimerTicks<T>>,
+    ) {
         let ticks = delay.into();
         // EXPANDED sys/include/xtimer/implementation.h:241 (xtimer_set64)
         riot_sys::_xtimer_set64(cb, ticks.get_low32(), ticks.get_high32());
@@ -76,11 +79,19 @@ impl XTimerTicks<u64> {
 // EXPANDED sys/include/xtimer/tick_conversion.h:92 (or basically the whole file)
 impl<T: TryFrom<u64> + Into<u64> + Copy> XTimerTicks<T> {
     pub fn try_from_micros(micros: u64) -> Option<Self> {
-        Some(Self((micros.checked_mul(riot_sys::XTIMER_HZ.into())? / 1000000).try_into().ok()?))
+        Some(Self(
+            (micros.checked_mul(riot_sys::XTIMER_HZ.into())? / 1000000)
+                .try_into()
+                .ok()?,
+        ))
     }
 
     pub fn try_from_millis(millis: u64) -> Option<Self> {
-        Some(Self((millis.checked_mul(riot_sys::XTIMER_HZ.into())? / 1000).try_into().ok()?))
+        Some(Self(
+            (millis.checked_mul(riot_sys::XTIMER_HZ.into())? / 1000)
+                .try_into()
+                .ok()?,
+        ))
     }
 
     pub fn from_micros(micros: u64) -> Self {

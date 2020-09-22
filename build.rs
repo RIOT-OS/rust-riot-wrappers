@@ -24,16 +24,20 @@ fn main() {
         }
 
         if flag.starts_with("-DRIOT_CPU=") {
-            println!(
-                "cargo:rustc-cfg=riot_cpu=\"{}\"",
-                flag[11..].to_lowercase()
-            );
+            println!("cargo:rustc-cfg=riot_cpu=\"{}\"", flag[11..].to_lowercase());
         }
 
         if flag.starts_with("-DRIOT_VERSION=") {
             let tail = &flag[15..];
-            let uptodash = tail.split(|x| x == '-').next().expect("Failed to parse RIOT_VERSION"); // Ignoring anything behind the dash
-            let numeric: Vec<u32> = uptodash.split(|x| x == '.').map(|x| x.parse()).collect::<Result<_, _>>().expect("Failed to parse RIOT_VERSION");
+            let uptodash = tail
+                .split(|x| x == '-')
+                .next()
+                .expect("Failed to parse RIOT_VERSION"); // Ignoring anything behind the dash
+            let numeric: Vec<u32> = uptodash
+                .split(|x| x == '.')
+                .map(|x| x.parse())
+                .collect::<Result<_, _>>()
+                .expect("Failed to parse RIOT_VERSION");
             if numeric < vec![2019, 10] {
                 println!("cargo:rustc-cfg=riot_version_pre2019_10");
             }

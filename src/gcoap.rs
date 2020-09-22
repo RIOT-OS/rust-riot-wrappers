@@ -1,12 +1,12 @@
 // There is some questionably scoped code in the lower half of this module (it made requirements on
 // data staying in a place that was not justified from the type system). This is being changed.
 
+use crate::error::NegativeErrorExt;
 use core::convert::TryInto;
-use riot_sys::{coap_resource_t, gcoap_listener_t, coap_pkt_t, coap_optpos_t};
-use riot_sys::libc::{CStr, c_void};
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
-use crate::error::NegativeErrorExt;
+use riot_sys::libc::{c_void, CStr};
+use riot_sys::{coap_optpos_t, coap_pkt_t, coap_resource_t, gcoap_listener_t};
 
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
@@ -29,17 +29,18 @@ where
 
 // Could we allow users the creation of 'static RegistrationScopes? Like thread::spawn.
 pub struct RegistrationScope {
-    _private: ()
+    _private: (),
 }
 
 impl RegistrationScope {
     // FIXME: Generalize SingleHandlerListener::get_listener into a trait
-    pub fn register<'scope, 'handler, P>(&'scope mut self, handler: &'handler mut P) where
+    pub fn register<'scope, 'handler, P>(&'scope mut self, handler: &'handler mut P)
+    where
         'handler: 'scope,
         // AsMut? hm, probably should re-consider the whole concept of the server ownign a mutable
         // reference to the resource. that makes simple server-mutable resources, but if they are
         // to do *anything* fro somewhere else, don't they need interior mutability anyway?
-        P: 'handler + ListenerProvider
+        P: 'handler + ListenerProvider,
     {
         // Unsafe: Moving in a pointer to an internal structure to which we were given an exclusive
         // reference that outlives self -- and whoever can create a Self guarantees that
@@ -73,11 +74,10 @@ pub struct SingleHandlerListener<'a, H> {
 /// })`.
 impl<'a, H> SingleHandlerListener<'a, H>
 where
-    H: 'a + Handler
+    H: 'a + Handler,
 {
     // keeping methods u32 because the sys constants are too
-    pub fn new(path: &'a CStr, methods: u32, handler: &'a mut H) -> Self
-    {
+    pub fn new(path: &'a CStr, methods: u32, handler: &'a mut H) -> Self {
         let methods = methods.try_into().unwrap();
 
         SingleHandlerListener {
@@ -93,7 +93,7 @@ where
                 resources_len: 0,
                 next: 0 as *mut _,
                 link_encoder: None, // FIXME expose
-            }
+            },
         }
     }
 
@@ -105,15 +105,18 @@ where
     ) -> i32 {
         let h = context as *mut H;
         let h = &mut *h;
-        let mut pb = PacketBuffer { pkt, buf, len: len.try_into().unwrap() };
-        H::handle(h, &mut pb)
-            .try_into().unwrap()
+        let mut pb = PacketBuffer {
+            pkt,
+            buf,
+            len: len.try_into().unwrap(),
+        };
+        H::handle(h, &mut pb).try_into().unwrap()
     }
 }
 
 impl<'a, H> ListenerProvider for SingleHandlerListener<'a, H>
 where
-    H: 'a + Handler
+    H: 'a + Handler,
 {
     unsafe fn get_listener(&mut self) -> &mut gcoap_listener_t {
         self.listener.resources = &self.resource;
@@ -122,7 +125,6 @@ where
 
         &mut self.listener
     }
-
 }
 
 // Can be implemented by application code that'd then need to call some gcoap response functions,
@@ -131,17 +133,16 @@ pub trait Handler {
     fn handle(&mut self, pkt: &mut PacketBuffer) -> isize;
 }
 
-
 // Questionable code starts here
 
-use riot_sys::libc::{c_uint};
+use riot_sys::libc::c_uint;
 use riot_sys::{
     coap_get_blockopt,
     coap_hdr_t,
-    coap_opt_add_uint,
     coap_opt_add_opaque,
-    coap_opt_get_next,
+    coap_opt_add_uint,
     coap_opt_finish,
+    coap_opt_get_next,
     gcoap_register_listener,
     gcoap_resp_init,
     memmove,
@@ -205,8 +206,8 @@ impl PacketBuffer {
     pub fn get_code_raw(&self) -> u8 {
         (unsafe {
             riot_sys::coap_get_code_raw(
-                self.pkt as *mut _ // missing const in C
-                )
+                self.pkt as *mut _, // missing const in C
+            )
         }) as u8 // odd return type in C
     }
 
@@ -221,13 +222,21 @@ impl PacketBuffer {
     /// working around that would mean duplicating code. Just set GCOAP_RESP_OPTIONS_BUF to zero to
     /// keep the overhead low.
     pub fn resp_init(&mut self, code: u8) -> Result<(), ()> {
-        unsafe { gcoap_resp_init(self.pkt, self.buf, self.len.try_into().unwrap(), code.into()) }.negative_to_error()
-            .map_err(|_| ())?;
+        unsafe {
+            gcoap_resp_init(
+                self.pkt,
+                self.buf,
+                self.len.try_into().unwrap(),
+                code.into(),
+            )
+        }
+        .negative_to_error()
+        .map_err(|_| ())?;
         Ok(())
     }
 
     pub fn set_code_raw(&mut self, code: u8) {
-        unsafe { (*(*self.pkt).hdr).code  = code };
+        unsafe { (*(*self.pkt).hdr).code = code };
     }
 
     /// Return the total number of bytes in the message, given that `payload_used` bytes were
@@ -264,24 +273,39 @@ impl PacketBuffer {
 
     /// Add an integer value as an option
     pub fn opt_add_uint(&mut self, optnum: u16, value: u32) -> Result<(), ()> {
-        unsafe { coap_opt_add_uint(self.pkt, optnum, value) }.negative_to_error()
+        unsafe { coap_opt_add_uint(self.pkt, optnum, value) }
+            .negative_to_error()
             .map_err(|_| ())?;
         Ok(())
     }
 
     /// Add a binary value as an option
     pub fn opt_add_opaque(&mut self, optnum: u16, data: &[u8]) -> Result<(), ()> {
-        unsafe { coap_opt_add_opaque(self.pkt, optnum, data.as_ptr(), data.len().try_into().unwrap()) }.negative_to_error()
-            .map_err(|_| ())?;
+        unsafe {
+            coap_opt_add_opaque(
+                self.pkt,
+                optnum,
+                data.as_ptr(),
+                data.len().try_into().unwrap(),
+            )
+        }
+        .negative_to_error()
+        .map_err(|_| ())?;
         Ok(())
     }
 
     pub fn opt_iter<'a>(&'a self) -> PacketBufferOptIter<'a> {
-        PacketBufferOptIter { buffer: self, state: None }
+        PacketBufferOptIter {
+            buffer: self,
+            state: None,
+        }
     }
 
     pub fn opt_iter_mut<'a>(&'a mut self) -> PacketBufferOptIterMut<'a> {
-        PacketBufferOptIterMut { buffer: self, state: None }
+        PacketBufferOptIterMut {
+            buffer: self,
+            state: None,
+        }
     }
 }
 
@@ -299,15 +323,24 @@ impl<'a> Iterator for PacketBufferOptIter<'a> {
         match &mut self.state {
             None => {
                 let mut state = MaybeUninit::uninit();
-                size = unsafe { coap_opt_get_next(&*self.buffer.pkt, state.as_mut_ptr(), start.as_mut_ptr(), true) };
+                size = unsafe {
+                    coap_opt_get_next(
+                        &*self.buffer.pkt,
+                        state.as_mut_ptr(),
+                        start.as_mut_ptr(),
+                        true,
+                    )
+                };
                 if size < 0 {
                     return None;
                 }
                 // unsafe: as promised by coap_opt_get_next documentation
                 self.state = Some(unsafe { state.assume_init() });
-            },
+            }
             Some(ref mut state) => {
-                size = unsafe { coap_opt_get_next(&*self.buffer.pkt, state, start.as_mut_ptr(), false) };
+                size = unsafe {
+                    coap_opt_get_next(&*self.buffer.pkt, state, start.as_mut_ptr(), false)
+                };
                 if size < 0 {
                     return None;
                 }
@@ -341,15 +374,24 @@ impl<'a> Iterator for PacketBufferOptIterMut<'a> {
         match &mut self.state {
             None => {
                 let mut state = MaybeUninit::uninit();
-                size = unsafe { coap_opt_get_next(&*self.buffer.pkt, state.as_mut_ptr(), start.as_mut_ptr(), true) };
+                size = unsafe {
+                    coap_opt_get_next(
+                        &*self.buffer.pkt,
+                        state.as_mut_ptr(),
+                        start.as_mut_ptr(),
+                        true,
+                    )
+                };
                 if size < 0 {
                     return None;
                 }
                 // unsafe: as promised by coap_opt_get_next documentation
                 self.state = Some(unsafe { state.assume_init() });
-            },
+            }
             Some(ref mut state) => {
-                size = unsafe { coap_opt_get_next(&*self.buffer.pkt, state, start.as_mut_ptr(), false) };
+                size = unsafe {
+                    coap_opt_get_next(&*self.buffer.pkt, state, start.as_mut_ptr(), false)
+                };
                 if size < 0 {
                     return None;
                 }

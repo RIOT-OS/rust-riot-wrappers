@@ -1,7 +1,7 @@
+use core::convert::TryInto;
 use core::iter::Iterator;
 use core::marker::PhantomData;
 use core::mem::forget;
-use core::convert::TryInto;
 
 use riot_sys::{
     gnrc_ipv6_get_header,
@@ -42,7 +42,12 @@ impl<'a> Iterator for SnipIter<'a> {
         let s = unsafe { *s };
         self.pointer = s.next;
         Some(PktsnipPart {
-            data: unsafe { ::core::slice::from_raw_parts(::core::mem::transmute(s.data), s.size.try_into().unwrap()) },
+            data: unsafe {
+                ::core::slice::from_raw_parts(
+                    ::core::mem::transmute(s.data),
+                    s.size.try_into().unwrap(),
+                )
+            },
             type_: s.type_,
         })
     }
@@ -225,7 +230,8 @@ impl<'a> Pktsnip<Writable> {
         nettype: gnrc_nettype_t,
     ) -> Option<Self> {
         let next = next.map(|s| s.ptr).unwrap_or(0 as *mut _);
-        let snip = unsafe { gnrc_pktbuf_add(next, data as *const _, size.try_into().unwrap(), nettype) };
+        let snip =
+            unsafe { gnrc_pktbuf_add(next, data as *const _, size.try_into().unwrap(), nettype) };
         if snip == 0 as *mut _ {
             return None;
         }

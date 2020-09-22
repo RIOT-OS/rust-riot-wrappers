@@ -1,8 +1,12 @@
 /// This module implements coap_message::ReadableMessage for, and a wrapper that provides
 /// coap_message::WritableMessage around RIOT's coap_pkt_t.
-
 use crate::gcoap::{PacketBuffer, PacketBufferOptIter, PacketBufferOptIterMut};
-use coap_message::{ReadableMessage, MinimalWritableMessage, MutableWritableMessage, WithSortedOptions};
+use coap_message::{
+    MinimalWritableMessage,
+    MutableWritableMessage,
+    ReadableMessage,
+    WithSortedOptions,
+};
 
 pub struct MessageOption<'a> {
     number: u16,
@@ -25,7 +29,10 @@ impl<'a> Iterator for OptionsIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let (opt_num, slice) = self.0.next()?;
-        Some(MessageOption { number: opt_num, value: slice })
+        Some(MessageOption {
+            number: opt_num,
+            value: slice,
+        })
     }
 }
 
@@ -77,7 +84,7 @@ impl<'a> ResponseMessage<'a> {
 
 impl<'a> MinimalWritableMessage for ResponseMessage<'a> {
     type Code = u8;
-    type OptionNumber= u16;
+    type OptionNumber = u16;
 
     fn set_code(&mut self, code: Self::Code) {
         self.message.set_code_raw(code);
@@ -87,7 +94,9 @@ impl<'a> MinimalWritableMessage for ResponseMessage<'a> {
         if self.payload_written.is_some() {
             panic!("Options can not be added after payload was added");
         }
-        self.message.opt_add_opaque(number.into(), value).expect("Options exceed allocated buffer");
+        self.message
+            .opt_add_opaque(number.into(), value)
+            .expect("Options exceed allocated buffer");
     }
 
     fn set_payload(&mut self, data: &[u8]) {
@@ -100,7 +109,6 @@ impl<'a> MutableWritableMessage for ResponseMessage<'a> {
     fn available_space(&self) -> usize {
         self.message.payload().len()
     }
-
 
     fn payload_mut(&mut self) -> &mut [u8] {
         self.payload_written = Some(0);
@@ -115,7 +123,7 @@ impl<'a> MutableWritableMessage for ResponseMessage<'a> {
 
     fn mutate_options<F>(&mut self, mut callback: F)
     where
-        F: FnMut(Self::OptionNumber, &mut [u8])
+        F: FnMut(Self::OptionNumber, &mut [u8]),
     {
         for (opt_num, slice) in self.message.opt_iter_mut() {
             callback(opt_num.into(), slice);

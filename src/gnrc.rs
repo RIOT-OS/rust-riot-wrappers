@@ -63,7 +63,9 @@ impl ::core::str::FromStr for IPv6Addr {
 
         match conversion_result as usize {
             0 => Err(()),
-            _ => Ok(Self { inner: unsafe { inner.assume_init() } }),
+            _ => Ok(Self {
+                inner: unsafe { inner.assume_init() },
+            }),
         }
     }
 }

@@ -2,13 +2,13 @@
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     use crate::thread;
 
-    use core::fmt::Write;
     use crate::stdio;
+    use core::fmt::Write;
 
     if unsafe { riot_sys::irq_is_in() } != 0 {
         // Touch luck. Jumping into an endless loop right away seems to be the only reliable way to
         // keep the interupt from ever entering again.
-        loop {};
+        loop {}
     }
 
     // I *guess* it's OK for a panic to simply make a thread into a zombie -- this does allow other

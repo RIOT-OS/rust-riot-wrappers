@@ -2,7 +2,7 @@
 
 use core::convert::TryInto;
 
-use riot_sys::{ztimer_clock_t};
+use riot_sys::ztimer_clock_t;
 
 /// A ZTimer that knows about its frequency. The pulse length is not given in core::time::Duration
 /// as that's not even supported by non-`min_` `const_generics`. This is likely to change, even
@@ -25,7 +25,9 @@ impl<const HZ: u32> ZTimer<HZ> {
     ///
     /// Wraps [ztimer_spin](https://riot-os.org/api/group__sys__ztimer.html#ga9de3d9e3290746b856bb23eb2dccaa7c)
     pub fn spin_ticks(&self, duration: u32) {
-        unsafe { riot_sys::ztimer_spin(self.0 as _ /* INLINE CAST */, duration) };
+        unsafe {
+            riot_sys::ztimer_spin(self.0 as _ /* INLINE CAST */, duration)
+        };
     }
 
     /// Pause the current thread for the given duration.

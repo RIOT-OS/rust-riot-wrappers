@@ -109,7 +109,8 @@ impl<N: RoundtripData> RoundtripData for UDPRoundtripDataFull<N> {
                     NetworkEndian::read_u16(&unsafe { (*hdr).src_port.u8 }),
                     NetworkEndian::read_u16(&unsafe { (*hdr).dst_port.u8 }),
                 )
-            }).unwrap();
+            })
+            .unwrap();
 
         Self {
             remote: src,

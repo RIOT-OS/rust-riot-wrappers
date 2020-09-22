@@ -35,7 +35,7 @@ impl NumericError {
     pub fn again_is_wouldblock(self) -> nb::Error<Self> {
         match -self.number as u32 {
             riot_sys::EAGAIN => nb::Error::WouldBlock,
-            _ => nb::Error::Other(self)
+            _ => nb::Error::Other(self),
         }
     }
 }
@@ -48,7 +48,8 @@ impl NumericError {
 //     }
 // }
 
-impl<T> NegativeErrorExt for T where
+impl<T> NegativeErrorExt for T
+where
     T: num_traits::Zero + core::cmp::PartialOrd + TryInto<isize>,
 {
     type Out = T;
@@ -57,7 +58,9 @@ impl<T> NegativeErrorExt for T where
         if self >= Self::zero() {
             Ok(self)
         } else {
-            Err(NumericError { number: self.try_into().unwrap_or(-(riot_sys::EOVERFLOW as isize)) })
+            Err(NumericError {
+                number: self.try_into().unwrap_or(-(riot_sys::EOVERFLOW as isize)),
+            })
         }
     }
 }

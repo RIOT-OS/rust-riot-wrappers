@@ -1,6 +1,6 @@
+use crate::stdio;
 use core::fmt;
 use core::fmt::Write;
-use crate::stdio;
 
 /// To have a nice Rust main function, run the `riot_main!` macro with the name of your main
 /// function an item (ie. top level in a module) in your crate. The function identified by it must

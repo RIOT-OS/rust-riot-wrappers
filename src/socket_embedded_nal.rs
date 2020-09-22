@@ -85,57 +85,58 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDP
         let remote: crate::socket::UdpEp = remote.into();
         let remote = remote.into();
 
-        (unsafe { riot_sys::sock_udp_create(
-                    socket,
-                    &local as *const _ as *const _, // INLINE CAST
-                    &remote,
-                    0) })
-            .negative_to_error()?;
+        (unsafe {
+            riot_sys::sock_udp_create(
+                socket,
+                &local as *const _ as *const _, // INLINE CAST
+                &remote,
+                0,
+            )
+        })
+        .negative_to_error()?;
 
         // unsafe: This is a manual assume_init (backed by the API), and having an 'a mutable
         // reference for it is OK because the StackAccessor guarantees that the stack is available
         // for 'a and won't move.
         let socket: &'a mut _ = unsafe { &mut *socket };
 
-        Ok(UdpSocket {
-            socket,
-            timeout_us
-        })
+        Ok(UdpSocket { socket, timeout_us })
     }
     fn write(
         &self,
         socket: &mut Self::UdpSocket,
         buffer: &[u8],
     ) -> Result<(), nb::Error<Self::Error>> {
-
-        (unsafe { riot_sys::sock_udp_send(
-                    &mut *socket.socket,
-                    buffer.as_ptr() as _,
-                    buffer.len()
-                        .try_into().unwrap(),
-                    0 as *const _,
-                    ) })
-            .negative_to_error()
-            .map(|_| ())
-            // Sending never blocks in RIOT sockets
-            .map_err(|e| nb::Error::Other(e))
+        (unsafe {
+            riot_sys::sock_udp_send(
+                &mut *socket.socket,
+                buffer.as_ptr() as _,
+                buffer.len().try_into().unwrap(),
+                0 as *const _,
+            )
+        })
+        .negative_to_error()
+        .map(|_| ())
+        // Sending never blocks in RIOT sockets
+        .map_err(|e| nb::Error::Other(e))
     }
     fn read(
         &self,
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> Result<usize, nb::Error<Self::Error>> {
-        (unsafe { riot_sys::sock_udp_recv(
-                    &mut *socket.socket,
-                    buffer.as_mut_ptr() as _,
-                    buffer.len()
-                        .try_into().unwrap(),
-                    socket.timeout_us,
-                    0 as *mut _,
-                    ) })
-            .negative_to_error()
-            .map(|e| e as usize)
-            .map_err(|e| e.again_is_wouldblock())
+        (unsafe {
+            riot_sys::sock_udp_recv(
+                &mut *socket.socket,
+                buffer.as_mut_ptr() as _,
+                buffer.len().try_into().unwrap(),
+                socket.timeout_us,
+                0 as *mut _,
+            )
+        })
+        .negative_to_error()
+        .map(|e| e as usize)
+        .map_err(|e| e.again_is_wouldblock())
     }
 
     fn close(&self, socket: Self::UdpSocket) -> Result<(), Self::Error> {

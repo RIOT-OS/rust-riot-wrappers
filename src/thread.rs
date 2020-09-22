@@ -140,7 +140,8 @@ impl KernelPID {
         // and then this function *should* be reevaluated). As pid_is_valid is static inline, the
         // compiler should be able to see through the calls down to there that the bounds checked
         // for there are the very bounds used in the construction here.
-        (pid_converted::KERNEL_PID_FIRST..=pid_converted::KERNEL_PID_LAST).map(|i| KernelPID::new(i).expect("Should be valid by construction"))
+        (pid_converted::KERNEL_PID_FIRST..=pid_converted::KERNEL_PID_LAST)
+            .map(|i| KernelPID::new(i).expect("Should be valid by construction"))
     }
 
     pub fn get_name(&self) -> Option<&str> {
@@ -193,9 +194,6 @@ pub fn sleep() {
     unsafe { raw::thread_sleep() }
 }
 
-
-
-
 /// Internal helper that does all the casting but relies on the caller to establish appropriate
 /// lifetimes.
 ///
@@ -204,11 +202,11 @@ pub fn sleep() {
 /// have been reused for a different thread. For short-lived threads that are done before this
 /// function returns, the TCB may be None.
 unsafe fn create<R>(
-        stack: &mut [u8],
-        closure: &mut R,
-        name: &libc::CStr,
-        priority: u8,
-        flags: i32,
+    stack: &mut [u8],
+    closure: &mut R,
+    name: &libc::CStr,
+    priority: u8,
+    flags: i32,
 ) -> (raw::kernel_pid_t, Option<*mut riot_sys::_thread>)
 where
     R: Send + FnMut(),
@@ -261,7 +259,7 @@ where
 /// were launched; otherwise, the program panics.
 pub fn scope<F>(callback: F)
 where
-    F: FnOnce(&mut CountingThreadScope)
+    F: FnOnce(&mut CountingThreadScope),
 {
     let mut s = CountingThreadScope { threads: 0 };
 
@@ -288,7 +286,8 @@ impl CountingThreadScope {
     /// can't be prevented from moving around on the stack between the point when thread_create is
     /// called (and the pointer is passed on to RIOT) and the point when the threads starts running
     /// and that pointer is used.
-    pub fn spawn<'scope, 'pieces, R>(&'scope mut self,
+    pub fn spawn<'scope, 'pieces, R>(
+        &'scope mut self,
         stack: &'pieces mut [u8],
         closure: &'pieces mut R,
         name: &'pieces libc::CStr,
@@ -323,7 +322,7 @@ impl CountingThreadScope {
     /// whoever wants to be notified would need to make their threads send an explicit signal), but
     /// panic if the thread is not actually done yet.
     pub fn reap(&mut self, thread: CountedThread) {
-        // FIXME: check whether the counted thread 
+        // FIXME: check whether the counted thread
         match thread.get_status() {
             Status::Stopped => (),
             _ => panic!("Attempted to reap running process"),
@@ -345,7 +344,7 @@ impl CountingThreadScope {
 #[derive(Debug)]
 pub struct CountedThread<'pieces> {
     thread: TrackedThread,
-    _phantom: PhantomData<&'pieces ()>
+    _phantom: PhantomData<&'pieces ()>,
 }
 
 impl<'pieces> CountedThread<'pieces> {
@@ -358,14 +357,13 @@ impl<'pieces> CountedThread<'pieces> {
     }
 }
 
-
 pub fn spawn<R>(
-        stack: &'static mut [u8],
-        closure: &'static mut R,
-        name: &'static libc::CStr,
-        priority: u8,
-        flags: i32,
-    ) -> Result<TrackedThread, raw::kernel_pid_t>
+    stack: &'static mut [u8],
+    closure: &'static mut R,
+    name: &'static libc::CStr,
+    priority: u8,
+    flags: i32,
+) -> Result<TrackedThread, raw::kernel_pid_t>
 where
     R: Send + FnMut(),
 {
@@ -375,7 +373,10 @@ where
         return Err(pid);
     }
 
-    Ok(TrackedThread { pid: KernelPID(pid), tcb })
+    Ok(TrackedThread {
+        pid: KernelPID(pid),
+        tcb,
+    })
 }
 
 /// A thread identified not only by its PID (which can be reused whenever the thread has quit) but

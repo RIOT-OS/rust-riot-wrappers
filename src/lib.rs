@@ -52,10 +52,10 @@ pub mod rwlock;
 #[cfg(feature = "set_panic_handler")]
 mod panic;
 
-#[cfg(feature = "with_coap_message")]
-pub mod coap_message;
 #[cfg(feature = "with_coap_handler")]
 pub mod coap_handler;
+#[cfg(feature = "with_coap_message")]
+pub mod coap_message;
 
 #[cfg(riot_module_sock)]
 pub mod socket;

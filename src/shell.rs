@@ -1,5 +1,5 @@
-use core::fmt::Write;
 use crate::stdio;
+use core::fmt::Write;
 use riot_sys::libc;
 use riot_sys::{shell_command_t, shell_run};
 

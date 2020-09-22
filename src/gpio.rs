@@ -1,16 +1,6 @@
-use riot_sys::{
-    gpio_t,
-    gpio_clear,
-    gpio_set,
-    gpio_read,
-    gpio_toggle,
-};
+use riot_sys::{gpio_clear, gpio_read, gpio_set, gpio_t, gpio_toggle};
 
-use embedded_hal::digital::v2::{
-    InputPin,
-    OutputPin,
-    ToggleableOutputPin,
-};
+use embedded_hal::digital::v2::{InputPin, OutputPin, ToggleableOutputPin};
 
 /// A Rust representation of RIOT's gpio_t, representing a single pin in no particular
 /// configuration.
@@ -32,12 +22,12 @@ impl GPIO {
 
     // using a generic GPIO_PIN is probably best done by making GPIO_INIT a static inline (given
     // it's already fixed to types at tests/periph_gpio/main.c)
-//     /// Create a GPIO out of thin air
-//     #[cfg(riot_module_nrf5x_common_periph)]
-//     pub unsafe fn new(port: u8, pin: u8) -> Self {
-//         // EXPANDED cpu/nrf5x_common/include/periph_cpu_common.h:50
-//         GPIO(((port << 5) | pin).into())
-//     }
+    //     /// Create a GPIO out of thin air
+    //     #[cfg(riot_module_nrf5x_common_periph)]
+    //     pub unsafe fn new(port: u8, pin: u8) -> Self {
+    //         // EXPANDED cpu/nrf5x_common/include/periph_cpu_common.h:50
+    //         GPIO(((port << 5) | pin).into())
+    //     }
 
     pub unsafe fn as_output(self) -> OutputGPIO {
         // FIXME should we configure here? it's probably even safe
