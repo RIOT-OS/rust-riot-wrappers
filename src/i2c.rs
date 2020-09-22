@@ -47,7 +47,7 @@ mod regular {
                     self.dev,
                     address as u16,
                     bytes.as_ptr() as *const libc::c_void,
-                    bytes.len(),
+                    bytes.len() as _,
                     0,
                 )
             };
@@ -60,7 +60,7 @@ mod regular {
                     self.dev,
                     address as u16,
                     buffer.as_ptr() as *mut libc::c_void,
-                    buffer.len(),
+                    buffer.len() as _,
                     0,
                 )
             };
@@ -86,7 +86,7 @@ mod regular {
                     self.dev,
                     address as u16,
                     bytes.as_ptr() as *const libc::c_void,
-                    bytes.len(),
+                    bytes.len() as _,
                     0,
                 )
             };
@@ -112,7 +112,7 @@ mod regular {
                     self.dev,
                     address as u16,
                     buffer.as_ptr() as *mut libc::c_void,
-                    buffer.len(),
+                    buffer.len() as _,
                     0,
                 )
             };
