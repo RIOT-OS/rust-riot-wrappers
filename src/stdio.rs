@@ -57,3 +57,13 @@ macro_rules! dbg {
 }
 
 pub use dbg;
+
+#[macro_export]
+macro_rules! println {
+    ( $( $arg:expr ),+ ) => {
+        use core::fmt::Write;
+        use $crate::stdio::Stdio;
+        let _ = writeln!(Stdio {}, $( $arg, )*);
+    }
+}
+pub use println;
