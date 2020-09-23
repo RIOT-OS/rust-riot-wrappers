@@ -7,6 +7,8 @@
 #![feature(maybe_uninit_ref)]
 // for embedded-nal stacks with const-sized slots, and ztimer
 #![feature(min_const_generics)]
+// for SAUL
+#![feature(iter_map_while)]
 
 extern crate byteorder;
 extern crate crc;
