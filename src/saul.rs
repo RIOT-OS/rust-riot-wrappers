@@ -172,7 +172,7 @@ impl RegistryEntry {
     /// Write a value to the SAUL device
     pub fn write(&self, value: Phydat) -> Result<(), error::NumericError> {
         // Value copied as we can't really be sure that no SAUL device will ever write here
-        unsafe { riot_sys::saul_reg_write(self.0, &value as *const _ as *mut _) }.negative_to_error()?;
+        unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }.negative_to_error()?;
         Ok(())
     }
 }
