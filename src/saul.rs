@@ -6,6 +6,18 @@
 ///   SAUL, and
 /// * `RegistrationEntry` with its various constructors that find sensors or actuators in SAUL,
 ///   which allows interacting with them.
+///
+///
+/// In mapping SAUL semantics to Rust, some parts are not aligned in full:
+///
+/// * The `Phydat` type used here *always* has a length -- as opposed to `phydat_t` which contains
+///   up to PHYDAT_DIM values, and transports the number of used items on the side -- but not
+///   always.
+///
+///   This affects sensor data writing, and is documented with the respective calls.
+///
+/// * `Drivable` provides both a read and a write callback unconditionally; consequently, a device
+///   built from it will alays err with `-ECANCELED` and never with `-ENOTSUP`.
 
 use core::convert::TryFrom;
 
@@ -23,7 +35,13 @@ pub trait Drivable: Sized {
     ///
     /// A &self is passed in on write because there could be concurrent access from multiple SAUL
     /// users. One option of handling this is to implement Drivable for Mutex<T>.
-    fn write(&self, data: &Phydat) -> Result<(), ()>;
+    ///
+    /// Note that due to the way SAUL is structured, the drivable can not know the number of
+    /// entries which the user intended to set. The Drivable trait always builds the Rust Phydat
+    /// (which contains a length) with the maximum available length (some of which may contain
+    /// uninitialized data, which is OK as i16 has no uninhabited values), and the writer needs to
+    /// return how many of the entries it actually used.
+    fn write(&self, data: &Phydat) -> Result<u8, ()>;
 
     /// Sensor class (type)
     fn class() -> Class;
@@ -43,11 +61,10 @@ pub trait Drivable: Sized {
     unsafe extern "C" fn write_raw(dev: *const libc::c_void, data: *mut raw::phydat_t) -> i32 {
         let device = &*(dev as *const Self);
         let data = *data;
-        // FIXME: Should distinguiwh between lengthful and lengthless Phydat
-        let data = Phydat { values: data, length: 3 };
+        // PHYDAT_DIM: See write documentation
+        let data = Phydat { values: data, length: riot_sys::PHYDAT_DIM as _};
         match Self::write(device, &data) {
-            // FIXME let the writer return that
-            Ok(()) => data.length.into(),
+            Ok(n) => n as _,
             // The only legal device error -- ENOTSUP would mean there's no handler at all
             Err(_) => -(riot_sys::ECANCELED as i32),
         }
@@ -170,10 +187,19 @@ impl RegistryEntry {
     }
 
     /// Write a value to the SAUL device
+    ///
+    /// Note that the saul_reg_write call does not really pass on the initialized length of the
+    /// values to the device, but the device returns the used length. If the lengths do not match,
+    /// the returned length is expressed as an error.
     pub fn write(&self, value: Phydat) -> Result<(), error::NumericError> {
         // Value copied as we can't really be sure that no SAUL device will ever write here
-        unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }.negative_to_error()?;
-        Ok(())
+        let length = unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }.negative_to_error()?;
+        if length != value.length.into() {
+            // FIXME is this the best way to express the error?
+            Err(error::NumericError::from(-(length as isize)))
+        } else {
+            Ok(())
+        }
     }
 }
 
