@@ -15,7 +15,7 @@ use core::cell::UnsafeCell;
 ///
 /// Several methods (into_inner, get_mut) are not implemented until they're actually needed.
 pub struct Mutex<T> {
-    mutex: UnsafeCell<riot_sys::mutex_t>,
+    mutex: UnsafeCell<riot_sys::inline::mutex_t>,
     data: UnsafeCell<T>,
 }
 
@@ -23,8 +23,6 @@ impl<T> Mutex<T> {
     /// Create a new mutex
     pub const fn new(t: T) -> Mutex<T> {
         let new = unsafe { riot_sys::init_MUTEX_INIT() };
-        // unsafe: INLINE CAST
-        let new = unsafe { core::mem::transmute(new) };
         Mutex {
             data: UnsafeCell::new(t),
             mutex: UnsafeCell::new(new),
@@ -33,14 +31,14 @@ impl<T> Mutex<T> {
 
     pub fn lock(&self) -> MutexGuard<T> {
         unsafe {
-            riot_sys::mutex_lock(self.mutex.get() as *mut _ /* INLINE CAST */)
+            riot_sys::mutex_lock(self.mutex.get())
         };
         MutexGuard { mutex: &self }
     }
 
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
         match unsafe {
-            riot_sys::mutex_trylock(self.mutex.get() as *mut _ /* INLINE CAST */)
+            riot_sys::mutex_trylock(self.mutex.get())
         } {
             1 => Some(MutexGuard { mutex: &self }),
             _ => None,
@@ -57,7 +55,7 @@ pub struct MutexGuard<'a, T> {
 
 impl<'a, T> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
-        unsafe { riot_sys::mutex_unlock(self.mutex.mutex.get()) }
+        unsafe { riot_sys::mutex_unlock(self.mutex.mutex.get() as *mut _ /* INLINE CAST */) }
     }
 }
 
@@ -67,7 +65,7 @@ impl<'a, T> MutexGuard<'a, T> {
     pub fn unlock_and_sleep(self) {
         let m = &self.mutex.mutex;
         ::core::mem::forget(self);
-        unsafe { riot_sys::mutex_unlock_and_sleep(m.get()) };
+        unsafe { riot_sys::mutex_unlock_and_sleep(m.get() as *mut _ /* INLINE CAST */) };
     }
 }
 
