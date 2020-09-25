@@ -45,10 +45,68 @@ pub trait ShellCommandTrait {
     fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int>;
 }
 
+/// Newtype around an (argc, argv) C style string array that presents itself as much as an `&'a
+/// [&'a str]` as possible. (Slicing is not implemented for reasons of laziness).
+///
+/// As this is used with the command line parser, it presents the individual strings as &str
+/// infallibly. If non-UTF8 input is received, a variation of from_utf8_lossy is applied: The
+/// complete string (rather than just the bad characters) is reported as "�", but should have the
+/// same effect: Be visible as an encoding error without needlessly complicated error handling for
+/// niche cases.
+pub struct Args<'a>(&'a [*mut u8]);
+
+impl<'a> Args<'a> {
+    /// Create the slice from its parts.
+    ///
+    /// ## Unsafe
+    ///
+    /// argv must be a valid pointer, and its first argc items must be valid pointers. The
+    /// underlying char strings do not need to be valid UTF-8, but must be null terminated.
+    unsafe fn new(argc: libc::c_int, argv: *const *const libc::c_char, _lifetime_marker: &'a ()) -> Self {
+        Args(core::slice::from_raw_parts(argv as _, argc as usize))
+    }
+
+    /// Returns an iterator over the arguments.
+    pub fn iter(&self) -> impl Iterator<Item=&'a str> {
+        let backing = self.0;
+        (0..self.0.len()).map(move |i| Self::index(backing, i))
+    }
+
+    /// Helper method for indexing that does not rely on a self reference. This allows implementing
+    /// iter easily; note that the iterator can live on even if the Args itself has been moved (but
+    /// the 'a backing data have not).
+    fn index(data: &'a [*mut u8], i: usize) -> &'a str {
+        let cstr = unsafe { libc::CStr::from_ptr(data[i]) };
+        core::str::from_utf8(cstr.to_bytes()).unwrap_or("�")
+    }
+
+    /// Returns the argument in the given position.
+    pub fn get(&self, index: usize) -> Option<&str> {
+        if index < self.0.len() {
+            Some(Self::index(self.0, index))
+        } else {
+            None
+        }
+    }
+
+    /// Length of the arguments list
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<'a> core::ops::Index<usize> for Args<'a> {
+    type Output = str;
+
+    fn index(&self, i: usize) -> &str {
+        Args::index(self.0, i)
+    }
+}
+
 impl<'a, R> ShellCommandTrait for ShellCommand<'a, R>
 // actually, I'd prefer to say FnMut(impl Write, &[&str]) -> i32, but impl doesn't work there.
 where
-    R: FnMut(&mut stdio::Stdio, &[&str]) -> i32,
+    R: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
 {
     fn as_shell_command(&self) -> shell_command_t {
         shell_command_t {
@@ -59,42 +117,15 @@ where
     }
 
     fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int> {
-        let argv: &[*mut i8] = unsafe { ::core::slice::from_raw_parts(argv as _, argc as usize) };
+        // Helper to easily be sure to create a lifetime that's only inside this function
         let marker = ();
+        let args = unsafe { Args::new(argc, argv as _, &()) };
 
         let mut stdio = stdio::Stdio {};
 
-        // This would save us the LIMIT, but I can't yet say
-        //     where R: Fn(impl Iterator<Item=&str>>) -> i32
-        // (yet?)
-        //
-        // FIXME: Update with what the demo application does for CoAP handling, probably for both
-        // cases that currently have a LIMIT.
-        //
-        // let argv = argv.iter().map(|ptr| unsafe { libc::CStr::from_ptr_with_lifetime(*ptr, &marker) }.to_bytes()).peekable();
-        //
-        // Instead, using a LIMIT:
-
-        // Same issue as with run, see LIMIT there
-        const LIMIT: usize = 10;
-        let mut arg_array: [&str; LIMIT] = [&""; LIMIT];
-        if argc > LIMIT as i32 {
-            // Might not even be my own handler, but as long as everyone has the same limit, why
-            // not err out early.
-            writeln!(stdio, "Not processing: too many arguments").unwrap();
-            return Some(1);
-        }
-        let argc = argc as usize;
-        for i in 0..argc {
-            arg_array[i] = unsafe { libc::CStr::from_ptr_with_lifetime(argv[i] as _, &marker) }
-                .to_str()
-                .unwrap();
-        }
-        let argv = &arg_array[..argc];
-
-        if argv[0].as_bytes() == self.name.to_bytes() {
+        if args[0].as_bytes() == self.name.to_bytes() {
             let h = &mut self.handler;
-            Some(h(&mut stdio, argv))
+            Some(h(&mut stdio, args))
         } else {
             None
         }
