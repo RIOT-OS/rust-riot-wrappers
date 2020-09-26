@@ -139,7 +139,7 @@ impl RegistryEntry {
     /// Find a registry entry by its index
     ///
     /// Wrapper around `saul_reg_find_nth`.
-    pub fn nth(pos: isize) -> Option<Self> {
+    pub fn nth(pos: usize) -> Option<Self> {
         // unsafe: all positions are valid, and if it's not null, it's a static pointer as SAUL
         // registrations can't really be removed.
         (unsafe {
