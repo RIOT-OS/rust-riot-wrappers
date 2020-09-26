@@ -97,7 +97,7 @@ pub unsafe trait CommandList: HasRunCallback + Sized {
         // a null-terminated array
         unsafe { shell_run_once(&built as *const _ as *const _, linebuffer.as_mut_ptr() as _, linebuffer.len() as _) };
 
-
+        CURRENT_SHELL_RUNNER.lock().take();
     }
 
     fn and<'a, H>(self, name: &'a libc::CStr, desc: &'a libc::CStr, handler: H) -> Command<'a, Self, H>
