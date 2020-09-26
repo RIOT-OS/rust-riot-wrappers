@@ -12,7 +12,7 @@ use riot_sys::{shell_command_t, shell_run_once};
 /// complete string (rather than just the bad characters) is reported as "�", but should have the
 /// same effect: Be visible as an encoding error without needlessly complicated error handling for
 /// niche cases.
-pub struct Args<'a>(&'a [*mut u8]);
+pub struct Args<'a>(&'a [*mut libc::c_char]);
 
 impl<'a> Args<'a> {
     /// Create the slice from its parts.
@@ -34,7 +34,7 @@ impl<'a> Args<'a> {
     /// Helper method for indexing that does not rely on a self reference. This allows implementing
     /// iter easily; note that the iterator can live on even if the Args itself has been moved (but
     /// the 'a backing data have not).
-    fn index(data: &'a [*mut u8], i: usize) -> &'a str {
+    fn index(data: &'a [*mut libc::c_char], i: usize) -> &'a str {
         let cstr = unsafe { libc::CStr::from_ptr(data[i]) };
         core::str::from_utf8(cstr.to_bytes()).unwrap_or("�")
     }
@@ -95,7 +95,9 @@ pub unsafe trait CommandList: HasRunCallback + Sized {
 
         // unsafe: The cast is legitimized by the convention of all Built being constructed to give
         // a null-terminated array
-        unsafe { shell_run_once(&built as *const _ as *const _, linebuffer.as_mut_ptr(), linebuffer.len() as _) };
+        unsafe { shell_run_once(&built as *const _ as *const _, linebuffer.as_mut_ptr() as _, linebuffer.len() as _) };
+
+
     }
 
     fn and<'a, H>(self, name: &'a libc::CStr, desc: &'a libc::CStr, handler: H) -> Command<'a, Self, H>
@@ -114,7 +116,7 @@ pub unsafe trait CommandList: HasRunCallback + Sized {
 pub trait HasRunCallback {
     /// Run your own callback with argc and argv if the called argument is what the implementation
     /// put into its own entry of its Built, or defer to its next.
-    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut u8) -> i32;
+    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut libc::c_char) -> i32;
 }
 
 // For a bit more safety -- not that anything but someone stealing the module-private
@@ -162,7 +164,7 @@ where
     // index of the command list; then we'd require Sized instead of 'static of B / Built. In the
     // inlined run_callback decision tree, that may even optimize better as it creates indices
     // usable for a jump table rather than a list of comparisons).
-    extern "C" fn handle<Root: HasRunCallback>(argc: i32, argv: *mut *mut u8) -> i32 {
+    extern "C" fn handle<Root: HasRunCallback>(argc: i32, argv: *mut *mut libc::c_char) -> i32 {
         let lock = CURRENT_SHELL_RUNNER
             .try_lock()
             .expect("Concurrent shell commands");
@@ -207,7 +209,7 @@ where
     // should really be treated like a match by the optimizer, and not accumulate stack frames for
     // the commands deep down in the tree.
     #[inline]
-    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut u8) -> i32
+    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut libc::c_char) -> i32
     {
         if command_index == TypeId::of::<<Self as CommandList>::Built>() {
             let marker = ();
@@ -236,7 +238,7 @@ unsafe impl CommandList for CommandListEnd {
 }
 
 impl HasRunCallback for CommandListEnd {
-    fn run_callback(&mut self, _command_index: TypeId, _argc: i32, _argv: *mut *mut u8) -> i32
+    fn run_callback(&mut self, _command_index: TypeId, _argc: i32, _argv: *mut *mut libc::c_char) -> i32
     {
         panic!("No handler claimed the callback");
     }
