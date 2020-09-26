@@ -2,7 +2,7 @@ use crate::{mutex, stdio};
 use core::fmt::Write;
 use core::any::TypeId;
 use riot_sys::libc;
-use riot_sys::{shell_command_t, shell_run_once};
+use riot_sys::{shell_command_t, shell_run_once, shell_run_forever};
 
 /// Newtype around an (argc, argv) C style string array that presents itself as much as an `&'a
 /// [&'a str]` as possible. (Slicing is not implemented for reasons of laziness).
@@ -74,9 +74,17 @@ pub unsafe trait CommandList: HasRunCallback + Sized {
 
     fn build_shell_command<Root: HasRunCallback>(&self) -> Self::Built;
 
-    // FIXME maybe put this into another thread so users don't have to see run_callback and
-    // build_shell_command?
-    fn run_once(&mut self, linebuffer: &mut [u8]) {
+    #[doc(hidden)]
+    // Common code of run_once and run_forever. It is generic over F rather than taking F: unsafe
+    // extern "C" because while shell_run_once is extern "C", shell_run_forever is actually in Rust
+    // representation as it's a static inline in C.
+    //
+    // The R return value is then either () or !.
+    fn run_any<R, F: Fn(*const riot_sys::shell_command_t, *mut libc::c_char, i32) -> R>(
+        &mut self,
+        linebuffer: &mut [u8],
+        cb: F
+    ) -> R {
         let mut global = CURRENT_SHELL_RUNNER.lock();
         // Actually, if we really needed this, *and* could be sure that the shells are strictly
         // nested and not just started in parallel threads (how would we?), we could just stash
@@ -95,9 +103,23 @@ pub unsafe trait CommandList: HasRunCallback + Sized {
 
         // unsafe: The cast is legitimized by the convention of all Built being constructed to give
         // a null-terminated array
-        unsafe { shell_run_once(&built as *const _ as *const _, linebuffer.as_mut_ptr() as _, linebuffer.len() as _) };
+        let result = cb(&built as *const _ as *const riot_sys::shell_command_t, linebuffer.as_mut_ptr() as _, linebuffer.len() as _);
 
         CURRENT_SHELL_RUNNER.lock().take();
+
+        result
+    }
+
+    // FIXME maybe put this into another thread so users don't have to see run_callback and
+    // build_shell_command?
+    fn run_once(&mut self, linebuffer: &mut [u8]) {
+        // unsafe: See unsafe in run_any where it's called
+        self.run_any(linebuffer, |built, buf, len| unsafe { shell_run_once(built, buf, len) })
+    }
+
+    fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
+        // unsafe: See unsafe in run_any where it's called
+        self.run_any(linebuffer, |built, buf, len| unsafe { shell_run_forever(built as _, buf, len); unreachable!() })
     }
 
     fn and<'a, H>(self, name: &'a libc::CStr, desc: &'a libc::CStr, handler: H) -> Command<'a, Self, H>
