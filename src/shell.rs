@@ -117,6 +117,12 @@ pub trait HasRunCallback {
     fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut u8) -> i32;
 }
 
+// For a bit more safety -- not that anything but someone stealing the module-private
+// CURRENT_SHELL_RUNNER and replacing its content in an uncontrolled fashion would disturb the
+// peace here --, this could be *almost* made a *mut dyn core::any::Any, and then use
+// downcast_mut() in the handlers to get back the right Root, verifying in the process that indeed
+// we agere on what it is in there. That currently doesn't work because the Root is not necessarily
+// 'static (but typically only lives its 'a).
 struct SleevedCommandList(*mut riot_sys::libc::c_void);
 
 // unsafe: The only way we access the pointer in there is through callbacks we only let RIOT from
