@@ -1,4 +1,3 @@
-use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
 // For correctness considerations, all uses of UnsafeCell can be ignored here; the only reason why
 // an UnsafeCell is used is to indicate to the linker that a static mutex still needs to be
@@ -22,7 +21,7 @@ pub struct Mutex<T> {
 impl<T> Mutex<T> {
     /// Create a new mutex
     pub const fn new(t: T) -> Mutex<T> {
-        let new = unsafe { riot_sys::init_MUTEX_INIT() };
+        let new = riot_sys::init_MUTEX_INIT();
         Mutex {
             data: UnsafeCell::new(t),
             mutex: UnsafeCell::new(new),
