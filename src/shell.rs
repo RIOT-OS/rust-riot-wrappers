@@ -69,12 +69,11 @@ impl<'a> core::ops::Index<usize> for Args<'a> {
 /// This is unsafe to impleemnt as all implementers must guarantee that a reference to the Built
 /// type can be cast to a shell_command_t and that all commands in there are contiguous up until a
 /// nulled one.
-pub unsafe trait CommandList: HasRunCallback + Sized {
+pub unsafe trait CommandListInternals: Sized {
     type Built: 'static;
 
-    fn build_shell_command<Root: HasRunCallback>(&self) -> Self::Built;
+    fn build_shell_command<Root: CommandListInternals>(&self) -> Self::Built;
 
-    #[doc(hidden)]
     // Common code of run_once and run_forever. It is generic over F rather than taking F: unsafe
     // extern "C" because while shell_run_once is extern "C", shell_run_forever is actually in Rust
     // representation as it's a static inline in C.
@@ -110,8 +109,12 @@ pub unsafe trait CommandList: HasRunCallback + Sized {
         result
     }
 
-    // FIXME maybe put this into another thread so users don't have to see run_callback and
-    // build_shell_command?
+    /// Run your own callback with argc and argv if the called argument is what the implementation
+    /// put into its own entry of its Built, or defer to its next.
+    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut libc::c_char) -> i32;
+}
+
+pub trait CommandList: CommandListInternals {
     fn run_once(&mut self, linebuffer: &mut [u8]) {
         // unsafe: See unsafe in run_any where it's called
         self.run_any(linebuffer, |built, buf, len| unsafe { shell_run_once(built, buf, len) })
@@ -133,12 +136,6 @@ pub unsafe trait CommandList: HasRunCallback + Sized {
             next: self
         }
     }
-}
-
-pub trait HasRunCallback {
-    /// Run your own callback with argc and argv if the called argument is what the implementation
-    /// put into its own entry of its Built, or defer to its next.
-    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut libc::c_char) -> i32;
 }
 
 // For a bit more safety -- not that anything but someone stealing the module-private
@@ -165,7 +162,7 @@ pub struct BuiltCommand<NextBuilt> {
 
 pub struct Command<'a, Next, H>
 where
-    Next: CommandList,
+    Next: CommandListInternals,
     H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
 {
     name: &'a libc::CStr,
@@ -176,7 +173,7 @@ where
 
 impl<'a, Next, H> Command<'a, Next, H>
 where
-    Next: CommandList,
+    Next: CommandListInternals,
     H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
 {
     // This is building a trampoline. As it's static and thus can't have the instance, we pass on
@@ -186,7 +183,7 @@ where
     // index of the command list; then we'd require Sized instead of 'static of B / Built. In the
     // inlined run_callback decision tree, that may even optimize better as it creates indices
     // usable for a jump table rather than a list of comparisons).
-    extern "C" fn handle<Root: HasRunCallback>(argc: i32, argv: *mut *mut libc::c_char) -> i32 {
+    extern "C" fn handle<Root: CommandListInternals>(argc: i32, argv: *mut *mut libc::c_char) -> i32 {
         let lock = CURRENT_SHELL_RUNNER
             .try_lock()
             .expect("Concurrent shell commands");
@@ -196,21 +193,21 @@ where
         // unsafe: A suitable callback is always configured. We can make a &mut out of it for as
         // long as we hold the lock.
         let root = unsafe { &mut *(sleeve.0 as *mut Root) };
-        let result = root.run_callback(TypeId::of::<<Self as CommandList>::Built>(), argc, argv);
+        let result = root.run_callback(TypeId::of::<<Self as CommandListInternals>::Built>(), argc, argv);
         drop(root);
         drop(lock);
         result
     }
 }
 
-unsafe impl<'a, Next, H> CommandList for Command<'a, Next, H>
+unsafe impl<'a, Next, H> CommandListInternals for Command<'a, Next, H>
 where
-    Next: CommandList,
+    Next: CommandListInternals,
     H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
 {
     type Built = BuiltCommand<Next::Built>;
 
-    fn build_shell_command<Root: HasRunCallback>(&self) -> Self::Built {
+    fn build_shell_command<Root: CommandListInternals>(&self) -> Self::Built {
         BuiltCommand {
             car: shell_command_t {
                 name: self.name.as_ptr(),
@@ -220,20 +217,14 @@ where
             cdr: self.next.build_shell_command::<Root>(),
         }
     }
-}
 
-impl<'a, Next, H> HasRunCallback for Command<'a, Next, H>
-where
-    Next: CommandList,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
-{
     // This is explicitly marked as inline as the large if / else if tree that it logically builds
     // should really be treated like a match by the optimizer, and not accumulate stack frames for
     // the commands deep down in the tree.
     #[inline]
     fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut libc::c_char) -> i32
     {
-        if command_index == TypeId::of::<<Self as CommandList>::Built>() {
+        if command_index == TypeId::of::<<Self as CommandListInternals>::Built>() {
             let marker = ();
             let args = unsafe { Args::new(argc, argv as _, &marker) };
             let handler = &mut self.handler;
@@ -245,23 +236,33 @@ where
     }
 }
 
-pub struct CommandListEnd;
+impl<'a, Next, H> CommandList for Command<'a, Next, H>
+where
+    Next: CommandListInternals,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+{}
 
-unsafe impl CommandList for CommandListEnd {
+struct CommandListEnd;
+
+unsafe impl CommandListInternals for CommandListEnd {
     type Built = shell_command_t;
 
-    fn build_shell_command<Root: HasRunCallback>(&self) -> Self::Built {
+    fn build_shell_command<Root: CommandListInternals>(&self) -> Self::Built {
         shell_command_t {
             name: 0 as *const libc::c_char,
             desc: 0 as *const libc::c_char,
             handler: None,
         }
     }
-}
 
-impl HasRunCallback for CommandListEnd {
     fn run_callback(&mut self, _command_index: TypeId, _argc: i32, _argv: *mut *mut libc::c_char) -> i32
     {
         panic!("No handler claimed the callback");
     }
+}
+
+impl CommandList for CommandListEnd {}
+
+pub fn new() -> impl CommandList {
+    CommandListEnd
 }
