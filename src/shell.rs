@@ -79,6 +79,10 @@ pub unsafe trait CommandListInternals: Sized {
     // representation as it's a static inline in C.
     //
     // The R return value is then either () or !.
+    //
+    // It is set to always inline because situations in which both run_once and run_forever are
+    // used are expected to be very rare.
+    #[inline(always)]
     fn run_any<R, F: Fn(*const riot_sys::shell_command_t, *mut libc::c_char, i32) -> R>(
         &mut self,
         linebuffer: &mut [u8],
@@ -111,7 +115,24 @@ pub unsafe trait CommandListInternals: Sized {
 
     /// Run your own callback with argc and argv if the called argument is what the implementation
     /// put into its own entry of its Built, or defer to its next.
-    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut libc::c_char) -> i32;
+    fn find_self_and_run(&mut self, argc: i32, argv: *mut *mut libc::c_char, command_index: TypeId) -> i32;
+
+    #[inline(never)]
+    fn find_root_and_run(argc: i32, argv: *mut *mut libc::c_char, command_index: TypeId) -> i32 {
+        let lock = CURRENT_SHELL_RUNNER
+            .try_lock()
+            .expect("Concurrent shell commands");
+        let sleeve = lock
+            .as_ref()
+            .expect("Callback called while no shell set up as running");
+        // unsafe: A suitable callback is always configured. We can make a &mut out of it for as
+        // long as we hold the lock.
+        let root = unsafe { &mut *(sleeve.0 as *mut Self) };
+        let result = root.find_self_and_run(argc, argv, command_index);
+        drop(root);
+        drop(lock);
+        result
+    }
 }
 
 pub trait CommandList: CommandListInternals {
@@ -181,22 +202,10 @@ where
     // the current command group necessarily doesn't have two commands with the same id in it.
     // (One could equivalently use sizeof(Built)/sizeof(shell_command_t) and call it the negative
     // index of the command list; then we'd require Sized instead of 'static of B / Built. In the
-    // inlined run_callback decision tree, that may even optimize better as it creates indices
+    // inlined find_self_and_run decision tree, that may even optimize better as it creates indices
     // usable for a jump table rather than a list of comparisons).
     extern "C" fn handle<Root: CommandListInternals>(argc: i32, argv: *mut *mut libc::c_char) -> i32 {
-        let lock = CURRENT_SHELL_RUNNER
-            .try_lock()
-            .expect("Concurrent shell commands");
-        let sleeve = lock
-            .as_ref()
-            .expect("Callback called while no shell set up as running");
-        // unsafe: A suitable callback is always configured. We can make a &mut out of it for as
-        // long as we hold the lock.
-        let root = unsafe { &mut *(sleeve.0 as *mut Root) };
-        let result = root.run_callback(TypeId::of::<<Self as CommandListInternals>::Built>(), argc, argv);
-        drop(root);
-        drop(lock);
-        result
+        Root::find_root_and_run(argc, argv, TypeId::of::<<Self as CommandListInternals>::Built>())
     }
 }
 
@@ -222,7 +231,7 @@ where
     // should really be treated like a match by the optimizer, and not accumulate stack frames for
     // the commands deep down in the tree.
     #[inline]
-    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut libc::c_char) -> i32
+    fn find_self_and_run(&mut self, argc: i32, argv: *mut *mut libc::c_char, command_index: TypeId) -> i32
     {
         if command_index == TypeId::of::<<Self as CommandListInternals>::Built>() {
             let marker = ();
@@ -231,7 +240,7 @@ where
             let mut stdio = stdio::Stdio {};
             handler(&mut stdio, args)
         } else {
-            self.next.run_callback(command_index, argc, argv)
+            self.next.find_self_and_run(argc, argv, command_index)
         }
     }
 }
@@ -255,7 +264,8 @@ unsafe impl CommandListInternals for CommandListEnd {
         }
     }
 
-    fn run_callback(&mut self, _command_index: TypeId, _argc: i32, _argv: *mut *mut libc::c_char) -> i32
+    #[inline]
+    fn find_self_and_run(&mut self, _argc: i32, _argv: *mut *mut libc::c_char, _command_index: TypeId) -> i32
     {
         panic!("No handler claimed the callback");
     }
