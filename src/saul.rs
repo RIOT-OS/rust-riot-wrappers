@@ -346,6 +346,12 @@ impl Class {
             Sensor(Some(Size)) => riot_sys::SAUL_SENSE_SIZE,
         }) as _
     }
+
+    pub fn name(self) -> Option<&'static str> {
+        unsafe { riot_sys::saul_class_to_str(self.to_c()).as_ref() }
+            .map(|r| unsafe { riot_sys::libc::CStr::from_ptr(r) }.to_str().ok())
+            .flatten()
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
