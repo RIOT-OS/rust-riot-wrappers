@@ -1,6 +1,5 @@
 use crate::{mutex, stdio};
 use core::fmt::Write;
-use core::any::TypeId;
 use riot_sys::libc;
 use riot_sys::{shell_command_t, shell_run_once, shell_run_forever};
 
@@ -115,10 +114,10 @@ pub unsafe trait CommandListInternals: Sized {
 
     /// Run your own callback with argc and argv if the called argument is what the implementation
     /// put into its own entry of its Built, or defer to its next.
-    fn find_self_and_run(&mut self, argc: i32, argv: *mut *mut libc::c_char, command_index: TypeId) -> i32;
+    fn find_self_and_run(&mut self, argc: i32, argv: *mut *mut libc::c_char, command_index: usize) -> i32;
 
     #[inline(never)]
-    fn find_root_and_run(argc: i32, argv: *mut *mut libc::c_char, command_index: TypeId) -> i32 {
+    fn find_root_and_run(argc: i32, argv: *mut *mut libc::c_char, command_index: usize) -> i32 {
         let lock = CURRENT_SHELL_RUNNER
             .try_lock()
             .expect("Concurrent shell commands");
@@ -197,15 +196,26 @@ where
     Next: CommandListInternals,
     H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
 {
-    // This is building a trampoline. As it's static and thus can't have the instance, we pass on
-    // our own TypeId. As the length of the Next/NextBuilt tail is part of the type ID, the single root of
-    // the current command group necessarily doesn't have two commands with the same id in it.
-    // (One could equivalently use sizeof(Built)/sizeof(shell_command_t) and call it the negative
-    // index of the command list; then we'd require Sized instead of 'static of B / Built. In the
-    // inlined find_self_and_run decision tree, that may even optimize better as it creates indices
-    // usable for a jump table rather than a list of comparisons).
+    /// This is building a trampoline. As it's static and thus can't have the instance, we pass on
+    /// a disambiguator (the command_index) for the globally stored root to pick our own self out of
+    /// its tail again.
+    ///
+    /// As all the commands in the list are serialized into a single CommandListInternals at the
+    /// root, they are all nested, and thus have sequential tail sizes. Over using the own TypeId,
+    /// this gives the advantage of building shorter trampolines (14 bytes rather than 24 on
+    /// Cortex-M3), and also allows the find_self_and_run function to optimize better, as all its
+    /// jumps are from a contiguous small range (think `match ... {1 => one(), 2 => two(), _ =>
+    /// panic!()}` rather than arbitrary large numbers; the compiler range check once and then pick
+    /// the jump address from a table).
     extern "C" fn handle<Root: CommandListInternals>(argc: i32, argv: *mut *mut libc::c_char) -> i32 {
-        Root::find_root_and_run(argc, argv, TypeId::of::<<Self as CommandListInternals>::Built>())
+        Root::find_root_and_run(argc, argv, Self::tailsize())
+    }
+
+    /// Size of the own type's built structs, in multiples of shell_command_t.
+    ///
+    /// Usef for finding the own instance again, see handle documentation.
+    const fn tailsize() -> usize {
+        core::mem::size_of::<<Self as CommandListInternals>::Built>() / core::mem::size_of::<shell_command_t>()
     }
 }
 
@@ -231,9 +241,9 @@ where
     // should really be treated like a match by the optimizer, and not accumulate stack frames for
     // the commands deep down in the tree.
     #[inline]
-    fn find_self_and_run(&mut self, argc: i32, argv: *mut *mut libc::c_char, command_index: TypeId) -> i32
+    fn find_self_and_run(&mut self, argc: i32, argv: *mut *mut libc::c_char, command_index: usize) -> i32
     {
-        if command_index == TypeId::of::<<Self as CommandListInternals>::Built>() {
+        if command_index == Self::tailsize() {
             let marker = ();
             let args = unsafe { Args::new(argc, argv as _, &marker) };
             let handler = &mut self.handler;
@@ -265,7 +275,7 @@ unsafe impl CommandListInternals for CommandListEnd {
     }
 
     #[inline]
-    fn find_self_and_run(&mut self, _argc: i32, _argv: *mut *mut libc::c_char, _command_index: TypeId) -> i32
+    fn find_self_and_run(&mut self, _argc: i32, _argv: *mut *mut libc::c_char, _command_index: usize) -> i32
     {
         panic!("No handler claimed the callback");
     }
