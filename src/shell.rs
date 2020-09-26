@@ -24,7 +24,7 @@ impl<'a> Args<'a> {
     }
 
     /// Returns an iterator over the arguments.
-    pub fn iter(&self) -> impl Iterator<Item=&'a str> {
+    pub fn iter(&self) -> impl Iterator<Item=&'a str> + ExactSizeIterator {
         let backing = self.0;
         (0..self.0.len()).map(move |i| Self::index(backing, i))
     }
