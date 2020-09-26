@@ -1,49 +1,8 @@
-use crate::stdio;
+use crate::{mutex, stdio};
 use core::fmt::Write;
+use core::any::TypeId;
 use riot_sys::libc;
-use riot_sys::{shell_command_t, shell_run};
-
-// not repr(C) for as long as run() copies over all the inner commands, but there might be a time
-// when we pack it into something null-terminatable from the outside and then repr(C) would help
-// again. -- well actually it seems that we *need* to have an additional slot in here where to
-// store the closure, and don't need to store the full struct. -- well again not right now, as
-// acting on the closure would need a userdata argument which is not there (cf. freenode/#rust
-// 2018-02-21 14:30CEST), so passing around callbacks directly.
-#[derive(Copy, Clone)]
-pub struct ShellCommand<'a, R> {
-    name: &'a libc::CStr,
-    desc: &'a libc::CStr,
-    handler: R,
-}
-
-impl<'a, R> ShellCommand<'a, R> {
-    unsafe extern "C" fn execute(argc: libc::c_int, argv: *mut *mut libc::c_char) -> libc::c_int {
-        let commands = steal_global_run_state();
-        for c in commands.iter_mut() {
-            if let Some(result) = c.try_run(argc, argv) {
-                return result;
-            }
-        }
-        panic!("Command handler executed, but argv[0] does not match any known command");
-    }
-
-    pub fn new(name: &'a libc::CStr, desc: &'a libc::CStr, handler: R) -> Self {
-        ShellCommand {
-            name,
-            desc,
-            handler,
-        }
-    }
-}
-
-// Only implemented as a trait so there can be trait object references in the GLOBAL_RUN_STATE
-pub trait ShellCommandTrait {
-    fn as_shell_command(&self) -> shell_command_t;
-
-    /// If `argv[0]` matches the command's command name, run it and return some result; otherwise
-    /// do nothing and return None.
-    fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int>;
-}
+use riot_sys::{shell_command_t, shell_run_once};
 
 /// Newtype around an (argc, argv) C style string array that presents itself as much as an `&'a
 /// [&'a str]` as possible. (Slicing is not implemented for reasons of laziness).
@@ -103,83 +62,176 @@ impl<'a> core::ops::Index<usize> for Args<'a> {
     }
 }
 
-impl<'a, R> ShellCommandTrait for ShellCommand<'a, R>
-// actually, I'd prefer to say FnMut(impl Write, &[&str]) -> i32, but impl doesn't work there.
-where
-    R: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
-{
-    fn as_shell_command(&self) -> shell_command_t {
-        shell_command_t {
-            name: self.name.as_ptr(),
-            desc: self.desc.as_ptr(),
-            handler: Some(Self::execute),
-        }
-    }
 
-    fn try_run(&mut self, argc: libc::c_int, argv: *mut *mut libc::c_char) -> Option<libc::c_int> {
-        // Helper to easily be sure to create a lifetime that's only inside this function
-        let marker = ();
-        let args = unsafe { Args::new(argc, argv as _, &()) };
-
-        let mut stdio = stdio::Stdio {};
-
-        if args[0].as_bytes() == self.name.to_bytes() {
-            let h = &mut self.handler;
-            Some(h(&mut stdio, args))
-        } else {
-            None
-        }
-    }
-}
-
-fn null_shell_command() -> shell_command_t {
-    shell_command_t {
-        name: 0 as *const libc::c_char,
-        desc: 0 as *const libc::c_char,
-        handler: None,
-    }
-}
-
-static mut GLOBAL_RUN_STATE: usize = 0;
-/// This is a brutal workaround for shell commands not being passed any additional data.
+/// Something that can build a suitable command array for itself and its next commands using
+/// `shell_run_once` etc.
 ///
-/// The function hands any caller an immutable reference to the shared location, under the
-/// (invalid) assumption that there will only ever be one shell instance running and that won't
-/// cross thread boundaries.
-fn steal_global_run_state<'a>() -> &'a mut &'a mut [&'a mut dyn ShellCommandTrait] {
-    unsafe { ::core::mem::transmute(GLOBAL_RUN_STATE as *const libc::c_void as *const _) }
+/// This is unsafe to impleemnt as all implementers must guarantee that a reference to the Built
+/// type can be cast to a shell_command_t and that all commands in there are contiguous up until a
+/// nulled one.
+pub unsafe trait CommandList: HasRunCallback + Sized {
+    type Built: 'static;
+
+    fn build_shell_command<Root: HasRunCallback>(&self) -> Self::Built;
+
+    // FIXME maybe put this into another thread so users don't have to see run_callback and
+    // build_shell_command?
+    fn run_once(&mut self, linebuffer: &mut [u8]) {
+        let mut global = CURRENT_SHELL_RUNNER.lock();
+        // Actually, if we really needed this, *and* could be sure that the shells are strictly
+        // nested and not just started in parallel threads (how would we?), we could just stash
+        // away the other callback, do our thing and revert it before leaving this function.
+        assert!(global.is_none(), "Simultaneously running shells are not supported");
+
+        let built = self.build_shell_command::<Self>();
+
+        // mutex is maybe not the right abstraction; something different could do this if it
+        // had a "put it in there until you give it back when the function returns, and users may
+        // take it for some time" semantics.
+        *global = Some(SleevedCommandList(self as *mut _ as *mut _));
+
+        // Release mutex so that running shell commands can use it
+        drop(global);
+
+        // unsafe: The cast is legitimized by the convention of all Built being constructed to give
+        // a null-terminated array
+        unsafe { shell_run_once(&built as *const _ as *const _, linebuffer.as_mut_ptr(), linebuffer.len() as _) };
+    }
+
+    fn and<'a, H>(self, name: &'a libc::CStr, desc: &'a libc::CStr, handler: H) -> Command<'a, Self, H>
+    where
+        H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+    {
+        Command {
+            name,
+            desc,
+            handler,
+            next: self
+        }
+    }
 }
 
-pub fn run(commands: &[&mut dyn ShellCommandTrait], line_buf: &mut [u8]) -> ! {
-    const LIMIT: usize = 5;
-    // FIXME: Arbitrary size limit, find an idiom to pass in a null-terminated slice or to allocate
-    // a variable-lenth (commands.len() + 1) structure on the stack. Possibly const numeric
-    // generics will solve this.
-    let mut args: [shell_command_t; LIMIT + 1] = [null_shell_command(); LIMIT + 1];
+pub trait HasRunCallback {
+    /// Run your own callback with argc and argv if the called argument is what the implementation
+    /// put into its own entry of its Built, or defer to its next.
+    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut u8) -> i32;
+}
 
-    if commands.len() > LIMIT {
-        panic!("Static command count exceeded");
+struct SleevedCommandList(*mut riot_sys::libc::c_void);
+
+// unsafe: The only way we access the pointer in there is through callbacks we only let RIOT from
+// the shell function, and this all happens in the same thread.
+//
+// (The sleeve allows putting the pointer into a global mutex in the first place).
+unsafe impl Send for SleevedCommandList {}
+
+static CURRENT_SHELL_RUNNER: mutex::Mutex<Option<SleevedCommandList>> = mutex::Mutex::new(None);
+
+#[repr(C)]
+pub struct BuiltCommand<NextBuilt> {
+    car: shell_command_t,
+    cdr: NextBuilt,
+}
+
+pub struct Command<'a, Next, H>
+where
+    Next: CommandList,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+{
+    name: &'a libc::CStr,
+    desc: &'a libc::CStr,
+    handler: H,
+    next: Next,
+}
+
+impl<'a, Next, H> Command<'a, Next, H>
+where
+    Next: CommandList,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+{
+    // This is building a trampoline. As it's static and thus can't have the instance, we pass on
+    // our own TypeId. As the length of the Next/NextBuilt tail is part of the type ID, the single root of
+    // the current command group necessarily doesn't have two commands with the same id in it.
+    // (One could equivalently use sizeof(Built)/sizeof(shell_command_t) and call it the negative
+    // index of the command list; then we'd require Sized instead of 'static of B / Built. In the
+    // inlined run_callback decision tree, that may even optimize better as it creates indices
+    // usable for a jump table rather than a list of comparisons).
+    extern "C" fn handle<Root: HasRunCallback>(argc: i32, argv: *mut *mut u8) -> i32 {
+        let lock = CURRENT_SHELL_RUNNER
+            .try_lock()
+            .expect("Concurrent shell commands");
+        let sleeve = lock
+            .as_ref()
+            .expect("Callback called while no shell set up as running");
+        // unsafe: A suitable callback is always configured. We can make a &mut out of it for as
+        // long as we hold the lock.
+        let root = unsafe { &mut *(sleeve.0 as *mut Root) };
+        let result = root.run_callback(TypeId::of::<<Self as CommandList>::Built>(), argc, argv);
+        drop(root);
+        drop(lock);
+        result
     }
+}
 
-    for (src, dest) in commands.iter().zip(&mut args[..LIMIT]) {
-        *dest = src.as_shell_command();
+unsafe impl<'a, Next, H> CommandList for Command<'a, Next, H>
+where
+    Next: CommandList,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+{
+    type Built = BuiltCommand<Next::Built>;
+
+    fn build_shell_command<Root: HasRunCallback>(&self) -> Self::Built {
+        BuiltCommand {
+            car: shell_command_t {
+                name: self.name.as_ptr(),
+                desc: self.desc.as_ptr(),
+                handler: Some(Self::handle::<Root>),
+            },
+            cdr: self.next.build_shell_command::<Root>(),
+        }
     }
+}
 
-    unsafe {
-        if GLOBAL_RUN_STATE != 0 {
-            panic!("Shell run more than once.")
-        };
-        GLOBAL_RUN_STATE = ::core::mem::transmute(&commands);
+impl<'a, Next, H> HasRunCallback for Command<'a, Next, H>
+where
+    Next: CommandList,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+{
+    // This is explicitly marked as inline as the large if / else if tree that it logically builds
+    // should really be treated like a match by the optimizer, and not accumulate stack frames for
+    // the commands deep down in the tree.
+    #[inline]
+    fn run_callback(&mut self, command_index: TypeId, argc: i32, argv: *mut *mut u8) -> i32
+    {
+        if command_index == TypeId::of::<<Self as CommandList>::Built>() {
+            let marker = ();
+            let args = unsafe { Args::new(argc, argv as _, &marker) };
+            let handler = &mut self.handler;
+            let mut stdio = stdio::Stdio {};
+            handler(&mut stdio, args)
+        } else {
+            self.next.run_callback(command_index, argc, argv)
+        }
     }
+}
 
-    unsafe {
-        shell_run(
-            args.as_ptr() as _,
-            line_buf.as_mut_ptr() as *mut _,
-            line_buf.len() as i32, // FIXME: panic if len is too large
-        )
-    };
+pub struct CommandListEnd;
 
-    // shell_run diverges as by its documentation, but the wrapped signature does not show that.
-    unreachable!();
+unsafe impl CommandList for CommandListEnd {
+    type Built = shell_command_t;
+
+    fn build_shell_command<Root: HasRunCallback>(&self) -> Self::Built {
+        shell_command_t {
+            name: 0 as *const libc::c_char,
+            desc: 0 as *const libc::c_char,
+            handler: None,
+        }
+    }
+}
+
+impl HasRunCallback for CommandListEnd {
+    fn run_callback(&mut self, _command_index: TypeId, _argc: i32, _argv: *mut *mut u8) -> i32
+    {
+        panic!("No handler claimed the callback");
+    }
 }
