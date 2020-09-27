@@ -244,6 +244,25 @@ impl core::fmt::Debug for Phydat {
     }
 }
 
+impl core::fmt::Display for Phydat {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        if self.length == 1 {
+            write!(f, "{}", self.values.val[0])?;
+        } else {
+            write!(f, "{:?}", &self.values.val[..self.length as _])?;
+        }
+        if self.values.scale != 0 {
+            write!(f, "×10^{}", self.values.scale)?;
+        }
+        match Unit::from_c(self.values.unit).map(|u| (u, u.name())) {
+            Some((_, Some(s))) => write!(f, " {}", s)?,
+            Some((u, _)) => write!(f, " in units of {:?}", u)?,
+            None => (),
+        }
+        Ok(())
+    }
+}
+
 /// Device class
 ///
 /// Both for the class in general and for its details, Option is used to represent undefined /
@@ -513,5 +532,11 @@ impl Unit {
             Some(Unit::Cpm3) => riot_sys::UNIT_CPM3,
             None => riot_sys::UNIT_UNDEF,
         }) as _
+    }
+
+    pub fn name(self) -> Option<&'static str> {
+        unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).as_ref() }
+            .map(|r| unsafe { riot_sys::libc::CStr::from_ptr(r) }.to_str().ok())
+            .flatten()
     }
 }
