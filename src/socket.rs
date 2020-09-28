@@ -8,6 +8,7 @@ impl Into<riot_sys::sock_udp_ep_t> for UdpEp {
     }
 }
 
+#[cfg(feature = "with_embedded_nal")]
 impl Into<UdpEp> for embedded_nal::SocketAddr {
     fn into(self) -> UdpEp {
         use embedded_nal::SocketAddr::*;
