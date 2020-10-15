@@ -92,7 +92,9 @@ where
                 resources: 0 as *const _,
                 resources_len: 0,
                 next: 0 as *mut _,
-                link_encoder: None, // FIXME expose
+                link_encoder: None, // FIXME expose -- or tell people to write their own .wk/c,
+                                    // leave this NULL or even no-op (which ain't NULL) and expose
+                                    // the encoding mechanism for extension in an own .wk/c writer
             },
         }
     }
