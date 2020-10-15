@@ -22,16 +22,26 @@ pub struct NumericError {
 }
 
 impl NumericError {
-    /// Construct a NumericError from a riot_sys constant
+    /// Construct a NumericError from a [riot_sys] constant
+    ///
+    /// As error constants are in their unsigned positive form, this flips the argument's sign into
+    /// the negative range.
     ///
     /// ```
-    /// let err = NumericError::from(riot_sys::ENOTSUP);
+    /// let err = NumericError::from_constant(riot_sys::ENOTSUP);
     /// println!("{}", err); # NumericError { number: -61 }
     /// ```
-    pub fn from(name: isize) -> Self {
+    ///
+    /// ## Panics
+    ///
+    /// In debug mode, this ensures that the given error is greater than zero.
+    pub fn from_constant(name: isize) -> Self {
+        debug_assert!(name > 0, "Error names are expected to be positive for conversion into negative error numbers.");
         NumericError { number: -name }
     }
 
+    /// Convert the error into an [nb::Error] that is [nb::Error::WouldBlock] if the error is
+    /// `-EAGAIN`, and an actual error otherwise.
     pub fn again_is_wouldblock(self) -> nb::Error<Self> {
         match -self.number as u32 {
             riot_sys::EAGAIN => nb::Error::WouldBlock,

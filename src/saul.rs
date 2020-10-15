@@ -196,7 +196,7 @@ impl RegistryEntry {
         let length = unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }.negative_to_error()?;
         if length != value.length.into() {
             // FIXME is this the best way to express the error?
-            Err(error::NumericError::from(-(length as isize)))
+            Err(error::NumericError { number: length as isize })
         } else {
             Ok(())
         }

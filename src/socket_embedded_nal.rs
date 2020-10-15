@@ -60,7 +60,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDP
     ) -> Result<Self::UdpSocket, Self::Error> {
         let index = self.stack.udp_sockets_used.get();
         if index == UDPCOUNT {
-            return Err(crate::error::NumericError::from(riot_sys::ENOMEM as _));
+            return Err(crate::error::NumericError::from_constant(riot_sys::ENOMEM as _));
         }
 
         // We're inside a non-Send (due to the udp_sockets_used that's just cleared us as
