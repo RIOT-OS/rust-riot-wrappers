@@ -5,7 +5,7 @@ authors = ["Christian M. Amsüss <ca@etonomy.org>"]
 edition = "2018"
 
 description = "Rust API wrappers for the RIOT operating system"
-documentation = "https://docs.rs/riot-wrappers/"
+documentation = "https://rustdoc.etonomy.org/riot_wrappers/"
 repository = "https://gitlab.com/etonomy/riot-wrappers"
 readme = "README.md"
 keywords = ["riot", "riot-os", "iot", "bindings", "embedded-hal-impl"]
