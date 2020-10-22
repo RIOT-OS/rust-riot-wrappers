@@ -67,4 +67,5 @@ pub mod socket_embedded_nal;
 pub mod gpio;
 
 pub mod interrupt;
+#[path = "main_module.rs"]
 pub mod main;
