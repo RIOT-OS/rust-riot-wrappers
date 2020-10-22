@@ -11,7 +11,6 @@
 #![feature(iter_map_while)]
 
 extern crate byteorder;
-extern crate crc;
 extern crate embedded_hal;
 extern crate riot_sys;
 
