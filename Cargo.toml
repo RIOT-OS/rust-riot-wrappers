@@ -14,7 +14,7 @@ license = "LGPL-2.1"
 
 
 [dependencies]
-embedded-hal = { version = "0.2.2", features = ["unproven"] }
+embedded-hal = { version = "0.2.4", features = ["unproven"] }
 nb = "0.1.1"
 riot-sys = "0.3.1"
 byteorder = { version="1", default-features = false }
