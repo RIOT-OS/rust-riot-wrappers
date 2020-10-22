@@ -1,6 +1,6 @@
 [package]
 name = "riot-wrappers"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Christian M. Amsüss <ca@etonomy.org>"]
 edition = "2018"
 
