@@ -1,3 +1,7 @@
+//! Tools for running RIOT's built-in shell
+//!
+//! This module's
+
 use crate::{mutex, stdio};
 use riot_sys::libc;
 use riot_sys::{shell_command_t, shell_run_once, shell_run_forever};
@@ -133,17 +137,33 @@ pub unsafe trait CommandListInternals: Sized {
     }
 }
 
+/// A list of commands that can be presented as a shell prompt
 pub trait CommandList: CommandListInternals {
+    /// Run the shell prompt on stdio until EOF is reached
+    ///
+    /// See [shell_run_once] for details.
+    ///
+    /// [shell_run_once]: https://riot-os.org/api/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
     fn run_once(&mut self, linebuffer: &mut [u8]) {
         // unsafe: See unsafe in run_any where it's called
         self.run_any(linebuffer, |built, buf, len| unsafe { shell_run_once(built, buf, len) })
     }
 
+    /// Run the shell prompt on stdio
+    ///
+    /// See [shell_run_forever] for details.
+    ///
+    /// [shell_run_forever]: https://riot-os.org/api/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
     fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
         // unsafe: See unsafe in run_any where it's called
         self.run_any(linebuffer, |built, buf, len| unsafe { shell_run_forever(built as _, buf, len); unreachable!() })
     }
 
+    /// Extend the list of commands by an additional one.
+    ///
+    /// The handler will be called every time the command is entered, and is passed the arguments
+    /// including its own name in the form of [Args]. Currently, RIOT ignores the return value of
+    /// the function.
     fn and<'a, H>(self, name: &'a libc::CStr, desc: &'a libc::CStr, handler: H) -> Command<'a, Self, H>
     where
         H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
@@ -173,12 +193,21 @@ unsafe impl Send for SleevedCommandList {}
 
 static CURRENT_SHELL_RUNNER: mutex::Mutex<Option<SleevedCommandList>> = mutex::Mutex::new(None);
 
+/// Internal helper that is used to create the linear [`riot_sys::shellcommand_t`] structure that a
+/// command list needs to pass to RIOT
+///
+/// (Exposed publicly as the [`CommandList::and`] trait method can not return an `impl CommandList`
+/// yet)
 #[repr(C)]
 pub struct BuiltCommand<NextBuilt> {
     car: shell_command_t,
     cdr: NextBuilt,
 }
 
+/// Internal helper that holds the data assembled using the [`CommandList::and`] builder
+///
+/// (Exposed publicly as the [`CommandList::and`] trait method can not return an `impl CommandList`
+/// yet)
 pub struct Command<'a, Next, H>
 where
     Next: CommandListInternals,
@@ -282,6 +311,11 @@ unsafe impl CommandListInternals for CommandListEnd {
 
 impl CommandList for CommandListEnd {}
 
+/// Start a blank list of commands
+///
+/// This returns an empty command list that can be run as is (to expose RIOT's built-in shell
+/// commnads), or as a starting point for adding more commands using its [`CommandList::and`]
+/// builder.
 pub fn new() -> impl CommandList {
     CommandListEnd
 }

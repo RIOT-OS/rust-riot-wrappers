@@ -1,3 +1,5 @@
+//! Create, inspect or modify RIOT processes ("threads")
+
 use riot_sys as raw;
 use riot_sys::libc;
 
@@ -16,6 +18,8 @@ use core::intrinsics::transmute;
 // pub const THREAD_PRIORITY_IDLE: i8 = 15;
 // pub const THREAD_PRIORITY_MAIN: i8 = 7;
 
+/// Wrapper around a valid (not necessarily running, but in-range) [riot_sys::kernel_pid_t] that
+/// provides access to thread details and signaling.
 // Possible optimization: Make this NonZero
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct KernelPID(raw::kernel_pid_t);
@@ -166,6 +170,7 @@ impl Into<raw::kernel_pid_t> for KernelPID {
     }
 }
 
+/// PID of the currently active thread
 pub fn get_pid() -> KernelPID {
     // Ignoring the volatile in thread_getpid because it's probably not necessary (any application
     // will only ever see a consistent current PID).
@@ -337,6 +342,7 @@ impl<'pieces> CountedThread<'pieces> {
     }
 }
 
+/// Create a thread with a statically allocated stack
 pub fn spawn<R>(
     stack: &'static mut [u8],
     closure: &'static mut R,

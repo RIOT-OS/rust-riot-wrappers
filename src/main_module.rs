@@ -1,3 +1,29 @@
+//! Tools for providing a RIOT main function
+//!
+//! The main contribution of this module is the [riot_main] macro.
+//!
+//! The alternative to using that (other than doing it manually) is to have C code along with the
+//! Rust application that occupies the main function.
+//!
+//! In these cases, Rust code can be called into from the main C code by declaring the entry
+//! functions `#[no_mangle] pub extern "C"`, and having analogous `extern` functions in the calling
+//! C code.
+
+// General alternative to this module: Build the extern "C" main all the time and request that the
+// application implement a named function. I never got the main function to be carried to the
+// linker step, though. If implemented like this, the module needs to be gated like
+// set_panic_handler.
+//
+// extern "Rust" {
+//     fn riot_main();
+// }
+//
+// #[no_mangle]
+// pub extern "C" fn main() -> u32 {
+//     unsafe { riot_main() };
+//     0
+// }
+
 use crate::stdio;
 use core::fmt;
 use core::fmt::Write;
@@ -66,18 +92,3 @@ impl<E: fmt::Debug> Termination for Result<!, E> {
         }
     }
 }
-
-// General alternative to this module: Build the extern "C" main all the time and request that the
-// application implement a named function. I never got the main function to be carried to the
-// linker step, though. If implemented like this, the module needs to be gated like
-// set_panic_handler.
-
-// extern "Rust" {
-//     fn riot_main();
-// }
-//
-// #[no_mangle]
-// pub extern "C" fn main() -> u32 {
-//     unsafe { riot_main() };
-//     0
-// }

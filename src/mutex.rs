@@ -1,3 +1,9 @@
+//! Data-carrying mutex built using RIOT's [mutex] module
+//!
+//! This roughly mimicks [std::sync::Mutex].
+//!
+//! [mutex]: https://riot-os.org/api/group__core__sync__mutex.html
+
 use core::ops::{Deref, DerefMut};
 // For correctness considerations, all uses of UnsafeCell can be ignored here; the only reason why
 // an UnsafeCell is used is to indicate to the linker that a static mutex still needs to be
@@ -7,7 +13,7 @@ use core::cell::UnsafeCell;
 
 /// A mutual exclusion primitive useful for protecting shared data
 ///
-/// Unlike the std::sync::Mutex, this has no concept of poisoning, so waiting for mutexes in
+/// Unlike the [std::sync::Mutex], this has no concept of poisoning, so waiting for mutexes in
 /// paniced (and thus locked) threads will lock the accessing thread as well. This is because RIOT
 /// threds don't unwind Rust code. As a consequence, the mutex interface is different from the
 /// standard library's.

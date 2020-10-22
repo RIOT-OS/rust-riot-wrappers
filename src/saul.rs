@@ -1,23 +1,25 @@
-/// Registration and use of SAUL, the Sensor Actuator Uber Layer
-///
-/// This modules falls largely into two parts:
-///
-/// * `Drivable` and `Registration`, which are used to register custom sensors or actuators into
-///   SAUL, and
-/// * `RegistrationEntry` with its various constructors that find sensors or actuators in SAUL,
-///   which allows interacting with them.
-///
-///
-/// In mapping SAUL semantics to Rust, some parts are not aligned in full:
-///
-/// * The `Phydat` type used here *always* has a length -- as opposed to `phydat_t` which contains
-///   up to PHYDAT_DIM values, and transports the number of used items on the side -- but not
-///   always.
-///
-///   This affects sensor data writing, and is documented with the respective calls.
-///
-/// * `Drivable` provides both a read and a write callback unconditionally; consequently, a device
-///   built from it will alays err with `-ECANCELED` and never with `-ENOTSUP`.
+//! Registration and use of [SAUL], the Sensor Actuator Uber Layer
+//!
+//! This modules falls largely into two parts:
+//!
+//! * `Drivable` and `Registration`, which are used to register custom sensors or actuators into
+//!   SAUL, and
+//! * `RegistrationEntry` with its various constructors that find sensors or actuators in SAUL,
+//!   which allows interacting with them.
+//!
+//!
+//! In mapping SAUL semantics to Rust, some parts are not aligned in full:
+//!
+//! * The `Phydat` type used here *always* has a length -- as opposed to `phydat_t` which contains
+//!   up to PHYDAT_DIM values, and transports the number of used items on the side -- but not
+//!   always.
+//!
+//!   This affects sensor data writing, and is documented with the respective calls.
+//!
+//! * `Drivable` provides both a read and a write callback unconditionally; consequently, a device
+//!   built from it will alays err with `-ECANCELED` and never with `-ENOTSUP`.
+//!
+//! [SAUL]: https://riot-os.org/api/group__drivers__saul.html
 
 use core::convert::TryFrom;
 
