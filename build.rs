@@ -3,11 +3,11 @@ extern crate shlex;
 use std::env;
 
 fn main() {
-    let cflags = env::var("RIOT_CFLAGS")
-        .expect("Please pass in RIOT_CFLAGS -- see README.md of the riot-sys crate");
-    let cflags = shlex::split(&cflags).expect("Odd shell escaping in RIOT_CFLAGS");
+    let cflags = env::var("DEP_RIOT_SYS_CFLAGS")
+        .expect("DEP_RIOT_SYS_CFLAGS is not set, check whether riot-sys exports it.");
+    let cflags = shlex::split(&cflags).expect("Odd shell escaping in CFLAGS");
 
-    println!("cargo:rerun-if-env-changed=RIOT_CFLAGS");
+    println!("cargo:rerun-if-env-changed=DEP_RIOT_SYS_CFLAGS");
 
 //     let mut riot_version_count = 0;
 
