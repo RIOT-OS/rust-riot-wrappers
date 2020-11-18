@@ -66,6 +66,9 @@ pub mod socket_embedded_nal;
 #[cfg(riot_module_periph_gpio)]
 pub mod gpio;
 
+#[cfg(riot_module_bluetil_ad)]
+pub mod bluetil;
+
 pub mod interrupt;
 #[path = "main_module.rs"]
 pub mod main;

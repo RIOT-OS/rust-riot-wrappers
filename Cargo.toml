@@ -20,6 +20,9 @@ riot-sys = "0.3.1"
 byteorder = { version="1", default-features = false }
 num-traits = { version = "0.2", default-features = false }
 
+# For bluetil
+heapless = "^0.5"
+
 coap-numbers = { version = "^0.1.0", optional = true, default-features = false }
 
 # Originally disabled by default because they were not published yet; now
