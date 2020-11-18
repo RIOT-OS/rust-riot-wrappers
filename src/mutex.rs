@@ -36,7 +36,7 @@ impl<T> Mutex<T> {
 
     pub fn lock(&self) -> MutexGuard<T> {
         unsafe {
-            riot_sys::mutex_lock(self.mutex.get())
+            riot_sys::mutex_lock(self.mutex.get() as _ /* INLINE CAST */)
         };
         MutexGuard { mutex: &self }
     }
