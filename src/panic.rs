@@ -8,7 +8,12 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     if unsafe { riot_sys::irq_is_in() } != 0 {
         // Touch luck. Jumping into an endless loop right away seems to be the only reliable way to
         // keep the interupt from ever entering again.
-        loop {}
+        loop {
+            // Primarily for its side effect of making the behavior not undefined, but also because
+            // any power saving would be good until the watchdog kicks in (you do have a watchdog,
+            // right?)
+            core::sync::atomic::spin_loop_hint();
+        }
     }
 
     // I *guess* it's OK for a panic to simply make a thread into a zombie -- this does allow other
