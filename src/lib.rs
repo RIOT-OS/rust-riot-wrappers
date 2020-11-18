@@ -69,6 +69,11 @@ pub mod gpio;
 #[cfg(riot_module_bluetil_ad)]
 pub mod bluetil;
 
+pub mod nimble {
+    #[cfg(riot_module_nimble_host)]
+    pub mod uuid;
+}
+
 pub mod interrupt;
 #[path = "main_module.rs"]
 pub mod main;
