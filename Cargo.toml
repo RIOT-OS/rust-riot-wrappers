@@ -10,7 +10,11 @@ repository = "https://gitlab.com/etonomy/riot-wrappers"
 readme = "README.md"
 keywords = ["riot", "riot-os", "iot", "bindings", "embedded-hal-impl"]
 categories = ["api-bindings", "no-std"]
-license = "LGPL-2.1"
+# This is chosen to ease code migration between this and other implementations
+# of embedded-hal. Beware that for any practical use, the LGPL terms of RIOT-OS
+# still apply to resulting binary; this is visible to any Cargo based license
+# checkers by the matching license set on the riot-sys crate.
+license = "MIT OR Apache-2.0"
 
 
 [dependencies]
