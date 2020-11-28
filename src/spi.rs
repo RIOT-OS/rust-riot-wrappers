@@ -73,7 +73,7 @@ impl<'a> blocking::spi::Transfer<u8> for AcquiredSPI<'a> {
                 false,
                 words.as_ptr() as *const _,
                 words.as_ptr() as *mut _,
-                words.len(),
+                words.len() as _,
             )
         };
         Ok(words)
