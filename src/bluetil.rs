@@ -1,16 +1,21 @@
-//! Bluetil tools for BLE Advertising Data (AD)
+//! [Bluetil](https://doc.riot-os.org/group__ble__bluetil__ad.html) tools for BLE Advertising Data (AD)
 
 use core::convert::TryInto;
 use riot_sys::bluetil_ad_t;
 use crate::error::NegativeErrorExt;
 
-/// Wrapper around bluetil_ad (BLE Advertising Data)
+/// Wrapper around [bluetil_ad](https://doc.riot-os.org/group__ble__bluetil__ad.html) (BLE Advertising Data)
 ///
 /// This is implemented as a possibly owned buffer, as that should make usage straightforward both
-/// for read-only data and for writing; it remins to be seen whether that's viable.
+/// for read-only data (not practically usable yet) and for writing; it remains to be seen whether
+/// that's viable.
 pub struct Ad<B: AsRef<[u8]>>(B);
 
 impl<B: AsRef<[u8]>> Ad<B> {
+    /// Reclaim the buffer that the AD was built around.
+    ///
+    /// This is particularly useful when an AD object was populated, and in the end the buffer
+    /// needs to be obtained in order to send it.
     pub fn destroy(self) -> B {
         self.0
     }
@@ -39,6 +44,7 @@ impl From<crate::error::NumericError> for Error {
 // FIXME: flags and type are u32 because the riot_sys constants are; wrap?
 
 impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
+    /// Create an empty AD object around owned memory; the size is given by the type parameter.
     pub fn new() -> Self {
         Self(heapless::Vec::new())
     }
@@ -56,6 +62,8 @@ impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
         }
     }
 
+    /// Add a "flags" field with the given flag value to the AD (convenience function)
+    #[doc(alias = "bluetil_ad_add_flags")]
     pub fn add_flags(&mut self, flags: u32) -> Result<(), Error> {
         let mut ad = self.build();
         // unsafe: regular C call
@@ -66,6 +74,8 @@ impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
         Ok(())
     }
 
+    /// Add an arbitrary typed field to the AD
+    #[doc(alias = "bluetil_ad_add")]
     pub fn add(&mut self, type_: u32, data: &[u8]) -> Result<(), Error> {
         let mut ad = self.build();
         // unsafe: regular C call
@@ -79,6 +89,9 @@ impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
 
 // FIXME: 31 is expanded from BLE_HCI_MAX_ADV_DATA_LEN
 impl Ad<heapless::Vec<u8, heapless::consts::U31>> {
+    /// Create an empty AD object around owned memory with the maximum sendable size.
+    ///
+    /// This is often more convenient than `new` as it's not too large anyway (31 bytes).
     pub fn new_maximal() -> Self {
         Self(heapless::Vec::new())
     }
