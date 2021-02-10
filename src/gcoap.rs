@@ -95,6 +95,8 @@ where
                 link_encoder: None, // FIXME expose -- or tell people to write their own .wk/c,
                                     // leave this NULL or even no-op (which ain't NULL) and expose
                                     // the encoding mechanism for extension in an own .wk/c writer
+                // Works both for older versions without request_matcher and for current ones
+                .. Default::default()
             },
         }
     }
