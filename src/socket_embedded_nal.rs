@@ -109,7 +109,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDP
     ) -> Result<(), nb::Error<Self::Error>> {
         (unsafe {
             riot_sys::sock_udp_send(
-                &mut *socket.socket,
+                &mut *socket.socket as *mut _ as *mut _, // INLINE CAST
                 buffer.as_ptr() as _,
                 buffer.len().try_into().unwrap(),
                 0 as *const _,
@@ -127,7 +127,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpStack for StackAccessor<'a, UDP
     ) -> Result<usize, nb::Error<Self::Error>> {
         (unsafe {
             riot_sys::sock_udp_recv(
-                &mut *socket.socket,
+                &mut *socket.socket as *mut _ as *mut _, // INLINE CAST
                 buffer.as_mut_ptr() as _,
                 buffer.len().try_into().unwrap(),
                 socket.timeout_us,
