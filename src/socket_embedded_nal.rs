@@ -1,14 +1,13 @@
-//! An implementation of the [embedded-nal] (Network Abstradtion Layer) UDP trait based on RIOT
+//! An implementation of the [embedded_nal] (Network Abstradtion Layer) UDP traits based on RIOT
 //! sockets
-//!
-//! [embedded-nal]: https://docs.rs/embedded-nal/0.1.0/embedded_nal/
 
 use core::convert::TryInto;
 use core::mem::MaybeUninit;
 
 use crate::error::NegativeErrorExt;
 
-fn ep_to_sockaddr(ep: &riot_sys::inline::sock_udp_ep_t) -> embedded_nal::SocketAddr {
+fn ep_to_sockaddr(ep: &riot_sys::sock_udp_ep_t) -> embedded_nal::SocketAddr {
+    // FIXME deduplicate with UdpEp (not trivial because through pointer)
     match ep.family as _ {
         riot_sys::AF_INET6 =>
             embedded_nal::SocketAddrV6::new(
@@ -27,6 +26,20 @@ fn ep_to_sockaddr(ep: &riot_sys::inline::sock_udp_ep_t) -> embedded_nal::SocketA
                 ).into(),
 
         _ => panic!("Endpoint not expressible in embedded_nal"),
+    }
+}
+
+fn sockaddr_to_ep(sa: &embedded_nal::SocketAddr) -> riot_sys::sock_udp_ep_t {
+    // FIXME algin with UdpEp
+    match sa {
+        embedded_nal::SocketAddr::V6(sa) => todo!(),
+        embedded_nal::SocketAddr::V4(sa) => {
+            let mut ep: riot_sys::sock_udp_ep_t = Default::default();
+            ep.family = riot_sys::AF_INET as _;
+            ep.addr.ipv4 = sa.ip().octets();
+            ep.port = sa.port();
+            ep
+        },
     }
 }
 
@@ -88,21 +101,10 @@ impl<'a> UdpSocket<'a> {
     }
 }
 
-impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UDPCOUNT> {
-    type UdpSocket = UdpSocket<'a>;
-    type Error = crate::error::NumericError;
-
-    fn socket(&self) -> Result<UdpSocket<'a>, Self::Error> {
-        Ok(UdpSocket { socket: None })
-    }
-
-    fn connect(
-        &self,
-        handle: &mut Self::UdpSocket,
-        remote: embedded_nal::SocketAddr,
-    ) -> Result<(), Self::Error> {
-        handle.close();
-
+impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
+    /// Take one of the stack accessor's allocated slots
+    fn allocate(&self) -> Result<*mut riot_sys::sock_udp, crate::error::NumericError>
+    {
         let index = self.stack.udp_sockets_used.get();
         if index == UDPCOUNT {
             return Err(crate::error::NumericError::from_constant(riot_sys::ENOMEM as _));
@@ -116,19 +118,25 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
         // FIXME replace bump allocator with anything more sensible that'd allow freeing
         self.stack.udp_sockets_used.set(index + 1);
 
-        let local = match remote {
-            embedded_nal::SocketAddr::V4(_) => riot_sys::init_SOCK_IPV4_EP_ANY(),
-            embedded_nal::SocketAddr::V6(_) => riot_sys::init_SOCK_IPV6_EP_ANY(),
-        };
+        Ok(socket)
+    }
 
-        let remote: crate::socket::UdpEp = remote.into();
-        let remote = remote.into();
+    /// Wrapper around sock_udp_create
+    fn create(
+        &self,
+        handle: &mut UdpSocket<'a>,
+        local: &riot_sys::inline::sock_udp_ep_t,
+        remote: &riot_sys::sock_udp_ep_t,
+    ) -> Result<(), crate::error::NumericError> {
+        handle.close();
+
+        let socket = self.allocate()?;
 
         (unsafe {
             riot_sys::sock_udp_create(
                 socket,
-                &local as *const _ as *const _, // INLINE CAST
-                &remote,
+                local as *const _ as *const _, // INLINE CAST
+                remote as *const _ as *const _, // INLINE CAST
                 0,
             )
         })
@@ -142,6 +150,31 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
         handle.socket = Some(socket);
 
         Ok(())
+    }
+}
+
+impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UDPCOUNT> {
+    type UdpSocket = UdpSocket<'a>;
+    type Error = crate::error::NumericError;
+
+    fn socket(&self) -> Result<UdpSocket<'a>, Self::Error> {
+        Ok(UdpSocket { socket: None })
+    }
+
+    fn connect(
+        &self,
+        handle: &mut Self::UdpSocket,
+        remote: embedded_nal::SocketAddr,
+    ) -> Result<(), Self::Error> {
+        let local = match remote {
+            embedded_nal::SocketAddr::V4(_) => riot_sys::init_SOCK_IPV4_EP_ANY(),
+            embedded_nal::SocketAddr::V6(_) => riot_sys::init_SOCK_IPV6_EP_ANY(),
+        };
+
+        let remote: crate::socket::UdpEp = remote.into();
+        let remote: riot_sys::sock_udp_ep_t = remote.into();
+
+        self.create(handle, &local, &remote)
     }
     fn send(
         &self,
@@ -178,7 +211,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
                 buffer.as_mut_ptr() as _,
                 buffer.len().try_into().unwrap(),
                 0,
-                remote.as_mut_ptr(),
+                remote.as_mut_ptr() as *mut _ as *mut _,
             )
         })
             .negative_to_error()
@@ -194,5 +227,34 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
     fn close(&self, mut socket: Self::UdpSocket) -> Result<(), Self::Error> {
         socket.close();
         Ok(())
+    }
+}
+
+impl<'a, const UDPCOUNT: usize> embedded_nal::UdpServer for StackAccessor<'a, UDPCOUNT> {
+    fn bind(&self, handle: &mut UdpSocket<'a>, port: u16) -> Result<(), Self::Error> {
+        let mut local = riot_sys::init_SOCK_IPV6_EP_ANY();
+        local.port = port;
+        let remote = riot_sys::init_SOCK_IPV6_EP_ANY();
+
+        self.create(handle, &local, unsafe { core::mem::transmute(&remote) } ) // FIXME INLINE CAST
+    }
+
+    fn send_to(&self, handle: &mut UdpSocket<'a>, remote: embedded_nal::SocketAddr, buffer: &[u8]) -> Result<(), nb::Error<Self::Error>> {
+        let socket = handle.access()?;
+
+        let remote = sockaddr_to_ep(&remote);
+
+        (unsafe {
+            riot_sys::sock_udp_send(
+                &mut *socket as *mut _ as *mut _, // INLINE CAST
+                buffer.as_ptr() as _,
+                buffer.len().try_into().unwrap(),
+                &remote as *const _ as *const _, // INLINE CAST
+            )
+        })
+        .negative_to_error()
+        .map(|_| ())
+        // Sending never blocks in RIOT sockets
+        .map_err(|e| nb::Error::Other(e))
     }
 }
