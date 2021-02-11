@@ -9,6 +9,7 @@
 #![feature(min_const_generics)]
 // for SAUL
 #![feature(iter_map_while)]
+#![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
 
 extern crate byteorder;
 extern crate embedded_hal;

@@ -36,14 +36,14 @@ impl<'a> Iterator for OptionsIterator<'a> {
     }
 }
 
-impl<'a> WithSortedOptions<'a> for PacketBuffer {
+impl WithSortedOptions for PacketBuffer {
     // valid because gcoap just reads options from the message where they are stored in sequence
 }
 
-impl<'a> ReadableMessage<'a> for PacketBuffer {
+impl ReadableMessage for PacketBuffer {
     type Code = u8;
-    type OptionsIter = OptionsIterator<'a>;
-    type MessageOption = MessageOption<'a>;
+    type OptionsIter<'a> = OptionsIterator<'a>;
+    type MessageOption<'a> = MessageOption<'a>;
 
     fn code(&self) -> Self::Code {
         self.get_code_raw()
@@ -53,7 +53,7 @@ impl<'a> ReadableMessage<'a> for PacketBuffer {
         self.payload()
     }
 
-    fn options(&'a self) -> Self::OptionsIter {
+    fn options(&self) -> Self::OptionsIter<'_> {
         OptionsIterator(self.opt_iter())
     }
 }
