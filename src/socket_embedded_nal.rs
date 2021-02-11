@@ -94,7 +94,7 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
         &self,
         handle: &mut UdpSocket<'a>,
         local: &UdpEp,
-        remote: &UdpEp,
+        remote: Option<&UdpEp>,
     ) -> Result<(), NumericError> {
         handle.close();
 
@@ -104,7 +104,10 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
             riot_sys::sock_udp_create(
                 socket,
                 local.as_ref(),
-                remote.as_ref(),
+                remote.map(|r| {
+                    let r: &riot_sys::sock_udp_ep_t = r.as_ref();
+                    r as *const _})
+                    .unwrap_or(core::ptr::null()),
                 0,
             )
         })
@@ -141,7 +144,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
 
         let remote = remote.into();
 
-        self.create(handle, &local, &remote)
+        self.create(handle, &local, Some(&remote))
     }
     fn send(
         &self,
@@ -201,9 +204,8 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpServer for StackAccessor<'a, UD
     fn bind(&self, handle: &mut UdpSocket<'a>, port: u16) -> Result<(), Self::Error> {
         let local = UdpEp::ipv6_any()
             .with_port(port);
-        let remote = UdpEp::ipv6_any();
 
-        self.create(handle, &local, &remote)
+        self.create(handle, &local, None)
     }
 
     fn send_to(&self, handle: &mut UdpSocket<'a>, remote: SocketAddr, buffer: &[u8]) -> Result<(), nb::Error<Self::Error>> {
