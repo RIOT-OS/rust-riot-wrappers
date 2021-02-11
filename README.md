@@ -73,8 +73,8 @@ update that automatically / make it complain.
 
 As these are being replaced by using C2Rust idioms, conflicts between C2Rust's
 and bindgen's versions of structs arise, typically around pointers. When these
-are cast away, an ``INLINE CAST`` comment is placed there to make cleanup
-easier later when those are dealt with properly.
+are cast away, an ``INLINE CAST`` (or ``INLINE TRANSMUTE``) comment is placed
+there to make cleanup easier later when those are dealt with properly.
 
 License
 -------
