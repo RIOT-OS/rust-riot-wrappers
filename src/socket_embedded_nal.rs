@@ -4,9 +4,11 @@
 use core::convert::TryInto;
 use core::mem::MaybeUninit;
 
-use crate::error::NegativeErrorExt;
+use crate::error::{NegativeErrorExt, NumericError};
 
-fn ep_to_sockaddr(ep: &riot_sys::sock_udp_ep_t) -> embedded_nal::SocketAddr {
+use embedded_nal::SocketAddr;
+
+fn ep_to_sockaddr(ep: &riot_sys::sock_udp_ep_t) -> SocketAddr {
     // FIXME deduplicate with UdpEp (not trivial because through pointer)
     match ep.family as _ {
         riot_sys::AF_INET6 =>
@@ -29,11 +31,11 @@ fn ep_to_sockaddr(ep: &riot_sys::sock_udp_ep_t) -> embedded_nal::SocketAddr {
     }
 }
 
-fn sockaddr_to_ep(sa: &embedded_nal::SocketAddr) -> riot_sys::sock_udp_ep_t {
+fn sockaddr_to_ep(sa: &SocketAddr) -> riot_sys::sock_udp_ep_t {
     // FIXME algin with UdpEp
     match sa {
-        embedded_nal::SocketAddr::V6(sa) => todo!(),
-        embedded_nal::SocketAddr::V4(sa) => {
+        SocketAddr::V6(sa) => todo!(),
+        SocketAddr::V4(sa) => {
             let mut ep: riot_sys::sock_udp_ep_t = Default::default();
             ep.family = riot_sys::AF_INET as _;
             ep.addr.ipv4 = sa.ip().octets();
@@ -86,10 +88,10 @@ pub struct UdpSocket<'a> {
 
 impl<'a> UdpSocket<'a> {
     /// Accessor to the inner socket pointer to mask the lack of type state in embedded-nal
-    fn access(&mut self) -> Result<&mut riot_sys::sock_udp_t, crate::error::NumericError> {
+    fn access(&mut self) -> Result<&mut riot_sys::sock_udp_t, NumericError> {
         self.socket
             .as_mut()
-            .ok_or(crate::error::NumericError::from_constant(riot_sys::ENOTCONN as _))
+            .ok_or(NumericError::from_constant(riot_sys::ENOTCONN as _))
             .map(|s| &mut **s)
     }
 
@@ -103,11 +105,11 @@ impl<'a> UdpSocket<'a> {
 
 impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
     /// Take one of the stack accessor's allocated slots
-    fn allocate(&self) -> Result<*mut riot_sys::sock_udp, crate::error::NumericError>
+    fn allocate(&self) -> Result<*mut riot_sys::sock_udp, NumericError>
     {
         let index = self.stack.udp_sockets_used.get();
         if index == UDPCOUNT {
-            return Err(crate::error::NumericError::from_constant(riot_sys::ENOMEM as _));
+            return Err(NumericError::from_constant(riot_sys::ENOMEM as _));
         }
 
         // We're inside a non-Send (due to the udp_sockets_used that's just cleared us as
@@ -127,7 +129,7 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
         handle: &mut UdpSocket<'a>,
         local: &riot_sys::inline::sock_udp_ep_t,
         remote: &riot_sys::sock_udp_ep_t,
-    ) -> Result<(), crate::error::NumericError> {
+    ) -> Result<(), NumericError> {
         handle.close();
 
         let socket = self.allocate()?;
@@ -155,7 +157,7 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
 
 impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UDPCOUNT> {
     type UdpSocket = UdpSocket<'a>;
-    type Error = crate::error::NumericError;
+    type Error = NumericError;
 
     fn socket(&self) -> Result<UdpSocket<'a>, Self::Error> {
         Ok(UdpSocket { socket: None })
@@ -164,11 +166,11 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
     fn connect(
         &self,
         handle: &mut Self::UdpSocket,
-        remote: embedded_nal::SocketAddr,
+        remote: SocketAddr,
     ) -> Result<(), Self::Error> {
         let local = match remote {
-            embedded_nal::SocketAddr::V4(_) => riot_sys::init_SOCK_IPV4_EP_ANY(),
-            embedded_nal::SocketAddr::V6(_) => riot_sys::init_SOCK_IPV6_EP_ANY(),
+            SocketAddr::V4(_) => riot_sys::init_SOCK_IPV4_EP_ANY(),
+            SocketAddr::V6(_) => riot_sys::init_SOCK_IPV6_EP_ANY(),
         };
 
         let remote: crate::socket::UdpEp = remote.into();
@@ -200,7 +202,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
         &self,
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
-    ) -> Result<(usize, embedded_nal::SocketAddr), nb::Error<Self::Error>> {
+    ) -> Result<(usize, SocketAddr), nb::Error<Self::Error>> {
         let socket = socket.access()?;
 
         let mut remote = MaybeUninit::uninit();
@@ -239,7 +241,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpServer for StackAccessor<'a, UD
         self.create(handle, &local, unsafe { core::mem::transmute(&remote) } ) // FIXME INLINE CAST
     }
 
-    fn send_to(&self, handle: &mut UdpSocket<'a>, remote: embedded_nal::SocketAddr, buffer: &[u8]) -> Result<(), nb::Error<Self::Error>> {
+    fn send_to(&self, handle: &mut UdpSocket<'a>, remote: SocketAddr, buffer: &[u8]) -> Result<(), nb::Error<Self::Error>> {
         let socket = handle.access()?;
 
         let remote = sockaddr_to_ep(&remote);
