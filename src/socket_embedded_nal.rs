@@ -8,6 +8,28 @@ use core::mem::MaybeUninit;
 
 use crate::error::NegativeErrorExt;
 
+fn ep_to_sockaddr(ep: &riot_sys::inline::sock_udp_ep_t) -> embedded_nal::SocketAddr {
+    match ep.family as _ {
+        riot_sys::AF_INET6 =>
+            embedded_nal::SocketAddrV6::new(
+                    // unsafe: Access to typed C union
+                    unsafe { ep.addr.ipv6.into() },
+                    ep.port,
+                    0,
+                    ep.netif.into(),
+                ).into(),
+
+        riot_sys::AF_INET =>
+            embedded_nal::SocketAddrV4::new(
+                    // unsafe: Access to typed C union
+                    unsafe { ep.addr.ipv4.into() },
+                    ep.port
+                ).into(),
+
+        _ => panic!("Endpoint not expressible in embedded_nal"),
+    }
+}
+
 /// The operating system's network stack, used to get an implementation of
 /// ``embedded_nal::UdpClient``.
 ///
@@ -148,21 +170,25 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
     ) -> Result<(usize, embedded_nal::SocketAddr), nb::Error<Self::Error>> {
         let socket = socket.access()?;
 
+        let mut remote = MaybeUninit::uninit();
+
         let read = (unsafe {
             riot_sys::sock_udp_recv(
                 &mut *socket as *mut _ as *mut _, // INLINE CAST
                 buffer.as_mut_ptr() as _,
                 buffer.len().try_into().unwrap(),
                 0,
-                0 as *mut _,
+                remote.as_mut_ptr(),
             )
         })
             .negative_to_error()
             .map(|e| e as usize)
             .map_err(|e| e.again_is_wouldblock());
 
-        // FIXME provide actual address
-        Ok((read?, "[::]:0".parse().unwrap()))
+        // unsafe: Set by C function
+        let remote = unsafe { remote.assume_init() };
+
+        Ok((read?, ep_to_sockaddr(&remote)))
     }
 
     fn close(&self, mut socket: Self::UdpSocket) -> Result<(), Self::Error> {
