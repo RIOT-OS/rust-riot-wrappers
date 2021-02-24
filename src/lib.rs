@@ -75,6 +75,8 @@ pub mod nimble {
     pub mod uuid;
 }
 
+pub mod suit;
+
 pub mod interrupt;
 #[path = "main_module.rs"]
 pub mod main;
