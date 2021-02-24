@@ -10,7 +10,6 @@ pub mod coap {
 
     /// Trigger the SUIT thread to fetch a manifest and execute any indicated updates from the given
     /// URI
-    #[cfg(riot_module_suit_transport_coap)]
     pub fn trigger(uri: &str) {
         unsafe { riot_sys::suit_coap_trigger(uri.as_ptr(), uri.len() as _) }
     }
