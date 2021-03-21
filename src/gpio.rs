@@ -38,20 +38,35 @@ impl GPIO {
         // FIXME should we configure here? it's probably even safe
         InputGPIO(self)
     }
+
+    /// Get a gpio_t from a configured pin
+    ///
+    /// This is typically useful when populating a RIOT mechanism that works on a pre-configured
+    /// pin.
+    pub fn to_c(&self) -> riot_sys::gpio_t {
+        self.0
+    }
 }
 
 pub struct OutputGPIO(GPIO);
+
+impl OutputGPIO {
+    /// See [GPIO::to_c]
+    pub fn to_c(&self) -> riot_sys::gpio_t {
+        self.0.to_c()
+    }
+}
 
 impl OutputPin for OutputGPIO {
     type Error = !;
 
     fn set_high(&mut self) -> Result<(), !> {
-        unsafe { gpio_set((self.0).0) };
+        unsafe { gpio_set(self.to_c()) };
         Ok(())
     }
 
     fn set_low(&mut self) -> Result<(), !> {
-        unsafe { gpio_clear((self.0).0) };
+        unsafe { gpio_clear(self.to_c()) };
         Ok(())
     }
 }
@@ -60,21 +75,28 @@ impl ToggleableOutputPin for OutputGPIO {
     type Error = !;
 
     fn toggle(&mut self) -> Result<(), !> {
-        unsafe { gpio_toggle((self.0).0) };
+        unsafe { gpio_toggle(self.to_c()) };
         Ok(())
     }
 }
 
 pub struct InputGPIO(GPIO);
 
+impl InputGPIO {
+    /// See [GPIO::to_c]
+    pub fn to_c(&self) -> riot_sys::gpio_t {
+        self.0.to_c()
+    }
+}
+
 impl InputPin for InputGPIO {
     type Error = !;
 
     fn is_high(&self) -> Result<bool, !> {
-        Ok(unsafe { gpio_read((self.0).0) } != 0)
+        Ok(unsafe { gpio_read(self.to_c()) } != 0)
     }
 
     fn is_low(&self) -> Result<bool, !> {
-        Ok(unsafe { gpio_read((self.0).0) } == 0)
+        Ok(unsafe { gpio_read(self.to_c()) } == 0)
     }
 }
