@@ -29,7 +29,9 @@ use riot_sys::libc;
 use crate::error;
 use error::NegativeErrorExt;
 
-pub trait Drivable: Sized {
+// Sync is required because callers from any thread may use the raw methods to construct a self
+// reference through whihc it is used
+pub trait Drivable: Sized + Sync {
     /// Read the current state
     fn read(&self) -> Result<Phydat, ()>;
 
@@ -92,6 +94,11 @@ pub struct Driver<D: Drivable> {
     _phantom: core::marker::PhantomData<D>,
 }
 
+// The driver itself is Send because the raw pointers it contains are only used through the read-
+// and write raw functions that require the Drivable to be Sync -- so the pointers are good to move
+// around.
+unsafe impl<D: Drivable> Send for Driver<D> {}
+
 // The 'a lifetime is only formal -- as for registration a Pin<&Self> is required and the
 // destructor blocks, the practically 'a is static (but the compiler can't know that by the time
 // it's checking).
@@ -99,6 +106,10 @@ pub struct Registration<'a, D: Drivable> {
     reg: riot_sys::saul_reg_t,
     _phantom: core::marker::PhantomData<&'a D>,
 }
+
+// As long as it's not registered (for which it will need pinning anyway), the registration can
+// be moved all it wants. (The device and driver referenced through it are required to be sync).
+unsafe impl<'a, D: Drivable> Send for Registration<'a, D> {}
 
 impl<'a, D: Drivable> Registration<'a, D> {
     pub fn new(
