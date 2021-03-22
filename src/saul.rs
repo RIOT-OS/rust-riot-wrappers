@@ -232,6 +232,18 @@ impl Phydat {
             length: data.len() as _,
         }
     }
+
+    pub fn value(&self) -> &[i16] {
+        &self.values.val[..self.length as _]
+    }
+
+    pub fn unit(&self) -> Option<Unit> {
+        Unit::from_c(self.values.unit)
+    }
+
+    pub fn scale(&self) -> i8 {
+        self.values.scale
+    }
 }
 
 impl core::fmt::Debug for Phydat {
@@ -239,9 +251,9 @@ impl core::fmt::Debug for Phydat {
         write!(
             f,
             "Phydat {{ {:?} x 10^{} {:?} }}",
-            &self.values.val[..self.length as _],
-            self.values.scale,
-            Unit::from_c(self.values.unit)
+            self.value(),
+            self.scale(),
+            self.unit()
             )
     }
 }
