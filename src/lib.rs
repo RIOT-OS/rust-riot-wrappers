@@ -10,6 +10,7 @@
 // for SAUL
 #![feature(iter_map_while)]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
+#![feature(maybe_uninit_extra)]
 
 extern crate byteorder;
 extern crate embedded_hal;
@@ -76,6 +77,9 @@ pub mod nimble {
 }
 
 pub mod suit;
+
+#[cfg(riot_module_ws281x)]
+pub mod ws281x;
 
 pub mod interrupt;
 #[path = "main_module.rs"]
