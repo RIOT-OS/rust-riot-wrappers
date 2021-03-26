@@ -26,6 +26,7 @@ pub struct Mutex<T> {
 
 impl<T> Mutex<T> {
     /// Create a new mutex
+    #[doc(alias = "mutex_init")]
     pub const fn new(t: T) -> Mutex<T> {
         let new = riot_sys::init_MUTEX_INIT();
         Mutex {
@@ -34,6 +35,7 @@ impl<T> Mutex<T> {
         }
     }
 
+    #[doc(alias = "mutex_lock")]
     pub fn lock(&self) -> MutexGuard<T> {
         unsafe {
             riot_sys::mutex_lock(self.mutex.get() as _ /* INLINE CAST */)
@@ -41,6 +43,7 @@ impl<T> Mutex<T> {
         MutexGuard { mutex: &self }
     }
 
+    #[doc(alias = "mutex_trylock")]
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
         match unsafe {
             riot_sys::mutex_trylock(self.mutex.get())
@@ -67,6 +70,7 @@ impl<'a, T> Drop for MutexGuard<'a, T> {
 impl<'a, T> MutexGuard<'a, T> {
     /// Put the current thread to sleep right after unlocking the mutex. This is equivalent to
     /// calling mutex_unlock_and_sleep in RIOT.
+    #[doc(alias = "mutex_unlock_and_sleep")]
     pub fn unlock_and_sleep(self) {
         let m = &self.mutex.mutex;
         ::core::mem::forget(self);
