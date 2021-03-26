@@ -132,7 +132,7 @@ impl KernelPID {
 
     pub fn get_name(&self) -> Option<&str> {
         let ptr = unsafe { raw::thread_getname(self.0) };
-        if ptr == 0 as *const libc::c_char {
+        if ptr.is_null() {
             return None;
         }
         // If the thread stops, the name might be not valid any more, but then again the getname
