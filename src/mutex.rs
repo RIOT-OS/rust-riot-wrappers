@@ -52,6 +52,38 @@ impl<T> Mutex<T> {
             _ => None,
         }
     }
+
+    /// Lock the mutex and throw away the key
+    ///
+    /// Try to lock the mutex (returning None if it is locked). When successful, a mutable
+    /// reference for the complete lifetime of the mutex is produced, without the usual mechanisms
+    /// that'd free the mutex later.
+    ///
+    /// This is an easy way to get a &'static mut refence in RIOT. Its downsides (compared to
+    /// cortex-m-rt's entry mechanisms) are:
+    ///
+    /// * It has runtime storage cost (one mutex_t)
+    /// * It has runtime processing cost (primarily the accompanying unwrap which the compiler
+    ///   can't know to optimze out)
+    /// * It needs a good default value (can be mitigated with MaybeUninit)
+    ///
+    /// but then again, it's easy.
+    ///
+    /// API rationale
+    /// ~~~~~~~~~~~~~
+    ///
+    /// This requires access to the original mutex and not just an acquired guard that'd be leaked
+    /// in the process: The latter could also be done on a more short-lived mutex, which would then
+    /// be dropped (or even leaked-and-pushed-off-the-stack) even in a locked state. (A possibility
+    /// that is fine -- we sure don't want to limit mutex usage to require a Pin reference.)
+    ///
+    /// The function could be generalized to some generic lifetime, but there doesn't seem to b a
+    /// point to it.
+    pub fn try_leak(&'static self) -> Option<&'static mut T> {
+        let guard = self.try_lock()?;
+        core::mem::forget(guard);
+        Some(unsafe { &mut *self.data.get() })
+    }
 }
 
 unsafe impl<T: Send> Send for Mutex<T> {}
