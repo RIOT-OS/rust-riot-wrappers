@@ -1,6 +1,7 @@
 //! Delays implemented based on the RIOT XTimer module
 //!
 //! Deprecated in favor of the ztimer module, whose timers provide delay just as well.
+#![deprecated]
 
 use core::convert::{TryFrom, TryInto};
 
