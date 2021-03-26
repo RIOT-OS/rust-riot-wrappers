@@ -21,8 +21,6 @@
 //!
 //! [SAUL]: https://riot-os.org/api/group__drivers__saul.html
 
-use core::convert::TryFrom;
-
 use riot_sys as raw;
 use riot_sys::libc;
 

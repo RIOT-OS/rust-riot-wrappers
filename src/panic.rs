@@ -12,7 +12,7 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
             // Primarily for its side effect of making the behavior not undefined, but also because
             // any power saving would be good until the watchdog kicks in (you do have a watchdog,
             // right?)
-            core::sync::atomic::spin_loop_hint();
+            core::hint::spin_loop();
         }
     }
 
