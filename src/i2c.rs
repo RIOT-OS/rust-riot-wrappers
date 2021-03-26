@@ -1,6 +1,7 @@
 use embedded_hal::blocking;
 use riot_sys::i2c_t;
 
+#[derive(Debug)]
 pub struct I2CDevice {
     // because the not_actually_i2c implementation does not use it, but I still want to keep the
     // signatures the same and re-use initialization.
