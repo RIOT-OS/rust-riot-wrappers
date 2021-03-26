@@ -1,3 +1,5 @@
+use crate::stdio::println;
+
 #[panic_handler]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     use crate::thread;
@@ -20,17 +22,14 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     // threads (including spawned Rust threads) to continue, but my layman's understanding of
     // panicking is that that's OK because whatever we were just mutating can simply never be used
     // by someone else ever again.
-    let mut stdout = stdio::Stdio {};
-    let me = thread::get_pid();
 
-    // Ignoring any errors -- there's not much we can do any more.
-    let _ = writeln!(
-        stdout,
+    let me = thread::get_pid();
+    println!(
         "Error in thread {:?} ({}):",
         me,
         me.get_name().unwrap_or("unnamed")
     );
-    let _ = writeln!(stdout, "{}", info);
+    println!("{}", info);
 
     // Not trying any unwinding -- this thread is just dead, won't be re-claimed, any mutexes it
     // holds are just held indefinitely rather than throwing poison errors.

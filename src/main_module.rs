@@ -9,6 +9,8 @@
 //! functions `#[no_mangle] pub extern "C"`, and having analogous `extern` functions in the calling
 //! C code.
 
+use crate::stdio::println;
+
 // General alternative to this module: Build the extern "C" main all the time and request that the
 // application implement a named function. I never got the main function to be carried to the
 // linker step, though. If implemented like this, the module needs to be gated like
@@ -84,8 +86,7 @@ impl<E: fmt::Debug> Termination for Result<!, E> {
     fn report(self) -> u32 {
         match self {
             Err(err) => {
-                let mut stdout = stdio::Stdio {};
-                writeln!(stdout, "Error: {:?}", err).unwrap();
+                println!("Error: {:?}", err);
                 1
             }
             _ => unreachable!(),
