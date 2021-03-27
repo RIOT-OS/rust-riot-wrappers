@@ -1,5 +1,12 @@
+//! Transport modules around SUIT firmware updates
+
 #[cfg(riot_module_suit_transport_coap)]
 pub mod coap {
+    //! The [SUIT firmware CoAP transport](doc.riot-os.org/group__sys__suit__transport__coap.html)
+    //!
+    //! When built the optional `with_coap_handler` feature, a [TriggerHandler] is provided that
+    //! can be inserted in any CoAP server.
+
     /// Start SUIT CoAP thread
     ///
     /// FIXME: Is this safe to call multiple times? Do we need to provide an exclusion bit that panics
