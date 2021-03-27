@@ -91,6 +91,12 @@ impl<T> Mutex<T> {
 unsafe impl<T: Send> Send for Mutex<T> {}
 unsafe impl<T: Send> Sync for Mutex<T> {}
 
+impl<T: core::default::Default> core::default::Default for Mutex<T> {
+    fn default() -> Self {
+        Self::new(Default::default())
+    }
+}
+
 pub struct MutexGuard<'a, T> {
     mutex: &'a Mutex<T>,
 }
