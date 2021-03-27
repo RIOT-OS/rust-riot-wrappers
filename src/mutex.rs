@@ -28,7 +28,7 @@ pub struct Mutex<T> {
 }
 
 impl<T> Mutex<T> {
-    /// Create a new mutex
+    /// Create a new mutex in an unlocked state
     #[doc(alias = "mutex_init")]
     pub const fn new(t: T) -> Mutex<T> {
         let new = riot_sys::init_MUTEX_INIT();
@@ -38,6 +38,7 @@ impl<T> Mutex<T> {
         }
     }
 
+    /// Get an accessor to the mutex when the mutex is available
     #[doc(alias = "mutex_lock")]
     pub fn lock(&self) -> MutexGuard<T> {
         unsafe {
@@ -46,6 +47,7 @@ impl<T> Mutex<T> {
         MutexGuard { mutex: &self }
     }
 
+    /// Get an accessor to the mutex if the mutex is available
     #[doc(alias = "mutex_trylock")]
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
         match unsafe {
@@ -97,6 +99,12 @@ impl<T: core::default::Default> core::default::Default for Mutex<T> {
     }
 }
 
+/// A lock on a mutex
+///
+/// Though a MutexGuard, a mutex's inner value can be mutably accessed; the creation mechanism of
+/// the locks ensures that only one MutexGuard is ever available for any given Mutex.
+///
+/// When the lock is dropped, the mutex becomes available again.
 pub struct MutexGuard<'a, T> {
     mutex: &'a Mutex<T>,
 }
