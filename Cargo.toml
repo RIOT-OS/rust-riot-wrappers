@@ -23,6 +23,7 @@ nb = "0.1.1"
 riot-sys = "0.3.4"
 byteorder = { version="1", default-features = false }
 num-traits = { version = "0.2", default-features = false }
+mutex-trait = "0.2"
 
 # For bluetil
 heapless = "^0.5"

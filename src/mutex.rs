@@ -139,3 +139,11 @@ impl<'a, T> DerefMut for MutexGuard<'a, T> {
         unsafe { &mut *(self.mutex.data.get()) }
     }
 }
+
+impl<T> mutex_trait::Mutex for &Mutex<T> {
+    type Data = T;
+
+    fn lock<R>(&mut self, f: impl FnOnce(&mut Self::Data) -> R) -> R {
+        f(&mut Mutex::lock(self))
+    }
+}
