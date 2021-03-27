@@ -1,3 +1,8 @@
+//! Access to [RIOT's GPIO pins](http://doc.riot-os.org/group__drivers__periph__gpio.html)
+//!
+//! The various configured GPIO types ([InputGPIO], [OutputGPIO], [InOutGPIO]) can be used through
+//! the [embedded_hal::digital::v2] traits.
+
 use riot_sys::{gpio_clear, gpio_read, gpio_set, gpio_t, gpio_toggle, gpio_mode_t};
 
 use embedded_hal::digital::v2::{InputPin, OutputPin, ToggleableOutputPin};
@@ -8,6 +13,7 @@ use crate::error::NegativeErrorExt;
 /// configuration.
 pub struct GPIO(gpio_t);
 
+/// The subset of gpio_mode_t equivalents usable when creating an [InputGPIO]
 #[non_exhaustive]
 pub enum InputMode {
     In,
@@ -25,6 +31,7 @@ impl InputMode {
     }
 }
 
+/// The subset of gpio_mode_t equivalents usable when creating an [OutputGPIO]
 #[non_exhaustive]
 pub enum OutputMode {
     Out,
@@ -42,6 +49,7 @@ impl OutputMode {
     }
 }
 
+/// The subset of gpio_mode_t equivalents usable when creating an [InOutGPIO]
 #[non_exhaustive]
 pub enum InOutMode {
     OpenDrain,
@@ -124,6 +132,7 @@ impl GPIO {
     }
 }
 
+/// A [GPIO] configured and usable for output
 pub struct OutputGPIO(GPIO);
 
 impl OutputGPIO {
@@ -161,6 +170,7 @@ impl ToggleableOutputPin for OutputGPIO {
     }
 }
 
+/// A [GPIO] configured and usable for input
 pub struct InputGPIO(GPIO);
 
 impl InputGPIO {
@@ -187,6 +197,7 @@ impl InputPin for InputGPIO {
     }
 }
 
+/// A [GPIO] configured and usable for input and output
 pub struct InOutGPIO(GPIO);
 
 impl InOutGPIO {
