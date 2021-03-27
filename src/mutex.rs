@@ -3,6 +3,7 @@
 //! This roughly mimicks [std::sync::Mutex].
 //!
 //! [mutex]: https://riot-os.org/api/group__core__sync__mutex.html
+//! [std::sync::mutex]: https://doc.rust-lang.org/std/sync/struct.Mutex.html
 
 use core::ops::{Deref, DerefMut};
 // For correctness considerations, all uses of UnsafeCell can be ignored here; the only reason why
@@ -19,6 +20,8 @@ use core::cell::UnsafeCell;
 /// standard library's.
 ///
 /// Several methods (into_inner, get_mut) are not implemented until they're actually needed.
+///
+/// [std::sync::mutex]: https://doc.rust-lang.org/std/sync/struct.Mutex.html
 pub struct Mutex<T> {
     mutex: UnsafeCell<riot_sys::inline::mutex_t>,
     data: UnsafeCell<T>,
@@ -69,8 +72,7 @@ impl<T> Mutex<T> {
     ///
     /// but then again, it's easy.
     ///
-    /// API rationale
-    /// ~~~~~~~~~~~~~
+    /// ## API rationale
     ///
     /// This requires access to the original mutex and not just an acquired guard that'd be leaked
     /// in the process: The latter could also be done on a more short-lived mutex, which would then
