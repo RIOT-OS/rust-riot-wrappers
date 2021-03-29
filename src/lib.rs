@@ -79,6 +79,9 @@ pub mod suit;
 #[cfg(riot_module_ws281x)]
 pub mod ws281x;
 
+#[cfg(riot_module_microbit)]
+pub mod microbit;
+
 pub mod interrupt;
 #[path = "main_module.rs"]
 pub mod main;
