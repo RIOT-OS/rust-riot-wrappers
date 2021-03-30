@@ -143,6 +143,17 @@ impl KernelPID {
         Some(name)
     }
 
+    /// Get the current status of the thread of that number, if one currently exists
+    pub fn status(&self) -> Result<Status, ()> {
+        let status = unsafe { raw::thread_getstatus(self.0) };
+        if status == riot_sys::init_STATUS_NOT_FOUND() {
+            Err(())
+        } else {
+            Ok(Status::from_int(status as _))
+        }
+    }
+
+    #[deprecated(note = "Use status() instead")]
     pub fn get_status(&self) -> Status {
         let status = unsafe { raw::thread_getstatus(self.0) };
         Status::from_int(status as _)
