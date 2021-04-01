@@ -1,6 +1,16 @@
 //! Tools for running RIOT's built-in shell
 //!
-//! This module's
+//! This module can be used in two ways:
+//!
+//! * Declare static commands using [static_command]; these only take a `fn` (not a closure)
+//!   because shell commands don't have an arg pointer.
+//!
+//!   This works even in RIOT modules that are included in a C application that starts a shell, and
+//!   show up in shells created through Rust without explicit inclusion.
+//!
+//! * Use [new] to start building a [CommandList]. This can have full closures as commands, but
+//!   these are available only when the shell is then started throught the CommandList's run
+//!   methods.
 
 use crate::{mutex, stdio};
 use riot_sys::libc;
@@ -23,7 +33,7 @@ impl<'a> Args<'a> {
     ///
     /// argv must be a valid pointer, and its first argc items must be valid pointers. The
     /// underlying char strings do not need to be valid UTF-8, but must be null terminated.
-    unsafe fn new(argc: libc::c_int, argv: *const *const libc::c_char, _lifetime_marker: &'a ()) -> Self {
+    pub unsafe fn new(argc: libc::c_int, argv: *const *const libc::c_char, _lifetime_marker: &'a ()) -> Self {
         Args(core::slice::from_raw_parts(argv as _, argc as usize))
     }
 
@@ -319,3 +329,72 @@ impl CommandList for CommandListEnd {}
 pub fn new() -> impl CommandList {
     CommandListEnd
 }
+
+
+/// Make a function whose signature is `fn(&mut stdio::Stdio, Args<'b>) -> i32` available through
+/// XFA in any RIOT shell, even when called throuch C.
+///
+/// Compared to [CommandList], this is limited by only taking functions and not closures -- but
+/// that allows using it even in scenarios where [CommandList]'s hacks that reconstruct a full
+/// closure from something that's only a plain function call in C are unavailable.
+///
+/// The modname identifier needs to be provided as a name that can be used for a private module
+/// created by the macro. Tne name literal is the command name as matched by the shell, with the
+/// descr literal shown next to it when running `help`. The fun is a local function of static
+/// lifetime that gets executed whenever the shell command is invoked.
+///
+/// Example
+/// -------
+///
+/// ```
+/// fn do_echo(
+///         _stdio: &mut riot_wrappers::stdio::Stdio,
+///         args: riot_wrappers::shell::Args<'_>,
+/// ) -> i32
+/// {
+///     use riot_wrappers::println;
+///     println!("Running args of run:");
+///     for a in args.iter() {
+///         println!("{:?}", a);
+///     }
+///     0
+/// }
+/// riot_wrappers::static_command!(echo, "echo", "Print the arguments in separate lines", do_echo);
+/// ```
+#[macro_export]
+macro_rules! static_command {
+    ( $modname:ident, $name:literal, $descr:literal, $fun:ident ) => {
+        // Note that this winds up in a dedicated compilation unit; the C linker may not use them
+        // when running from the staticlib, which is why RIOT is going towards linking all .o
+        // files.
+        mod $modname {
+            use super::$fun;
+
+            // The transparent allows the &StaticCommand to have the right properties to be storable in a
+            // static, and still be the same pointer.
+            #[repr(transparent)]
+            pub struct StaticCommand(riot_sys::shell_command_t);
+
+            // unsafe: OK due to the only construction way (the CStr is created from a literal and
+            // thus static, and the_function is static by construction as well)
+            unsafe impl Sync for StaticCommand {}
+
+            static THE_STRUCT: StaticCommand = StaticCommand(riot_sys::shell_command_t {
+                name: riot_sys::cstr!($name).as_ptr(),
+                desc: riot_sys::cstr!($descr).as_ptr(),
+                handler: Some(the_function),
+            });
+            #[link_section = ".roxfa.shell_commands_xfa.5"]
+            #[export_name = concat!("shell_commands_xfa_5_", stringify!($modname))]
+            static THE_POINTER: &StaticCommand = &THE_STRUCT;
+
+            unsafe extern "C" fn the_function(argc: i32, argv: *mut *mut riot_sys::libc::c_char) -> i32 {
+                let marker = ();
+                let args = unsafe { $crate::shell::Args::new(argc, argv as _, &marker) };
+                let mut stdio = $crate::stdio::Stdio {};
+                $fun(&mut stdio, args)
+            }
+        }
+    }
+}
+pub use static_command;
