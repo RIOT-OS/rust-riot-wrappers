@@ -65,6 +65,12 @@ impl Termination for () {
     }
 }
 
+impl Termination for i32 {
+    fn report(self) -> u32 {
+        self as _
+    }
+}
+
 // Copied, stripped down from std and printlns replaced with riot-wrapper stdio
 
 impl<E: fmt::Debug> Termination for Result<(), E> {
