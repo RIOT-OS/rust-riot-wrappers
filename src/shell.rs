@@ -174,9 +174,10 @@ pub trait CommandList: CommandListInternals {
     /// The handler will be called every time the command is entered, and is passed the arguments
     /// including its own name in the form of [Args]. Currently, RIOT ignores the return value of
     /// the function.
-    fn and<'a, H>(self, name: &'a libc::CStr, desc: &'a libc::CStr, handler: H) -> Command<'a, Self, H>
+    fn and<'a, H, T>(self, name: &'a libc::CStr, desc: &'a libc::CStr, handler: H) -> Command<'a, Self, H, T>
     where
-        H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+        H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+        T: crate::main::Termination,
     {
         Command {
             name,
@@ -218,10 +219,11 @@ pub struct BuiltCommand<NextBuilt> {
 ///
 /// (Exposed publicly as the [`CommandList::and`] trait method can not return an `impl CommandList`
 /// yet)
-pub struct Command<'a, Next, H>
+pub struct Command<'a, Next, H, T=i32>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    T: crate::main::Termination,
 {
     name: &'a libc::CStr,
     desc: &'a libc::CStr,
@@ -229,10 +231,11 @@ where
     next: Next,
 }
 
-impl<'a, Next, H> Command<'a, Next, H>
+impl<'a, Next, H, T> Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    T: crate::main::Termination,
 {
     /// This is building a trampoline. As it's static and thus can't have the instance, we pass on
     /// a disambiguator (the command_index) for the globally stored root to pick our own self out of
@@ -257,10 +260,11 @@ where
     }
 }
 
-unsafe impl<'a, Next, H> CommandListInternals for Command<'a, Next, H>
+unsafe impl<'a, Next, H, T> CommandListInternals for Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    T: crate::main::Termination,
 {
     type Built = BuiltCommand<Next::Built>;
 
@@ -287,16 +291,19 @@ where
             let handler = &mut self.handler;
             let mut stdio = stdio::Stdio {};
             handler(&mut stdio, args)
+                // see https://gitlab.com/etonomy/riot-wrappers/-/issues/3
+                .report() as _
         } else {
             self.next.find_self_and_run(argc, argv, command_index)
         }
     }
 }
 
-impl<'a, Next, H> CommandList for Command<'a, Next, H>
+impl<'a, Next, H, T> CommandList for Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> i32,
+    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    T: crate::main::Termination,
 {}
 
 struct CommandListEnd;
@@ -392,7 +399,12 @@ macro_rules! static_command {
                 let marker = ();
                 let args = unsafe { $crate::shell::Args::new(argc, argv as _, &marker) };
                 let mut stdio = $crate::stdio::Stdio {};
+                use $crate::main::Termination;
+                // Cast: Termination gives u32, threads give i32 -- doesn't matter too much on the
+                // C side
                 $fun(&mut stdio, args)
+                    // see https://gitlab.com/etonomy/riot-wrappers/-/issues/3
+                    .report() as _
             }
         }
     }
