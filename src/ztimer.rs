@@ -49,6 +49,15 @@ impl<const HZ: u32> ZTimer<HZ> {
         self.sleep_ticks(ticks.try_into().expect("Was just checked manually above"));
     }
 }
+impl ZTimer<1> {
+    /// Get the global second ZTimer, ZTIMER_SEC.
+    ///
+    /// This function is only available if the ztimer_sec module is built.
+    #[cfg(riot_module_ztimer_sec)]
+    pub fn sec() -> Self {
+        ZTimer(unsafe { riot_sys::ZTIMER_SEC })
+    }
+}
 
 impl ZTimer<1000> {
     /// Get the global milliseconds ZTimer, ZTIMER_MSEC.
