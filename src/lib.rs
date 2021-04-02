@@ -9,6 +9,8 @@
 #![feature(iter_map_while)]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
 #![feature(maybe_uninit_extra)]
+// for Args IntoIterator
+#![feature(min_type_alias_impl_trait)]
 
 extern crate byteorder;
 extern crate embedded_hal;

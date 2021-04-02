@@ -66,6 +66,15 @@ impl<'a> Args<'a> {
     }
 }
 
+impl<'a> IntoIterator for Args<'a> {
+    type Item = &'a str;
+    type IntoIter = impl Iterator<Item = Self::Item> + ExactSizeIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 impl<'a> core::ops::Index<usize> for Args<'a> {
     type Output = str;
 
