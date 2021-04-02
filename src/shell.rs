@@ -347,8 +347,9 @@ pub fn new() -> impl CommandList {
 }
 
 
-/// Make a function whose signature is `fn(&mut stdio::Stdio, Args<'b>) -> i32` available through
-/// XFA in any RIOT shell, even when called throuch C.
+/// Make a function whose signature is `fn(&mut `[`Stdio`](stdio::Stdio)`, `[`Args`]`<'b>) -> impl `[`Termination`](main::Termination) available through
+/// XFA in any RIOT shell, even when called throuch C. (The function's signature may be more
+/// generic, eg. accepting an `impl `[`Write`](core::fmt::Write) and an `impl `[`IntoIterator`]`<&str>`).
 ///
 /// Compared to [CommandList], this is limited by only taking functions and not closures -- but
 /// that allows using it even in scenarios where [CommandList]'s hacks that reconstruct a full
@@ -366,14 +367,13 @@ pub fn new() -> impl CommandList {
 /// fn do_echo(
 ///         _stdio: &mut riot_wrappers::stdio::Stdio,
 ///         args: riot_wrappers::shell::Args<'_>,
-/// ) -> i32
+/// )
 /// {
 ///     use riot_wrappers::println;
 ///     println!("Running args of run:");
 ///     for a in args.iter() {
 ///         println!("{:?}", a);
 ///     }
-///     0
 /// }
 /// riot_wrappers::static_command!(echo, "echo", "Print the arguments in separate lines", do_echo);
 /// ```
