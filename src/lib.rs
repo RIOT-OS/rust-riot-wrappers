@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(never_type)]
-#![feature(const_fn)]
 #![feature(const_mut_refs)]
 #![feature(const_maybe_uninit_as_ptr)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
@@ -10,7 +9,7 @@
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
 #![feature(maybe_uninit_extra)]
 // for Args IntoIterator
-#![feature(min_type_alias_impl_trait)]
+#![feature(type_alias_impl_trait)]
 
 extern crate byteorder;
 extern crate embedded_hal;
