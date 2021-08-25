@@ -10,6 +10,8 @@
 #![feature(maybe_uninit_extra)]
 // for Args IntoIterator
 #![feature(type_alias_impl_trait)]
+// For shell
+#![feature(const_fn_trait_bound)]
 
 extern crate byteorder;
 extern crate embedded_hal;
