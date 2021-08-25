@@ -5,7 +5,7 @@ use crate::error::NegativeErrorExt;
 use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
-use riot_sys::libc::{c_void, CStr};
+use riot_sys::libc::c_void;
 use riot_sys::{coap_optpos_t, coap_pkt_t, coap_resource_t, gcoap_listener_t};
 
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
@@ -77,7 +77,7 @@ where
     H: 'a + Handler,
 {
     // keeping methods u32 because the sys constants are too
-    pub fn new(path: &'a CStr, methods: u32, handler: &'a mut H) -> Self {
+    pub fn new(path: &'a cstr_core::CStr, methods: u32, handler: &'a mut H) -> Self {
         let methods = methods.try_into().unwrap();
 
         SingleHandlerListener {

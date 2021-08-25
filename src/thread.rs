@@ -2,6 +2,7 @@
 
 use riot_sys as raw;
 use riot_sys::libc;
+use cstr_core::CStr;
 
 use core::marker::PhantomData;
 
@@ -139,7 +140,7 @@ impl KernelPID {
         // function might already have returned anything, and thread names are generally strings in
         // .text. Unwrapping because by the time non-ASCII text shows up in there, something
         // probably already went terribly wrong.
-        let name: &str = unsafe { libc::CStr::from_ptr(ptr) }.to_str().unwrap();
+        let name: &str = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap();
         Some(name)
     }
 
@@ -202,7 +203,7 @@ pub fn sleep() {
 unsafe fn create<R>(
     stack: &mut [u8],
     closure: &mut R,
-    name: &libc::CStr,
+    name: &CStr,
     priority: u8,
     flags: i32,
 ) -> (raw::kernel_pid_t, Option<*mut riot_sys::_thread>)
@@ -286,7 +287,7 @@ impl CountingThreadScope {
         &'scope mut self,
         stack: &'pieces mut [u8],
         closure: &'pieces mut R,
-        name: &'pieces libc::CStr,
+        name: &'pieces CStr,
         priority: u8,
         flags: i32,
     ) -> Result<CountedThread<'pieces>, raw::kernel_pid_t>
@@ -357,7 +358,7 @@ impl<'pieces> CountedThread<'pieces> {
 pub fn spawn<R>(
     stack: &'static mut [u8],
     closure: &'static mut R,
-    name: &'static libc::CStr,
+    name: &'static CStr,
     priority: u8,
     flags: i32,
 ) -> Result<TrackedThread, raw::kernel_pid_t>

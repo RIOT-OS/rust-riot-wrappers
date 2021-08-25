@@ -23,6 +23,7 @@
 
 use riot_sys as raw;
 use riot_sys::libc;
+use cstr_core::CStr;
 
 use crate::error;
 use error::NegativeErrorExt;
@@ -113,7 +114,7 @@ impl<'a, D: Drivable> Registration<'a, D> {
     pub fn new(
         driver: &Driver<D>,
         device: &D,
-        name: Option<&libc::CStr>
+        name: Option<&CStr>
     ) -> Self
     {
         Registration {
@@ -180,7 +181,7 @@ impl RegistryEntry {
         unsafe { Some((*self.0).name
             .as_ref()
             .map(|s| {
-                riot_sys::libc::CStr::from_ptr(s as _)
+                CStr::from_ptr(s as _)
                     .to_str()
                     .ok()
             })??)
@@ -391,7 +392,7 @@ impl Class {
 
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::saul_class_to_str(self.to_c()).as_ref() }
-            .map(|r| unsafe { riot_sys::libc::CStr::from_ptr(r) }.to_str().ok())
+            .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
             .flatten()
     }
 }
@@ -559,7 +560,7 @@ impl Unit {
 
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).as_ref() }
-            .map(|r| unsafe { riot_sys::libc::CStr::from_ptr(r) }.to_str().ok())
+            .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
             .flatten()
     }
 }

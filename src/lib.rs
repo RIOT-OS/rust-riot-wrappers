@@ -17,6 +17,8 @@ extern crate byteorder;
 extern crate embedded_hal;
 extern crate riot_sys;
 
+pub use cstr_core as cstr;
+
 pub mod error;
 
 #[cfg(riot_module_saul)]

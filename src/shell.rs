@@ -15,6 +15,7 @@
 use crate::{mutex, stdio};
 use riot_sys::libc;
 use riot_sys::{shell_command_t, shell_run_once, shell_run_forever};
+use cstr_core::CStr;
 
 /// Newtype around an (argc, argv) C style string array that presents itself as much as an `&'a
 /// [&'a str]` as possible. (Slicing is not implemented for reasons of laziness).
@@ -47,7 +48,7 @@ impl<'a> Args<'a> {
     /// iter easily; note that the iterator can live on even if the Args itself has been moved (but
     /// the 'a backing data have not).
     fn index(data: &'a [*mut libc::c_char], i: usize) -> &'a str {
-        let cstr = unsafe { libc::CStr::from_ptr(data[i]) };
+        let cstr = unsafe { CStr::from_ptr(data[i]) };
         core::str::from_utf8(cstr.to_bytes()).unwrap_or("�")
     }
 
@@ -183,7 +184,7 @@ pub trait CommandList: CommandListInternals {
     /// The handler will be called every time the command is entered, and is passed the arguments
     /// including its own name in the form of [Args]. Currently, RIOT ignores the return value of
     /// the function.
-    fn and<'a, H, T>(self, name: &'a libc::CStr, desc: &'a libc::CStr, handler: H) -> Command<'a, Self, H, T>
+    fn and<'a, H, T>(self, name: &'a CStr, desc: &'a CStr, handler: H) -> Command<'a, Self, H, T>
     where
         H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
         T: crate::main::Termination,
@@ -234,8 +235,8 @@ where
     H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
     T: crate::main::Termination,
 {
-    name: &'a libc::CStr,
-    desc: &'a libc::CStr,
+    name: &'a CStr,
+    desc: &'a CStr,
     handler: H,
     next: Next,
 }
@@ -396,8 +397,8 @@ macro_rules! static_command {
             unsafe impl Sync for StaticCommand {}
 
             static THE_STRUCT: StaticCommand = StaticCommand(riot_sys::shell_command_t {
-                name: riot_sys::cstr!($name).as_ptr(),
-                desc: riot_sys::cstr!($descr).as_ptr(),
+                name: $crate::cstr::cstr!($name).as_ptr(),
+                desc: $crate::cstr::cstr!($descr).as_ptr(),
                 handler: Some(the_function),
             });
             #[link_section = ".roxfa.shell_commands_xfa.5"]
