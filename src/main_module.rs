@@ -47,7 +47,7 @@ use core::fmt::Write;
 macro_rules! riot_main {
     ($main:ident) => {
         #[export_name = "main"]
-        pub extern "C" fn c_main() -> u32 {
+        pub extern "C" fn c_main() -> i32 {
             use riot_wrappers::main::Termination;
             $main().report()
         }
@@ -56,25 +56,25 @@ macro_rules! riot_main {
 
 /// A result trait for main methods, analogous to std::process::Termination
 pub trait Termination {
-    fn report(self) -> u32;
+    fn report(self) -> i32;
 }
 
 impl Termination for () {
-    fn report(self) -> u32 {
+    fn report(self) -> i32 {
         0
     }
 }
 
 impl Termination for i32 {
-    fn report(self) -> u32 {
-        self as _
+    fn report(self) -> i32 {
+        self
     }
 }
 
 // Copied, stripped down from std and printlns replaced with riot-wrapper stdio
 
 impl<E: fmt::Debug> Termination for Result<(), E> {
-    fn report(self) -> u32 {
+    fn report(self) -> i32 {
         match self {
             Ok(()) => ().report(),
             Err(err) => Err::<!, _>(err).report(),
@@ -83,19 +83,19 @@ impl<E: fmt::Debug> Termination for Result<(), E> {
 }
 
 impl Termination for ! {
-    fn report(self) -> u32 {
+    fn report(self) -> i32 {
         self
     }
 }
 
 impl<E: fmt::Debug> Termination for Result<!, E> {
-    fn report(self) -> u32 {
+    fn report(self) -> i32 {
         match self {
             Err(err) => {
                 println!("Error: {:?}", err);
                 1
             }
-            _ => unreachable!(),
+            Ok(never) => never,
         }
     }
 }

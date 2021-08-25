@@ -410,11 +410,8 @@ macro_rules! static_command {
                 let args = unsafe { $crate::shell::Args::new(argc, argv as _, &marker) };
                 let mut stdio = $crate::stdio::Stdio {};
                 use $crate::main::Termination;
-                // Cast: Termination gives u32, threads give i32 -- doesn't matter too much on the
-                // C side
                 $fun(&mut stdio, args)
-                    // see https://gitlab.com/etonomy/riot-wrappers/-/issues/3
-                    .report() as _
+                    .report()
             }
         }
     }
