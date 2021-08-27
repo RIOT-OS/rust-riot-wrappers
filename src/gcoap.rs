@@ -1,6 +1,3 @@
-// There is some questionably scoped code in the lower half of this module (it made requirements on
-// data staying in a place that was not justified from the type system). This is being changed.
-
 use crate::error::NegativeErrorExt;
 use core::convert::TryInto;
 use core::marker::PhantomData;
@@ -137,46 +134,24 @@ pub trait Handler {
     fn handle(&mut self, pkt: &mut PacketBuffer) -> isize;
 }
 
-// Questionable code starts here
-
-use riot_sys::libc::c_uint;
 use riot_sys::{
-    coap_get_blockopt,
-    coap_hdr_t,
+    coap_get_total_hdr_len,
     coap_opt_add_opaque,
     coap_opt_add_uint,
-    coap_opt_finish,
     coap_opt_get_next,
     gcoap_register_listener,
     gcoap_resp_init,
-    memmove,
-    COAP_FORMAT_NONE,
-    COAP_GET,
-    COAP_OPT_BLOCK2,
-    COAP_OPT_CONTENT_FORMAT,
-    COAP_OPT_FINISH_NONE,
-    COAP_OPT_FINISH_PAYLOAD,
-    COAP_OPT_OBSERVE,
-    COAP_TYPE_ACK,
-    COAP_TYPE_CON,
 };
-const COAP_OPT_ETAG: u16 = 4;
-const COAP_OPT_SIZE2: u16 = 28;
-// Static functions re-implemented
-fn coap_get_total_hdr_len(pkt: &coap_pkt_t) -> usize {
-    ::core::mem::size_of::<coap_hdr_t>() + coap_get_token_len(pkt)
-}
-fn coap_get_token_len(pkt: &coap_pkt_t) -> usize {
-    (unsafe { (*pkt.hdr).ver_t_tkl & 0xfu8 }) as usize
-}
+#[deprecated] // I don't even know any more what this was used for
+pub const GET: u32 = riot_sys::COAP_GET;
 
-pub const GET: u32 = COAP_GET;
-
+#[deprecated(note = "Use the coap_message abstractions")]
 pub struct PayloadWriter<'a> {
     data: &'a mut [u8],
     cursor: usize,
 }
 
+#[allow(deprecated)] // still have to implement it while it's around
 impl<'a> ::core::fmt::Write for PayloadWriter<'a> {
     fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
         let mut s = s.as_bytes();
@@ -217,7 +192,7 @@ impl PacketBuffer {
 
     /// Wrapper for coap_get_total_hdr_len
     fn get_total_hdr_len(&self) -> usize {
-        unsafe { coap_get_total_hdr_len(&*self.pkt) }
+        (unsafe { coap_get_total_hdr_len(self.pkt as _ /* INLINE CAST */) }) as usize
     }
 
     /// Wrapper for gcoap_resp_init
@@ -277,8 +252,7 @@ impl PacketBuffer {
 
     /// Add an integer value as an option
     pub fn opt_add_uint(&mut self, optnum: u16, value: u32) -> Result<(), ()> {
-        unsafe { coap_opt_add_uint(self.pkt, optnum, value) }
-            .negative_to_error()
+        unsafe { coap_opt_add_uint(self.pkt, optnum, value) } .negative_to_error()
             .map_err(|_| ())?;
         Ok(())
     }
