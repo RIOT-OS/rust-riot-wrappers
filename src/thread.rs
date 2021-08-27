@@ -254,22 +254,25 @@ where
 /// has no dynamic memory of the spawned threads, and no actual way of waiting for a thread. If the
 /// callback returns, the caller has call the scope's `.reap()` method with all the threads that
 /// were launched; otherwise, the program panics.
-pub fn scope<F>(callback: F)
+pub fn scope<'env, F, R>(callback: F) -> R
 where
-    F: FnOnce(&mut CountingThreadScope),
+    F: for<'id> FnOnce(&mut CountingThreadScope<'env, 'id>) -> R,
 {
-    let mut s = CountingThreadScope { threads: 0 };
+    let mut s = CountingThreadScope { threads: 0, _phantom: PhantomData };
 
-    callback(&mut s);
+    let ret = callback(&mut s);
 
     s.wait_for_all();
+
+    ret
 }
 
-pub struct CountingThreadScope {
+pub struct CountingThreadScope<'env, 'id> {
     threads: u16, // a counter, but larger than kernel_pid_t
+    _phantom: PhantomData<(&'env (), &'id ())>,
 }
 
-impl CountingThreadScope {
+impl<'env, 'id> CountingThreadScope<'env,'id> {
     /// Start a thread in the given stack, in which the closure is run. The thread gets a human
     /// readable name (ignored in no-DEVHELP mode), and is started with the priority and flags as
     /// per thread_create documentation.
@@ -283,16 +286,16 @@ impl CountingThreadScope {
     /// can't be prevented from moving around on the stack between the point when thread_create is
     /// called (and the pointer is passed on to RIOT) and the point when the threads starts running
     /// and that pointer is used.
-    pub fn spawn<'scope, 'pieces, R>(
-        &'scope mut self,
+    pub fn spawn<'pieces, R>(
+        &mut self,
         stack: &'pieces mut [u8],
         closure: &'pieces mut R,
         name: &'pieces CStr,
         priority: u8,
         flags: i32,
-    ) -> Result<CountedThread<'pieces>, raw::kernel_pid_t>
+    ) -> Result<CountedThread<'id>, raw::kernel_pid_t>
     where
-        'pieces: 'scope,
+        'pieces: 'env,
         R: Send + FnMut(),
     {
         self.threads = self.threads.checked_add(1).expect("Thread limit exceeded");
@@ -318,8 +321,7 @@ impl CountingThreadScope {
     /// Unlike a (POSIX) wait, this will not block (for there is no SIGCHLDish thing in RIOT --
     /// whoever wants to be notified would need to make their threads send an explicit signal), but
     /// panic if the thread is not actually done yet.
-    pub fn reap(&mut self, thread: CountedThread) {
-        // FIXME: check whether the counted thread
+    pub fn reap(&mut self, thread: CountedThread<'id>) {
         match thread.get_status() {
             Status::Stopped => (),
             _ => panic!("Attempted to reap running process"),
@@ -335,16 +337,15 @@ impl CountingThreadScope {
     }
 }
 
-// The 'pieces should (FIXME: verify) help ensuring that threads can only be reaped where they were
-// created. (It might make sense to move it into TrackedThread and make the tcb usable for more
-// than just pointer comparison).
+// The 'id ensures that threads can only be reaped where they were created. (It might make sense to
+// move it into TrackedThread and make the tcb usable for more than just pointer comparison).
 #[derive(Debug)]
-pub struct CountedThread<'pieces> {
+pub struct CountedThread<'id> {
     thread: TrackedThread,
-    _phantom: PhantomData<&'pieces ()>,
+    _phantom: PhantomData<&'id ()>,
 }
 
-impl<'pieces> CountedThread<'pieces> {
+impl<'id> CountedThread<'id> {
     pub fn get_pid(&self) -> KernelPID {
         self.thread.get_pid()
     }

@@ -14,11 +14,11 @@ use riot_sys::{coap_optpos_t, coap_pkt_t, coap_resource_t, gcoap_listener_t};
 ///
 /// As there is currently no way to unregister handlers, this function panics when the callback
 /// terminates. (Otherwise, it'd return the callback's return value).
-pub fn scope<F, R>(callback: F) -> R
+pub fn scope<'env, F, R>(callback: F) -> R
 where
-    F: FnOnce(&mut RegistrationScope) -> R,
+    F: for<'id> FnOnce(&mut RegistrationScope<'env, 'id>) -> R,
 {
-    let mut r = RegistrationScope { _private: () };
+    let mut r = RegistrationScope { _phantom: PhantomData };
 
     let ret = callback(&mut r);
 
@@ -28,15 +28,15 @@ where
 }
 
 // Could we allow users the creation of 'static RegistrationScopes? Like thread::spawn.
-pub struct RegistrationScope {
-    _private: (),
+pub struct RegistrationScope<'env, 'id> {
+    _phantom: PhantomData<(&'env (), &'id ())>,
 }
 
-impl RegistrationScope {
+impl<'env, 'id> RegistrationScope<'env, 'id> {
     // FIXME: Generalize SingleHandlerListener::get_listener into a trait
-    pub fn register<'scope, 'handler, P>(&'scope mut self, handler: &'handler mut P)
+    pub fn register<'handler, P>(&mut self, handler: &'handler mut P)
     where
-        'handler: 'scope,
+        'handler: 'env,
         // AsMut? hm, probably should re-consider the whole concept of the server ownign a mutable
         // reference to the resource. that makes simple server-mutable resources, but if they are
         // to do *anything* fro somewhere else, don't they need interior mutability anyway?
