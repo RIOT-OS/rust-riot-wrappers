@@ -57,18 +57,18 @@ pub trait ListenerProvider {
     unsafe fn get_listener<'a>(&'a mut self) -> &'a mut gcoap_listener_t;
 }
 
-pub struct SingleHandlerListener<'a, H> {
-    _phantom: PhantomData<&'a H>,
-    resource: coap_resource_t,
-    listener: gcoap_listener_t,
-}
-
 /// A combination of the coap_resource_t and gcoap_listener_t structs with only a single resource
 /// (Compared to many resources, this allows easier creation in Rust at the expense of larger
 /// memory consumption and slower lookups in Gcoap).
 ///
 /// A listener `l` can be hooked into the global Gcoap registry using `scope(|x| { x.register(l)
 /// })`.
+pub struct SingleHandlerListener<'a, H> {
+    _phantom: PhantomData<&'a H>,
+    resource: coap_resource_t,
+    listener: gcoap_listener_t,
+}
+
 impl<'a, H> SingleHandlerListener<'a, H>
 where
     H: 'a + Handler,
