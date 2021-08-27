@@ -223,7 +223,7 @@ impl PacketBuffer {
 
     /// Wrapper for coap_get_total_hdr_len
     fn get_total_hdr_len(&self) -> usize {
-        (unsafe { coap_get_total_hdr_len(self.pkt as _ /* INLINE CAST */) }) as usize
+        (unsafe { coap_get_total_hdr_len(crate::inline_cast(self.pkt)) }) as usize
     }
 
     /// Wrapper for gcoap_resp_init

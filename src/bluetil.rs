@@ -67,7 +67,7 @@ impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
     pub fn add_flags(&mut self, flags: u32) -> Result<(), Error> {
         let mut ad = self.build();
         // unsafe: regular C call
-        unsafe { riot_sys::bluetil_ad_add_flags(&mut ad as *mut _ as *mut _ /* INLINE CAST */, flags as _) }
+        unsafe { riot_sys::bluetil_ad_add_flags(crate::inline_cast_mut(&mut ad as *mut _), flags as _) }
             .negative_to_error()?;
         // unsafe: bluetil doesn't set pos after size
         unsafe { self.0.set_len(ad.pos as _) };

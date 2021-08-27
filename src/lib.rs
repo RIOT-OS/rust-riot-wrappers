@@ -37,6 +37,27 @@ fn inline_cast<A, B>(input: *const A) -> *const B {
     input as _
 }
 
+/// `*mut` analogon to [inline_cast]
+#[inline]
+fn inline_cast_mut<A, B>(input: *mut A) -> *mut B {
+    assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
+    input as _
+}
+
+/// `&` analogon to [inline_cast]
+#[inline]
+unsafe fn inline_cast_ref<A, B>(input: &A) -> &B {
+    assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
+    core::mem::transmute(input)
+}
+
+/// `&mut` analogon to [inline_cast]
+#[inline]
+unsafe fn inline_cast_ref_mut<A, B>(input: &mut A) -> &mut B {
+    assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
+    core::mem::transmute(input)
+}
+
 #[cfg(riot_module_saul)]
 pub mod saul;
 #[cfg(riot_module_shell)]

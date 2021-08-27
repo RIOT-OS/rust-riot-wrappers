@@ -46,13 +46,13 @@ impl AsMut<riot_sys::sock_udp_ep_t> for UdpEp {
 
 impl AsRef<riot_sys::inline::sock_udp_ep_t> for UdpEp {
     fn as_ref(&self) -> &riot_sys::inline::sock_udp_ep_t {
-        unsafe { core::mem::transmute(&self.0) } // INLINE CAST
+        unsafe { crate::inline_cast_ref(&self.0) }
     }
 }
 
 impl AsMut<riot_sys::inline::sock_udp_ep_t> for UdpEp {
     fn as_mut(&mut self) -> &mut riot_sys::inline::sock_udp_ep_t {
-        unsafe { core::mem::transmute(&mut self.0) } // INLINE CAST
+        unsafe { crate::inline_cast_ref_mut(&mut self.0) }
     }
 }
 

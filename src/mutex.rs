@@ -42,7 +42,7 @@ impl<T> Mutex<T> {
     #[doc(alias = "mutex_lock")]
     pub fn lock(&self) -> MutexGuard<T> {
         unsafe {
-            riot_sys::mutex_lock(self.mutex.get() as _ /* INLINE CAST */)
+            riot_sys::mutex_lock(crate::inline_cast_mut(self.mutex.get()))
         };
         MutexGuard { mutex: &self }
     }
@@ -111,7 +111,7 @@ pub struct MutexGuard<'a, T> {
 
 impl<'a, T> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
-        unsafe { riot_sys::mutex_unlock(self.mutex.mutex.get() as *mut _ /* INLINE CAST */) }
+        unsafe { riot_sys::mutex_unlock(crate::inline_cast_mut(self.mutex.mutex.get())) }
     }
 }
 
@@ -122,7 +122,7 @@ impl<'a, T> MutexGuard<'a, T> {
     pub fn unlock_and_sleep(self) {
         let m = &self.mutex.mutex;
         ::core::mem::forget(self);
-        unsafe { riot_sys::mutex_unlock_and_sleep(m.get() as *mut _ /* INLINE CAST */) };
+        unsafe { riot_sys::mutex_unlock_and_sleep(crate::inline_cast_mut(m.get())) };
     }
 }
 
