@@ -23,7 +23,7 @@ use core::intrinsics::transmute;
 /// provides access to thread details and signaling.
 // Possible optimization: Make this NonZero
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct KernelPID(raw::kernel_pid_t);
+pub struct KernelPID(pub(crate) raw::kernel_pid_t);
 
 pub(crate) mod pid_converted {
     //! Converting the raw constants into consistently typed ones

@@ -7,6 +7,8 @@ use riot_sys::{gnrc_netif_iter, gnrc_netif_t, ipv6_addr_from_str, ipv6_addr_t, k
 use core::iter::Iterator;
 use core::mem::MaybeUninit;
 use riot_sys::libc;
+use crate::thread::KernelPID;
+use crate::error::{NegativeErrorExt, NumericError};
 
 struct NetifIter {
     current: *const gnrc_netif_t,
@@ -25,6 +27,8 @@ impl Iterator for NetifIter {
     }
 }
 
+/// Raw equivalent for gnrc_netif_iter; see [Netif::all] for a version that produces safely
+/// usable objects.
 #[doc(alias = "gnrc_netif_iter")]
 pub fn netif_iter() -> impl Iterator<Item = *const gnrc_netif_t> {
     NetifIter {
@@ -32,6 +36,67 @@ pub fn netif_iter() -> impl Iterator<Item = *const gnrc_netif_t> {
     }
 }
 
+/// A registered netif
+///
+/// (In particular, that means that the implementation can access its fields without any further
+/// synchronization).
+pub struct Netif(*const gnrc_netif_t);
+
+impl Netif {
+    #[doc(alias = "gnrc_netif_iter")]
+    pub fn all() -> impl Iterator<Item=Netif> {
+        netif_iter().map(Netif)
+    }
+
+    #[doc(alias = "gnrc_netif_get_by_pid")]
+    pub fn by_pid(pid: KernelPID) -> Option<Self> {
+        const NULL: *mut riot_sys::gnrc_netif_t = 0 as _;
+        match unsafe { riot_sys::gnrc_netif_get_by_pid(pid.into()) } {
+            NULL => None,
+            x => Some(Netif(x))
+        }
+    }
+
+    pub fn pid(&self) -> KernelPID {
+        KernelPID(unsafe { (*self.0).pid })
+    }
+
+    pub fn l2addr(&self) -> &[u8] {
+        unsafe { &(*self.0).l2addr[..(*self.0).l2addr_len as usize] }
+    }
+
+    pub fn ipv6_addrs(&self) -> Result<IPv6AddrList<{ riot_sys::CONFIG_GNRC_NETIF_IPV6_ADDRS_NUMOF as _ }>, NumericError> {
+        let mut addrs = IPv6AddrList {
+            // unsafe: as per "Initializing an array element-by-element" documentation
+            addresses: unsafe { MaybeUninit::uninit().assume_init() },
+            len: 0,
+        };
+        let result = unsafe { riot_sys::gnrc_netif_ipv6_addrs_get(
+                crate::inline_cast(self.0),
+                addrs.addresses.as_mut() as *mut _ as _ /* justified by array guarantees and repr(Transparent) */,
+                core::mem::size_of_val(&addrs.addresses) as _,
+                ) };
+        addrs.len = (result.negative_to_error()? as usize) / core::mem::size_of::<IPv6Addr>();
+        Ok(addrs)
+    }
+}
+
+/// Helper for [Netif::ipv6_addrs]: As the [riot_sys::gnrc_netif_ipv6_addrs_get] function requires
+/// a multiple-address buffer to write in, this carries a suitable buffer.
+pub struct IPv6AddrList<const MAX: usize> {
+    addresses: [MaybeUninit<IPv6Addr>; MAX],
+    len: usize,
+}
+
+impl<const MAX: usize> IPv6AddrList<MAX> {
+    pub fn addresses(&self) -> &[IPv6Addr] {
+        let slice = &self.addresses[..self.len];
+        // unsafe: as per "Initializing an array element-by-element" documentation
+        unsafe { core::mem::transmute(slice) }
+    }
+}
+
+#[repr(transparent)] // which allows the IPv6AddrList addresss to be passed to gnrc_netif_ipv6_addrs_get
 pub struct IPv6Addr {
     inner: ipv6_addr_t,
 }
@@ -99,6 +164,10 @@ impl ::core::fmt::Debug for IPv6Addr {
 }
 
 impl IPv6Addr {
+    pub fn raw(&self) -> &[u8; 16] {
+        unsafe { &self.inner.u8 }
+    }
+
     pub unsafe fn as_ptr(&self) -> *const ipv6_addr_t {
         &self.inner
     }
