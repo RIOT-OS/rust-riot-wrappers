@@ -98,6 +98,26 @@ where
         }
     }
 
+    /// Create a listener whose single resource catches all requests and processes them through the
+    /// handler.
+    ///
+    /// This is equivalent to a new single listener at "/" that takes all methods and matches on
+    /// subtrees.
+    pub fn new_catch_all(handler: &'a mut H) -> Self {
+        Self::new(
+            cstr_core::cstr!("/"),
+            riot_sys::COAP_GET
+            | riot_sys::COAP_POST
+            | riot_sys::COAP_PUT
+            | riot_sys::COAP_DELETE
+            | riot_sys::COAP_FETCH
+            | riot_sys::COAP_PATCH
+            | riot_sys::COAP_IPATCH
+            | riot_sys::COAP_MATCH_SUBTREE
+            ,
+            handler)
+    }
+
     unsafe extern "C" fn call_handler(
         pkt: *mut coap_pkt_t,
         buf: *mut u8,
