@@ -267,6 +267,32 @@ where
     ret
 }
 
+/// Lifetimed helper through which threads can be spawned.
+///
+/// ## Lifetimes
+///
+/// The involved lifetimes ensure that all parts used to build the thread (its closure, stack, and
+/// name) outlive the whole process, which (given the generally dynamic lifetime of threads) can
+/// only be checked dynamically.
+///
+/// The lifetimes are:
+///
+/// * `'env`: A time surrounding the [`scope()`] call. All inputs to the thread are checked to live
+///   at least that long (possibly longer; it is commonplace for them to be `'static`).
+/// * `'id`: An identifying lifetime (or brand) of the scope. Its lifetime is somewhere inbetween
+///   the outer `'env` and the run time of the called closure.
+///
+///   Practically, don't think of this as a lifetime, but more as a disambiguator: It makes the
+///   monomorphized CountingThreadScope unique in the sense that no two instances of
+///   CountingThreadScope can ever have the same type.
+///
+///   By having unique types, it is ensured that a counted thread is only counted down (in
+///   [`.reap()`]) in the scope it was born in, and that no shenanigans with counters being swapped
+///   around with [core::mem::swap()] are used to trick the compiler into allowing use-after-free.
+///
+/// This technique was inspired by (and is explained well) in [the GhostCell
+/// Paper](http://plv.mpi-sws.org/rustbelt/ghostcell/paper.pdf).
+///
 pub struct CountingThreadScope<'env, 'id> {
     threads: u16, // a counter, but larger than kernel_pid_t
     _phantom: PhantomData<(&'env (), &'id ())>,
@@ -286,16 +312,15 @@ impl<'env, 'id> CountingThreadScope<'env,'id> {
     /// can't be prevented from moving around on the stack between the point when thread_create is
     /// called (and the pointer is passed on to RIOT) and the point when the threads starts running
     /// and that pointer is used.
-    pub fn spawn<'pieces, R>(
+    pub fn spawn<R>(
         &mut self,
-        stack: &'pieces mut [u8],
-        closure: &'pieces mut R,
-        name: &'pieces CStr,
+        stack: &'env mut [u8],
+        closure: &'env mut R,
+        name: &'env CStr,
         priority: u8,
         flags: i32,
     ) -> Result<CountedThread<'id>, raw::kernel_pid_t>
     where
-        'pieces: 'env,
         R: Send + FnMut(),
     {
         self.threads = self.threads.checked_add(1).expect("Thread limit exceeded");
@@ -321,7 +346,7 @@ impl<'env, 'id> CountingThreadScope<'env,'id> {
     /// Unlike a (POSIX) wait, this will not block (for there is no SIGCHLDish thing in RIOT --
     /// whoever wants to be notified would need to make their threads send an explicit signal), but
     /// panic if the thread is not actually done yet.
-    pub fn reap(&mut self, thread: CountedThread<'id>) {
+    pub fn Reap(&mut self, thread: CountedThread<'id>) {
         match thread.get_status() {
             Status::Stopped => (),
             _ => panic!("Attempted to reap running process"),

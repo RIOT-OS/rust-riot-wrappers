@@ -25,19 +25,22 @@ where
 }
 
 // Could we allow users the creation of 'static RegistrationScopes? Like thread::spawn.
+/// Lifetimed helper through which registrations can happen
+///
+/// For explanations of the `'env`' and `'id` lifetimes, see
+/// [CountingThreadScope](crate::thread::CountingThreadScope) which has the same.
 pub struct RegistrationScope<'env, 'id> {
     _phantom: PhantomData<(&'env (), &'id ())>,
 }
 
 impl<'env, 'id> RegistrationScope<'env, 'id> {
     // FIXME: Generalize SingleHandlerListener::get_listener into a trait
-    pub fn register<'handler, P>(&mut self, handler: &'handler mut P)
+    pub fn register<P>(&mut self, handler: &'env mut P)
     where
-        'handler: 'env,
         // AsMut? hm, probably should re-consider the whole concept of the server ownign a mutable
         // reference to the resource. that makes simple server-mutable resources, but if they are
         // to do *anything* fro somewhere else, don't they need interior mutability anyway?
-        P: 'handler + ListenerProvider,
+        P: 'env + ListenerProvider,
     {
         // Unsafe: Moving in a pointer to an internal structure to which we were given an exclusive
         // reference that outlives self -- and whoever can create a Self guarantees that
