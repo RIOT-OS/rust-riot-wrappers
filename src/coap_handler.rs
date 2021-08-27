@@ -7,6 +7,8 @@ use coap_message::{Code, MutableWritableMessage, OptionNumber, ReadableMessage};
 use crate::coap_message::ResponseMessage;
 use crate::gcoap::PacketBuffer;
 
+/// Adapter to get a [crate::gcoap::Handler] from a more generic [coap_handler::Handler], typically
+/// to register it through a [crate::gcoap::SingleHandlerListener].
 pub struct GcoapHandler<H>(pub H)
 where
     H: coap_handler::Handler;

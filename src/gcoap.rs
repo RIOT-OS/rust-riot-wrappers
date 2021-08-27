@@ -34,8 +34,12 @@ pub struct RegistrationScope<'env, 'id> {
 }
 
 impl<'env, 'id> RegistrationScope<'env, 'id> {
-    // FIXME: Generalize SingleHandlerListener::get_listener into a trait
-    pub fn register<P>(&mut self, handler: &'env mut P)
+    /// Append a Gcoap listener in the global list of listeners, so that incoming requests are
+    /// compared to the listener's match functions and, if matching, are run through its handlers.
+    ///
+    /// Note that the only provided way to get a suitable ListenerProvider is through
+    /// [SingleHandlerListener].
+    pub fn register<P>(&mut self, listener: &'env mut P)
     where
         // AsMut? hm, probably should re-consider the whole concept of the server ownign a mutable
         // reference to the resource. that makes simple server-mutable resources, but if they are
@@ -45,7 +49,7 @@ impl<'env, 'id> RegistrationScope<'env, 'id> {
         // Unsafe: Moving in a pointer to an internal structure to which we were given an exclusive
         // reference that outlives self -- and whoever can create a Self guarantees that
         // deregister_all() will be called before the end of this self's lifetime.
-        unsafe { gcoap_register_listener(handler.get_listener() as *mut _) };
+        unsafe { gcoap_register_listener(listener.get_listener() as *mut _) };
     }
 
     fn deregister_all(&mut self) {
@@ -64,8 +68,8 @@ pub trait ListenerProvider {
 /// (Compared to many resources, this allows easier creation in Rust at the expense of larger
 /// memory consumption and slower lookups in Gcoap).
 ///
-/// A listener `l` can be hooked into the global Gcoap registry using `scope(|x| { x.register(l)
-/// })`.
+/// A listener `l` can be hooked into the global Gcoap registry using [`scope`]`(|x| {
+/// x.`[`register`](RegistrationScope::register)`(l) })`.
 pub struct SingleHandlerListener<'a, H> {
     _phantom: PhantomData<&'a H>,
     resource: coap_resource_t,
@@ -106,6 +110,10 @@ where
     ///
     /// This is equivalent to a new single listener at "/" that takes all methods and matches on
     /// subtrees.
+    ///
+    /// Note that the taken Handler is a Gcoap [Handler] (which is there really only in case anyone
+    /// wants extremely fine-grained control of what gcoap does); if you have a
+    /// [coap_handler::Handler], you can wrap it in [crate::coap_handler::GcoapHandler] to for adaptation.
     pub fn new_catch_all(handler: &'a mut H) -> Self {
         Self::new(
             cstr_core::cstr!("/"),
