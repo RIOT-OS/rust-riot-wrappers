@@ -25,6 +25,7 @@ impl Iterator for NetifIter {
     }
 }
 
+#[doc(alias = "gnrc_netif_iter")]
 pub fn netif_iter() -> impl Iterator<Item = *const gnrc_netif_t> {
     NetifIter {
         current: 0 as *const gnrc_netif_t,
