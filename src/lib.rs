@@ -3,7 +3,6 @@
 #![feature(const_mut_refs)]
 #![feature(const_maybe_uninit_as_ptr)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
-#![feature(maybe_uninit_ref)]
 // for SAUL
 #![feature(iter_map_while)]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
