@@ -20,6 +20,23 @@ pub use cstr_core as cstr;
 
 pub mod error;
 
+/// Cast pointers around before passing them in to functions; this is sometimes needed when a
+/// struct is used from bindgen (`riot_sys::*`) but passed to a C2Rust function that uses its own
+/// definition (`riot_sys::inline::*`).
+///
+/// Ideally this'd use what comes out of safe transmutation to statically show castability (or not
+/// be needed due to better collaboration between C2Rust and bindgen), but until that's a thing,
+/// checking for sizes is the least we can do.
+///
+/// TBD: Make this into a compile time failure (first attempts failed due to "use of generic
+/// parameter from outer function" errors). Anyhow, if the check passes, the function essentially
+/// becomes a no-op.
+#[inline]
+fn inline_cast<A, B>(input: *const A) -> *const B {
+    assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
+    input as _
+}
+
 #[cfg(riot_module_saul)]
 pub mod saul;
 #[cfg(riot_module_shell)]
