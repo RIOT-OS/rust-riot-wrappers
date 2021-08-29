@@ -157,7 +157,7 @@ impl<'env, 'id> CountingThreadScope<'env,'id> {
     /// whoever wants to be notified would need to make their threads send an explicit signal), but
     /// panic if the thread is not actually done yet.
     pub fn reap(&mut self, thread: CountedThread<'id>) {
-        match thread.get_status() {
+        match thread.status() {
             Status::Stopped => (),
             _ => panic!("Attempted to reap running process"),
         }
@@ -181,12 +181,22 @@ pub struct CountedThread<'id> {
 }
 
 impl<'id> CountedThread<'id> {
-    pub fn get_pid(&self) -> KernelPID {
-        self.thread.get_pid()
+    pub fn pid(&self) -> KernelPID {
+        self.thread.pid()
     }
 
+    pub fn status(&self) -> Status {
+        self.thread.status()
+    }
+
+    #[deprecated(note = "Use .pid() instead")]
+    pub fn get_pid(&self) -> KernelPID {
+        self.pid()
+    }
+
+    #[deprecated(note = "Use .status() instead")]
     pub fn get_status(&self) -> Status {
-        self.thread.get_status()
+        self.status()
     }
 }
 
@@ -227,15 +237,15 @@ pub struct TrackedThread {
 }
 
 impl TrackedThread {
-    pub fn get_pid(&self) -> KernelPID {
+    pub fn pid(&self) -> KernelPID {
         self.pid
     }
 
-    /// Like get_status of a KernelPID, but this returnes Stopped if the PID has been re-used after
-    /// our thread has stopped.
+    /// Like status of a KernelPID, but infallible: this returnes Stopped if the PID has been
+    /// re-used after our thread has stopped.
     // FIXME: This can probably be simplified a lot by just looking into the TCB if it were
     // obtained reliably
-    pub fn get_status(&self) -> Status {
+    pub fn status(&self) -> Status {
         let status = self.pid.status();
         let tcb = self.pid.thread();
         if let (Ok(status), Some(tcb), Some(startup_tcb)) =
@@ -250,5 +260,15 @@ impl TrackedThread {
             // Thread not in task list, so it's obviousy stopped
             Status::Stopped
         }
+    }
+
+    #[deprecated(note = "Use .pid() instead")]
+    pub fn get_pid(&self) -> KernelPID {
+        self.pid()
+    }
+
+    #[deprecated(note = "Use .status() instead")]
+    pub fn get_status(&self) -> Status {
+        self.status()
     }
 }
