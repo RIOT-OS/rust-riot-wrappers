@@ -26,9 +26,7 @@ use crate::stdio::println;
 //     0
 // }
 
-use crate::stdio;
 use core::fmt;
-use core::fmt::Write;
 
 /// To have a nice Rust main function, run the `riot_main!` macro with the name of your main
 /// function an item (ie. top level in a module) in your crate. The function identified by it must
@@ -71,7 +69,7 @@ impl Termination for i32 {
     }
 }
 
-// Copied, stripped down from std and printlns replaced with riot-wrapper stdio
+// Copied and stripped down from std
 
 impl<E: fmt::Debug> Termination for Result<(), E> {
     fn report(self) -> i32 {

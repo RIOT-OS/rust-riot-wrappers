@@ -4,9 +4,6 @@ use crate::stdio::println;
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     use crate::thread;
 
-    use crate::stdio;
-    use core::fmt::Write;
-
     if unsafe { riot_sys::irq_is_in() } != 0 {
         // Touch luck. Jumping into an endless loop right away seems to be the only reliable way to
         // keep the interupt from ever entering again.

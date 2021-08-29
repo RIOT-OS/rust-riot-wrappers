@@ -2,7 +2,7 @@
 /// GcoapHandler.
 use core::convert::TryInto;
 
-use coap_message::{Code, MutableWritableMessage, OptionNumber, ReadableMessage};
+use coap_message::{MutableWritableMessage, ReadableMessage};
 
 use crate::coap_message::ResponseMessage;
 use crate::gcoap::PacketBuffer;

@@ -1,6 +1,6 @@
 /// This module implements coap_message::ReadableMessage for, and a wrapper that provides
 /// coap_message::WritableMessage around RIOT's coap_pkt_t.
-use crate::gcoap::{PacketBuffer, PacketBufferOptIter, PacketBufferOptIterMut};
+use crate::gcoap::{PacketBuffer, PacketBufferOptIter};
 use coap_message::{
     MinimalWritableMessage,
     MutableWritableMessage,
@@ -100,7 +100,7 @@ impl<'a> MinimalWritableMessage for ResponseMessage<'a> {
     }
 
     fn set_payload(&mut self, data: &[u8]) {
-        self.payload_mut()[..data.len()].copy_from_slice(data);
+        self.payload_mut_with_len(data.len()).copy_from_slice(data);
         self.truncate(data.len());
     }
 }

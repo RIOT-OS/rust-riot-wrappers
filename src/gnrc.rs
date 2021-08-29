@@ -6,7 +6,6 @@ use riot_sys::{gnrc_netif_iter, gnrc_netif_t, ipv6_addr_from_str, ipv6_addr_t, k
 
 use core::iter::Iterator;
 use core::mem::MaybeUninit;
-use riot_sys::libc;
 use crate::thread::KernelPID;
 use crate::error::{NegativeErrorExt, NumericError};
 
