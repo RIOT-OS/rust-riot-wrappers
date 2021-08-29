@@ -432,7 +432,7 @@ impl<'env, 'id> CountingThreadScope<'env,'id> {
     /// Unlike a (POSIX) wait, this will not block (for there is no SIGCHLDish thing in RIOT --
     /// whoever wants to be notified would need to make their threads send an explicit signal), but
     /// panic if the thread is not actually done yet.
-    pub fn Reap(&mut self, thread: CountedThread<'id>) {
+    pub fn reap(&mut self, thread: CountedThread<'id>) {
         match thread.get_status() {
             Status::Stopped => (),
             _ => panic!("Attempted to reap running process"),
