@@ -27,6 +27,10 @@ fn main() {
             println!("cargo:rustc-cfg=riot_cpu=\"{}\"", flag[11..].to_lowercase());
         }
 
+        if flag == "-DDEVELHELP" {
+            println!("cargo:rustc-cfg=riot_develhelp");
+        }
+
 //         if flag.starts_with("-DRIOT_VERSION=") {
 //             let tail = &flag[15..];
 //             let uptodash = tail
