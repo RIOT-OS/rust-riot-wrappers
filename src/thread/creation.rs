@@ -49,9 +49,7 @@ where
     let tcb = if tcb >= &stack[0] as *const u8 as *mut _
         && tcb <= &stack[stack.len() - 1] as *const u8 as *mut _
     {
-        // unsafety: Assuming that C2Rust and and bindgen agree on the layout -- although it's
-        // actually only a pointer anyway
-        Some(core::mem::transmute(tcb))
+        Some(crate::inline_cast_mut(tcb))
     } else {
         None
     };
@@ -224,6 +222,7 @@ where
 #[derive(Debug)]
 pub struct TrackedThread {
     pid: KernelPID,
+    // If this is None, then the thread was so short-lived that the TCB couldn't even be extracted
     tcb: Option<*mut riot_sys::_thread>,
 }
 
@@ -234,15 +233,22 @@ impl TrackedThread {
 
     /// Like get_status of a KernelPID, but this returnes Stopped if the PID has been re-used after
     /// our thread has stopped.
+    // FIXME: This can probably be simplified a lot by just looking into the TCB if it were
+    // obtained reliably
     pub fn get_status(&self) -> Status {
-        let status = self.pid.get_status();
-        let tcb = unsafe { riot_sys::thread_get(self.pid.0) };
-        // unsafe: transmutation between C2Rust and bindgen pointer
-        let tcb = unsafe { core::mem::transmute(tcb) };
-        if Some(tcb) != self.tcb {
-            Status::Stopped
+        let status = self.pid.status();
+        let tcb = self.pid.thread();
+        if let (Ok(status), Some(tcb), Some(startup_tcb)) =
+            (status, tcb, self.tcb)
+        {
+            if crate::inline_cast(tcb) == startup_tcb {
+                status
+            } else {
+                Status::Stopped
+            }
         } else {
-            status
+            // Thread not in task list, so it's obviousy stopped
+            Status::Stopped
         }
     }
 }
