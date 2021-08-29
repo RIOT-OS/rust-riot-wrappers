@@ -89,7 +89,16 @@ pub struct IPv6AddrList<const MAX: usize> {
 }
 
 impl<const MAX: usize> IPv6AddrList<MAX> {
+    #[deprecated(note = "IPv6AddrList now derefs into a slice")]
     pub fn addresses(&self) -> &[IPv6Addr] {
+        self
+    }
+}
+
+impl<const MAX: usize> core::ops::Deref for IPv6AddrList<MAX> {
+    type Target = [IPv6Addr];
+
+    fn deref(&self) -> &[IPv6Addr] {
         let slice = &self.addresses[..self.len];
         // unsafe: as per "Initializing an array element-by-element" documentation
         unsafe { core::mem::transmute(slice) }
