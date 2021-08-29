@@ -206,7 +206,10 @@ impl KernelPID {
             .ok_or(StackStatsError::NoSuchThread)?;
         #[cfg(riot_develhelp)]
         return Ok(StackStats {
-            start: unsafe { (*thread).stack_start },
+            // This cast is relevant because different platforms (eg. native and arm) disagree on
+            // whether that's an i8 or u8 pointer. Could have made it c_char, but a) don't want to
+            // alter the signatures and b) it's easier to use on the Rust side with a clear type.
+            start: unsafe { (*thread).stack_start as _ },
             size: unsafe { (*thread).stack_size as _ },
             free: unsafe { riot_sys::thread_measure_stack_free((*thread).stack_start) } as usize,
         });
@@ -248,6 +251,7 @@ impl StackStats {
     }
 
     pub fn end(&self) -> *mut i8 {
+        // This is the last legal pointer to construct on this ... last-plus-one rule.
         unsafe { self.start.offset(self.size as isize) }
     }
 
