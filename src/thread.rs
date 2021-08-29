@@ -61,6 +61,7 @@ mod status_converted {
 
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Status {
     // I would not rely on any properties of the assigned values, but it might make the conversion
     // points easier on the generated code if it can be reasoned down to a simple check of whether
@@ -77,6 +78,8 @@ pub enum Status {
     Running = status_converted::STATUS_RUNNING as isize,
     Pending = status_converted::STATUS_PENDING as isize,
 
+    /// A status value not known to riot-wrappers. Don't match for this explicitly: Other values
+    /// may, at any minor riot-wrappers update, become actual process states again.
     Other, // Not making this Other(i32) as by the time this is reached, the code can't react
            // meaningfully to it, and if that shows up in any debug output, someone will need to
            // reproduce this anyway and can hook into from_int then.
@@ -84,8 +87,9 @@ pub enum Status {
 
 impl Status {
     pub fn is_on_runqueue(&self) -> bool {
-        // FIXME: Why don't I get STATUS_ON_RUNQUEUE? Without that, I can just as well check for
-        // being either or.
+        // FIXME: While we do get STATUS_ON_RUNQUEUE, the information about whether an Other is on
+        // the runqueue or not is lost. Maybe split Other up to OtherOnRunqueue and
+        // OtherNotOnRunqueue?
         match self {
             Status::Pending => true,
             Status::Running => true,
