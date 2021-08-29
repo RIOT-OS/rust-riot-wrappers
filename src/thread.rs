@@ -198,6 +198,9 @@ impl KernelPID {
     /// A None being returned can have two reasons:
     /// * The thread does not exist, or
     /// * develhelp is not active.
+    ///
+    /// This is not backed by C functions (as most of the rest of this crate is), but rather a
+    /// practical way to access struct members that may or may not be present in a build.
     pub fn stack_stats(&self) -> Result<StackStats, StackStatsError> {
         let thread = self.thread()
             .ok_or(StackStatsError::NoSuchThread)?;
