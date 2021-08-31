@@ -1,8 +1,18 @@
+//! Access to [messages](https://doc.riot-os.org/group__core__msg.html) by explicit type indication
+//!
+//! ## Safety
+//!
+//! This overall method of sending and receiving messages provides no guarantees that even a
+//! pure-Rust thread doesn't accidentally reuse a number or does something else to misuse
+//! ContainerMsg::recognize; a better interface is WIP
+
 use crate::thread::KernelPID;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 use riot_sys::libc;
 use riot_sys::{self, kernel_pid_t, msg_receive, msg_reply, msg_send, msg_send_receive, msg_t};
+
+pub mod v2;
 
 /// The source of a message
 // Ideally this would be represented in memory 1:1 like a KernelPID, but I can't tell Rust that a
