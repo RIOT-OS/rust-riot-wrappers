@@ -24,15 +24,14 @@
 
 //!
 //! static bignum: u64 = 5;
-//! unsafe {
-//!     let mut t: riot_sys::ztimer_t = Default::default();
-//!     let mut m = riot_sys::msg_t {
-//!         sender_pid: 99,
-//!         type_: 44,
-//!         content: riot_sys::msg_t__bindgen_ty_1 { ptr: &bignum as *const _ as *mut _ },
-//!     };
-//!     riot_sys::ztimer_set_msg(riot_sys::ZTIMER_SEC, &mut t, 4, &mut m, riot_sys::thread_getpid() as _);
-//! }
+//! // Both need to live until the timer is done!
+//! let mut t: riot_sys::ztimer_t = Default::default();
+//! let mut m = riot_sys::msg_t {
+//!     sender_pid: 99,
+//!     type_: 44,
+//!     content: riot_sys::msg_t__bindgen_ty_1 { ptr: &bignum as *const _ as *mut _ },
+//! };
+//! unsafe { riot_sys::ztimer_set_msg(riot_sys::ZTIMER_SEC, &mut t, 4, &mut m, riot_sys::thread_getpid() as _) };
 //!
 //! let code = message_semantics.receive()
 //!     .decode(hello, |s, ()| {
@@ -50,7 +49,7 @@
 //! ```
 
 use core::marker::PhantomData;
-use core::mem::MaybeUninit;
+use core::mem::{MaybeUninit, ManuallyDrop};
 
 use crate::thread;
 
@@ -90,6 +89,28 @@ impl<TYPE: Send, const TYPENO: u16> MessagePort<TYPE, TYPENO> {
 pub struct MessageAddressTicket<'a, TYPE: Send, const TYPENO: u16> {
     destination: thread::KernelPID,
     _phantom: PhantomData<&'a TYPE>,
+}
+
+impl<'a, TYPE: Send, const TYPENO: u16> MessageAddressTicket<'a, TYPE, TYPENO> {
+    // Result does not distinguish between WouldBlock and InvalidPID because the
+    // MessageAddressTicket is live
+    pub fn try_send(&self, data: TYPE) -> Result<(), ()> {
+        let mut msg: riot_sys::msg_t = Default::default();
+        msg.type_ = TYPENO;
+
+        // See decode()
+        let mut incoming = ManuallyDrop::new(data);
+        core::mem::swap(&mut incoming, unsafe { core::mem::transmute(&mut msg.content) });
+
+        let result = unsafe { riot_sys::msg_try_send(&mut msg, self.destination.into()) };
+        // Outside debug, behaves like the thread isn't ready, which is quite accurate for an
+        // invalid one.
+        debug_assert!(result >= 0, "Target PID vanished even though a MessageAddressTicket was still around");
+        match result {
+            1 => Ok(()),
+            _ => Err(()),
+        }
+    }
 }
 
 impl<'a, TYPE: Send, const TYPENO: u16> core::fmt::Debug for MessageAddressTicket<'a, TYPE, TYPENO> {
@@ -218,7 +239,7 @@ impl<S: MessageSemantics> ReceivedMessage<S> {
         Sender::from_pid(self.msg.sender_pid)
     }
 
-    pub fn decode<R, F: FnOnce(Sender, TYPE) -> R, TYPE: Send, const TYPENO: u16>(mut self, _port: MessagePort<TYPE, TYPENO>, f: F) -> Result<R, ReceivedMessage<S>> {
+    pub fn decode<R, F: FnOnce(Sender, TYPE) -> R, TYPE: Send, const TYPENO: u16>(mut self, _port: &MessagePort<TYPE, TYPENO>, f: F) -> Result<R, ReceivedMessage<S>> {
         // Not actually using port, it's just the ZST on which the type constraint rides in
         if self.msg.type_ == TYPENO {
             // This'd be easier if we'd constrain transmuted to Clone...
