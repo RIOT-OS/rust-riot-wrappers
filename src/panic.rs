@@ -1,5 +1,3 @@
-use crate::stdio::println;
-
 #[panic_handler]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     use crate::thread;
@@ -21,12 +19,23 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     // by someone else ever again.
 
     let me = thread::get_pid();
-    println!(
-        "Error in thread {:?} ({}):",
-        me,
-        me.get_name().unwrap_or("unnamed")
-    );
-    println!("{}", info);
+
+    if cfg!(feature = "panic_handler_format") {
+        use crate::stdio::println;
+
+        println!(
+            "Error in thread {:?} ({}):",
+            me,
+            me.get_name().unwrap_or("unnamed")
+        );
+        println!("{}", info);
+    } else {
+        let mut stdio = crate::stdio::Stdio {};
+        use core::fmt::Write;
+        let _ = stdio.write_str("Panic in thread ");
+        let _ = stdio.write_str(me.get_name().unwrap_or("unnamed"));
+        let _ = stdio.write_str("!\n");
+    }
 
     // Not trying any unwinding -- this thread is just dead, won't be re-claimed, any mutexes it
     // holds are just held indefinitely rather than throwing poison errors.

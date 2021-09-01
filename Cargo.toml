@@ -51,8 +51,11 @@ embedded-nal = { version = "0.2.0", optional = true }
 shlex = "0.1.1"
 
 [features]
-default = ["set_panic_handler"]
+default = ["set_panic_handler", "panic_handler_format"]
 set_panic_handler = []
+# If present, the panic handler uses string formatting to produce an error
+# message. Otherwise, it just writes a static panic message to stdout.
+panic_handler_format = []
 
 with_coap_message = ["coap-message" ]
 with_coap_handler = ["coap-handler", "coap-numbers", "with_coap_message"]
