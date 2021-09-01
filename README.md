@@ -63,16 +63,14 @@ and profit from better integration.
 Code conventions
 ----------------
 
-All over the place (until [1344] has been solved), static inline RIOT functions
+In older pieces of code (until [1344] has been solved), static inline RIOT functions
 or expanded macros are used. To keep track of them, comments in the shape of
-``EXPANDED ${FILE}:${LINE}`` are set; current reference for line numbers is
-6b96f69b55442e3e344a43c725c3d0d9087319fa, and I'll still need to find a way to
-update that automatically / make it complain.
+``EXPANDED ${FILE}:${LINE}`` are set (referring to line numbers in RIOT commit 6b96f69b).
 
 [1344]: https://github.com/rust-lang/rust-bindgen/issues/1344
 
 As these are being replaced by using C2Rust idioms, conflicts between C2Rust's
-and bindgen's versions of structs arise, typically around pointers. When these
+and bindgen's versions of structs arise instead, typically around pointers. When these
 are cast away, they're fed through `inline_cast` & co to perform some checks,
 or commented with ``INLINE TRANSMUTE`` for the very hard cases.
 
