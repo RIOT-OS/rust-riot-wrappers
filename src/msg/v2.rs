@@ -5,10 +5,16 @@
 //! [MessageAddressTicket]s can be crated that indicate to message producers that indeed the
 //! indicated thread is ready to accept messages of some type on that message type.
 //!
-//! ## Incomplete
+//! For safety, the module relies on other components not tossing around messages indiscriminately.
+//! Rust components can take a [MessageAddressTicket] and send through that (where objects'
+//! lifetimes guarantee that the receiving task is still prepared to receive the message). For C
+//! components, safe wrappers (TBD: will) require appropriate tickets and from there on rely on the
+//! C side to only send what is described in the API.
 //!
-//! Right now this can only be used for receiving messages, sending is done manually based on the
-//! information in the ticket:
+//! ## Example
+//!
+//! This is not sending from the ports yet (which, in a single process sending to self, would
+//! practically require a queue):
 //!
 //! ```
 //! use riot_wrappers::msg::v2::MessageSemantics;
@@ -144,21 +150,21 @@ pub trait MessageSemantics: Sized {
     /// The conditions for these panics should be evaluatable at build time (i.e. not be part of
     /// optimized code); over time these will hopfully become static assertion errors.
     // No override should be necessary for this, not even for internal impls (see sealing above)
-    fn split_off<TYPE: Send, const NEW_TYPENO: u16>(self) -> (Processing<Self, NEW_TYPENO>, MessagePort<TYPE, NEW_TYPENO>)
+    fn split_off<NEW_TYPE: Send, const NEW_TYPENO: u16>(self) -> (Processing<Self, NEW_TYPE, NEW_TYPENO>, MessagePort<NEW_TYPE, NEW_TYPENO>)
     {
         // Should ideally be a static assert. Checks probably happen at build time anyway due to
         // const propagation, but the panic only triggers at runtime :-(
         assert!(!self.typeno_is_known(NEW_TYPENO), "Type number is already in use for this thread.");
 
         // Similarly static -- better err out early
-        assert!(core::mem::size_of::<TYPE>() <= core::mem::size_of::<riot_sys::msg_t__bindgen_ty_1>(), "Type is too large to be transported in a message");
+        assert!(core::mem::size_of::<NEW_TYPE>() <= core::mem::size_of::<riot_sys::msg_t__bindgen_ty_1>(), "Type is too large to be transported in a message");
 
         // ... and the alignment must suffice because the data is moved in and outthrough a &mut
         // SomethingTransparent<T>
-        assert!(core::mem::align_of::<TYPE>() <= core::mem::align_of::<riot_sys::msg_t__bindgen_ty_1>(), "Type has stricter alignment requirements than the message content");
+        assert!(core::mem::align_of::<NEW_TYPE>() <= core::mem::align_of::<riot_sys::msg_t__bindgen_ty_1>(), "Type has stricter alignment requirements than the message content");
 
         (
-            Processing { tail: self },
+            Processing { tail: self, _type: PhantomData },
             MessagePort { _private: (), _types: PhantomData, _not_send: PhantomData }
         )
     }
@@ -173,6 +179,22 @@ pub trait MessageSemantics: Sized {
             _phantom: PhantomData,
         }
     }
+
+    /// Interpret a message according to these semantics, then drop it.
+    ///
+    ///
+    /// While not essential for safety this does ensure that droppable types are not forgotten when
+    /// sent and not handled, at least if they arrive. (Can't help if someone runs try_send and
+    /// does no error handling).
+    ///
+    /// * If all drops are trivial, this (and the [<ReceivedMessage as Drop>::drop()] caller)
+    ///   should all fold into no code.
+    /// * If code for a nontrivially dropped type comes after a decode(), the compiler should be
+    ///   able to see that b/c that value was ruled out for .type_ just before.
+    ///
+    /// This is unsafe for the same reasons you can't call Drop::drop(&mut T) (the compiler forbids
+    /// it).
+    unsafe fn drop(message: &mut ReceivedMessage<Self>);
 }
 
 pub struct NoConfiguredMessages;
@@ -194,18 +216,44 @@ impl MessageSemantics for NoConfiguredMessages {
     fn typeno_is_known(&self, _typeno: u16) -> bool {
         false
     }
+
+    /// Panicing because if a thread receives unknown messages, it may for the same reason receive
+    /// mistyped messages, and that'd be a safety violation that's better shown in the most visible
+    /// way.
+    ///
+    /// If this is undesired, think twice about whether the source of the message really can't
+    /// happen to send messages of a number this threads expects (and handles as something
+    /// different) as well. If it is still undesired, you can [core::mem::forget()] the message
+    /// after having decoded all desired types.
+    unsafe fn drop(_message: &mut ReceivedMessage<Self>) {
+        panic!("Unexpected message received");
+    }
 }
 
-pub struct Processing<TAIL: MessageSemantics, const TYPENO: u16> {
+pub struct Processing<TAIL: MessageSemantics, TYPE, const TYPENO: u16> {
     tail: TAIL,
+    // Carried around solely to be able to drop messages that did not get decoded. (Otherwise we'd
+    // take solace in the fact that the MessagePort knows how to handle it, and there'll only be
+    // one MessagePort of a given type in a thread, and either that one takes the message or nobody
+    // does and it'd get dropped).
+    _type: PhantomData<TYPE>,
 }
 
-impl<TAIL: MessageSemantics, const TYPENO: u16> MessageSemantics for Processing<TAIL, TYPENO> {
+impl<TAIL: MessageSemantics, TYPE, const TYPENO: u16> MessageSemantics for Processing<TAIL, TYPE, TYPENO> {
     fn typeno_is_known(&self, typeno: u16) -> bool {
         if typeno == TYPENO {
             true
         } else {
             self.tail.typeno_is_known(typeno)
+        }
+    }
+
+    unsafe fn drop(message: &mut ReceivedMessage<Self>) {
+        if message.msg.type_ == TYPENO {
+            let t: TYPE = message.extract();
+            drop(t);
+        } else {
+            TAIL::drop(core::mem::transmute(message))
         }
     }
 }
@@ -227,12 +275,7 @@ impl<S: MessageSemantics> core::fmt::Debug for ReceivedMessage<S> {
 impl<S: MessageSemantics> Drop for ReceivedMessage<S> {
     #[inline]
     fn drop(&mut self) {
-        // TBD: Let S drop it, dropping the type. While not essential for safety this does ensure
-        // that droppable types are not forgotten when sent and not handled, and
-        // * drop code should collapse for all trivially dropped types, and
-        // * if code for a nontrivially dropped type comes from a decode() that catches it, the
-        //   compiler should be able to see that b/c that value was ruled out for .type_ just
-        //   before.
+        unsafe { S::drop(self) };
     }
 }
 
@@ -241,16 +284,30 @@ impl<S: MessageSemantics> ReceivedMessage<S> {
         Sender::from_pid(self.msg.sender_pid)
     }
 
+    #[inline]
+    /// Move the T out of self, leaving the msg partially uninitialized
+    ///
+    /// This can only be used on a type T that a MessagePort was created for.
+    unsafe fn extract<T>(&mut self) -> T {
+        // This'd be easier if we'd constrain transmuted to Clone...
+        let mut transmuted = MaybeUninit::uninit();
+        // Hoping that the compiler is clever and doesn't *really* move data around ... then
+        // again, it's only 4 byte or a pointer...
+        core::mem::swap(&mut transmuted, unsafe { core::mem::transmute(&mut self.msg.content) });
+        unsafe { transmuted.assume_init() }
+    }
+
     pub fn decode<R, F: FnOnce(Sender, TYPE) -> R, TYPE: Send, const TYPENO: u16>(mut self, _port: &MessagePort<TYPE, TYPENO>, f: F) -> Result<R, ReceivedMessage<S>> {
-        // Not actually using port, it's just the ZST on which the type constraint rides in
+        // Not actually using the port argument, it's just the ZST on whose presence the type
+        // constraint rides in. It's more for convenience of calling ("if it came on this port,
+        // do...") than for correctness: The presence of a ReceivedMessage<S> instance suffices to
+        // know from S's construction that TYPENO corresponds to TYPE (it can drop it too if not
+        // decoded, after all).
         if self.msg.type_ == TYPENO {
-            // This'd be easier if we'd constrain transmuted to Clone...
-            let mut transmuted = MaybeUninit::uninit();
-            // Hoping that the compiler is clever and doesn't *really* move data around ... then
-            // again, it's only 4 byte or a pointer...
-            core::mem::swap(&mut transmuted, unsafe { core::mem::transmute(&mut self.msg.content) });
-            let transmuted = unsafe { transmuted.assume_init() };
-            Ok(f(self.sender(), transmuted))
+            let transmuted = unsafe { self.extract() };
+            let sender = self.sender();
+            core::mem::forget(self); // Or else the value would be double-dropped
+            Ok(f(sender, transmuted))
         } else {
             Err(self)
         }
