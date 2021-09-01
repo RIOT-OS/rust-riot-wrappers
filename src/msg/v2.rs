@@ -60,13 +60,21 @@ pub struct MessageAddressTicket<'a, TYPE: Send, const TYPENO: u16> {
 }
 
 impl<'a, TYPE: Send, const TYPENO: u16> MessageAddressTicket<'a, TYPE, TYPENO> {
-    // Result does not distinguish between WouldBlock and InvalidPID because the
-    // MessageAddressTicket is live
-    pub fn try_send(&self, data: TYPE) -> Result<(), ()> {
+    /// Send a message to a given ticket.
+    ///
+    /// On success, the data is received by (or enqueued in, if a queue is set up) the thread
+    /// indicated in the ticket. Otherwise, the data is returned.
+    ///
+    /// Note that while the underlying `msg_try_send` function knows two error cases (thread is not
+    /// ready to receive, and invalid PID), the presence of a MessageAddressTicket implies that the
+    /// thread promised to still be around (it may have crashed, but it can't have exited), so that
+    /// error can not happen here. (If it still does due to errors in unsafe code, trips up a debug
+    /// assert and else is handled like the other failure to send).
+    pub fn try_send(&self, data: TYPE) -> Result<(), TYPE> {
         let mut msg: riot_sys::msg_t = Default::default();
         msg.type_ = TYPENO;
 
-        // See decode()
+        // See extract(); this is the reverse
         let mut incoming = ManuallyDrop::new(data);
         core::mem::swap(&mut incoming, unsafe { core::mem::transmute(&mut msg.content) });
 
@@ -76,7 +84,11 @@ impl<'a, TYPE: Send, const TYPENO: u16> MessageAddressTicket<'a, TYPE, TYPENO> {
         debug_assert!(result >= 0, "Target PID vanished even though a MessageAddressTicket was still around");
         match result {
             1 => Ok(()),
-            _ => Err(()),
+            _ => {
+                // Swap back to return; the raw msg will be dropped unceremoniously.
+                core::mem::swap(&mut incoming, unsafe { core::mem::transmute(&mut msg.content) });
+                Err(ManuallyDrop::into_inner(incoming))
+            },
         }
     }
 }
