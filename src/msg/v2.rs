@@ -15,6 +15,12 @@
 //!
 //! A comprehensive example of how this is currently used is maintained in [the msg_tests
 //! example](https://gitlab.com/etonomy/riot-examples/-/blob/master/msg_tests/src/lib.rs).
+//!
+//! ## Stability
+//!
+//! This module is still WIP and not subject to the semver-ish conduct upheld even in pre-1.0
+//! versions of riot-wrappers. The module is hidden behind the `with_msg_v2` feature to make that
+//! clear.
 
 use core::marker::PhantomData;
 use core::mem::{MaybeUninit, ManuallyDrop};

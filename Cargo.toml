@@ -60,3 +60,7 @@ panic_handler_format = []
 with_coap_message = ["coap-message" ]
 with_coap_handler = ["coap-handler", "coap-numbers", "with_coap_message"]
 with_embedded_nal = ["embedded-nal"]
+
+# See msg::v2 documentation. Enabling this exposes components not under semver
+# guarantees.
+with_msg_v2 = []

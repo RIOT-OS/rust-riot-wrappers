@@ -12,6 +12,7 @@ use core::mem::MaybeUninit;
 use riot_sys::libc;
 use riot_sys::{self, kernel_pid_t, msg_receive, msg_reply, msg_send, msg_send_receive, msg_t};
 
+#[cfg(feature = "with_msg_v2")]
 pub mod v2;
 
 /// The source of a message
