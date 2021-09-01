@@ -13,7 +13,8 @@ fn main() {
 
     for flag in cflags.iter() {
         if flag.starts_with("-DMODULE_") {
-            println!("cargo:rustc-cfg=riot_module_{}", flag[9..].to_lowercase());
+            // Some modules like cmsis-dsp_StatisticsFunctions have funny characters
+            println!("cargo:rustc-cfg=riot_module_{}", flag[9..].to_lowercase().replace("-", "_"));
         }
 
         if flag.starts_with("-DRIOT_BOARD=") {
