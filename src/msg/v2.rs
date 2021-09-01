@@ -153,7 +153,9 @@ pub trait MessageSemantics: Sized {
         // Similarly static -- better err out early
         assert!(core::mem::size_of::<TYPE>() <= core::mem::size_of::<riot_sys::msg_t__bindgen_ty_1>(), "Type is too large to be transported in a message");
 
-        // FIXME: Same for alignment
+        // ... and the alignment must suffice because the data is moved in and outthrough a &mut
+        // SomethingTransparent<T>
+        assert!(core::mem::align_of::<TYPE>() <= core::mem::align_of::<riot_sys::msg_t__bindgen_ty_1>(), "Type has stricter alignment requirements than the message content");
 
         (
             Processing { tail: self },
