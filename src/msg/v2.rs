@@ -13,46 +13,8 @@
 //!
 //! ## Example
 //!
-//! This is not sending from the ports yet (which, in a single process sending to self, would
-//! practically require a queue):
-//!
-//! ```
-//! use riot_wrappers::msg::v2::MessageSemantics;
-//!
-//! let message_semantics = unsafe { riot_wrappers::msg::v2::NoConfiguredMessages::new() };
-//! type HelloPort = riot_wrappers::msg::v2::MessagePort<(), 42>;
-//! type HelloPort2 = riot_wrappers::msg::v2::MessagePort<&'static u64, 44>;
-//! let (message_semantics, hello): (_, HelloPort) = message_semantics.split_off();
-//! let (message_semantics, hello2): (_, HelloPort2) = message_semantics.split_off();
-//!
-//! println!("You may now send me messages on {:?}", hello2.ticket());
-//! // You may now send me messages on MessageAddressTicket<&u64, 44> { destination: KernelPID(2) }
-
-//!
-//! static bignum: u64 = 5;
-//! // Both need to live until the timer is done!
-//! let mut t: riot_sys::ztimer_t = Default::default();
-//! let mut m = riot_sys::msg_t {
-//!     sender_pid: 99,
-//!     type_: 44,
-//!     content: riot_sys::msg_t__bindgen_ty_1 { ptr: &bignum as *const _ as *mut _ },
-//! };
-//! unsafe { riot_sys::ztimer_set_msg(riot_sys::ZTIMER_SEC, &mut t, 4, &mut m, riot_sys::thread_getpid() as _) };
-//!
-//! let code = message_semantics.receive()
-//!     .decode(hello, |s, ()| {
-//!         println!("Hello received from {:?}", s);
-//!         "h"
-//!     })
-//!     .or_else(|m| m.decode(hello2, |s, n| {
-//!         println!("Number {} received from {:?}", n, s);
-//!         "n"
-//!     }))
-//!     .expect("Wow, an unexpected message");
-//! // Number 5 received from ISR
-//! println!("Result code {}", code);
-//! // Result code n
-//! ```
+//! A comprehensive example of how this is currently used is maintained in [the msg_tests
+//! example](https://gitlab.com/etonomy/riot-examples/-/blob/master/msg_tests/src/lib.rs).
 
 use core::marker::PhantomData;
 use core::mem::{MaybeUninit, ManuallyDrop};
