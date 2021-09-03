@@ -124,6 +124,9 @@ pub mod ws281x;
 #[cfg(riot_module_microbit)]
 pub mod microbit;
 
+#[cfg(riot_module_vfs)]
+pub mod vfs;
+
 pub mod interrupt;
 #[path = "main_module.rs"]
 pub mod main;
