@@ -34,10 +34,7 @@ where
 {
     type RequestData = Option<H::RequestData>;
 
-    fn extract_request_data<'a>(
-        &mut self,
-        request: &'a impl ReadableMessage,
-    ) -> Self::RequestData {
+    fn extract_request_data<'a>(&mut self, request: &'a impl ReadableMessage) -> Self::RequestData {
         self.try_lock().map(|mut h| h.extract_request_data(request))
     }
 

@@ -41,18 +41,14 @@ impl<T> Mutex<T> {
     /// Get an accessor to the mutex when the mutex is available
     #[doc(alias = "mutex_lock")]
     pub fn lock(&self) -> MutexGuard<T> {
-        unsafe {
-            riot_sys::mutex_lock(crate::inline_cast_mut(self.mutex.get()))
-        };
+        unsafe { riot_sys::mutex_lock(crate::inline_cast_mut(self.mutex.get())) };
         MutexGuard { mutex: &self }
     }
 
     /// Get an accessor to the mutex if the mutex is available
     #[doc(alias = "mutex_trylock")]
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        match unsafe {
-            riot_sys::mutex_trylock(self.mutex.get())
-        } {
+        match unsafe { riot_sys::mutex_trylock(self.mutex.get()) } {
             1 => Some(MutexGuard { mutex: &self }),
             _ => None,
         }

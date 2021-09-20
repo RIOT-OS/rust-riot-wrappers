@@ -56,16 +56,24 @@ pub enum SeekFrom {
 impl File {
     /// Open a file in read-only mode.
     pub fn open(path: &str) -> Result<Self, NumericError> {
-        let fileno = unsafe { riot_sys::vfs_open(path as *const str as *const libc::c_char, riot_sys::O_RDONLY as _, 0) }
-            .negative_to_error()?;
-        Ok(File { fileno, _not_send_sync: PhantomData })
+        let fileno = unsafe {
+            riot_sys::vfs_open(
+                path as *const str as *const libc::c_char,
+                riot_sys::O_RDONLY as _,
+                0,
+            )
+        }
+        .negative_to_error()?;
+        Ok(File {
+            fileno,
+            _not_send_sync: PhantomData,
+        })
     }
-    
+
     /// Obtain metadata of the file.
     pub fn stat(&self) -> Result<Stat, NumericError> {
         let mut stat = MaybeUninit::uninit();
-        (unsafe { riot_sys::vfs_fstat(self.fileno, stat.as_mut_ptr()) })
-            .negative_to_error()?;
+        (unsafe { riot_sys::vfs_fstat(self.fileno, stat.as_mut_ptr()) }).negative_to_error()?;
         let stat = unsafe { stat.assume_init() };
         Ok(Stat(stat))
     }
@@ -73,13 +81,15 @@ impl File {
     /// Read into the given buffer from the current cursor position in the file, and advance the
     /// cursor by the read length, which is also returned.
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, NumericError> {
-        (unsafe { riot_sys::vfs_read(
-                    self.fileno,
-                    buf.as_mut_ptr() as *mut libc::c_void,
-                    buf.len() as _,
-                    )})
-            .negative_to_error()
-            .map(|len| len as _)
+        (unsafe {
+            riot_sys::vfs_read(
+                self.fileno,
+                buf.as_mut_ptr() as *mut libc::c_void,
+                buf.len() as _,
+            )
+        })
+        .negative_to_error()
+        .map(|len| len as _)
     }
 
     /// Move the file cursor to the indicated position.
@@ -89,11 +99,7 @@ impl File {
             SeekFrom::Current(i) => (i as _, riot_sys::SEEK_CUR as _),
             SeekFrom::End(i) => (i as _, riot_sys::SEEK_END as _),
         };
-        (unsafe { riot_sys::vfs_lseek(
-                    self.fileno,
-                    off,
-                    whence
-                    )})
+        (unsafe { riot_sys::vfs_lseek(self.fileno, off, whence) })
             .negative_to_error()
             .map(|r| r as _)
     }
@@ -114,11 +120,10 @@ pub struct Dir(riot_sys::vfs_DIR);
 impl Dir {
     pub fn open(dir: &str) -> Result<Self, NumericError> {
         let mut dirp = MaybeUninit::uninit();
-        (unsafe { riot_sys::vfs_opendir(
-                    dirp.as_mut_ptr(),
-                    dir as *const str as *const libc::c_char,
-                    )})
-            .negative_to_error()?;
+        (unsafe {
+            riot_sys::vfs_opendir(dirp.as_mut_ptr(), dir as *const str as *const libc::c_char)
+        })
+        .negative_to_error()?;
         let dirp = unsafe { dirp.assume_init() };
         Ok(Dir(dirp))
     }

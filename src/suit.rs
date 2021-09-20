@@ -43,8 +43,8 @@ pub mod coap {
                         .map(trigger)
                         .map(|()| coap_numbers::code::CHANGED)
                         .unwrap_or(coap_numbers::code::BAD_REQUEST)
-                },
-                _ => coap_numbers::code::METHOD_NOT_ALLOWED
+                }
+                _ => coap_numbers::code::METHOD_NOT_ALLOWED,
             }
         }
 
@@ -52,9 +52,18 @@ pub mod coap {
             1
         }
 
-        fn build_response(&mut self, response: &mut impl coap_message::MutableWritableMessage, request: Self::RequestData) {
+        fn build_response(
+            &mut self,
+            response: &mut impl coap_message::MutableWritableMessage,
+            request: Self::RequestData,
+        ) {
             use core::convert::TryInto;
-            response.set_code(request.try_into().map_err(|_| ()).expect("Message can't even express basic response codes"));
+            response.set_code(
+                request
+                    .try_into()
+                    .map_err(|_| ())
+                    .expect("Message can't even express basic response codes"),
+            );
             response.set_payload(b"");
         }
     }

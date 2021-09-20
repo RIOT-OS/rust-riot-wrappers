@@ -25,9 +25,7 @@ impl<const HZ: u32> ZTimer<HZ> {
     ///
     /// Wraps [ztimer_spin](https://riot-os.org/api/group__sys__ztimer.html#ga9de3d9e3290746b856bb23eb2dccaa7c)
     pub fn spin_ticks(&self, duration: u32) {
-        unsafe {
-            riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration)
-        };
+        unsafe { riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration) };
     }
 
     /// Pause the current thread for the given duration.

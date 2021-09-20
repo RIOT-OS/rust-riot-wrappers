@@ -21,9 +21,9 @@
 //!
 //! [SAUL]: https://riot-os.org/api/group__drivers__saul.html
 
+use cstr_core::CStr;
 use riot_sys as raw;
 use riot_sys::libc;
-use cstr_core::CStr;
 
 use crate::error;
 use error::NegativeErrorExt;
@@ -65,7 +65,10 @@ pub trait Drivable: Sized + Sync {
         let device = &*(dev as *const Self);
         let data = *data;
         // PHYDAT_DIM: See write documentation
-        let data = Phydat { values: data, length: riot_sys::PHYDAT_DIM as _};
+        let data = Phydat {
+            values: data,
+            length: riot_sys::PHYDAT_DIM as _,
+        };
         match Self::write(device, &data) {
             Ok(n) => n as _,
             // The only legal device error -- ENOTSUP would mean there's no handler at all
@@ -111,12 +114,7 @@ pub struct Registration<'a, D: Drivable> {
 unsafe impl<'a, D: Drivable> Send for Registration<'a, D> {}
 
 impl<'a, D: Drivable> Registration<'a, D> {
-    pub fn new(
-        driver: &Driver<D>,
-        device: &D,
-        name: Option<&CStr>
-    ) -> Self
-    {
+    pub fn new(driver: &Driver<D>, device: &D, name: Option<&CStr>) -> Self {
         Registration {
             reg: riot_sys::saul_reg_t {
                 next: 0 as _,
@@ -154,20 +152,15 @@ impl RegistryEntry {
     pub fn nth(pos: usize) -> Option<Self> {
         // unsafe: all positions are valid, and if it's not null, it's a static pointer as SAUL
         // registrations can't really be removed.
-        (unsafe {
-            riot_sys::saul_reg_find_nth(pos as _)
-                .as_mut()
-        }).map(|r| RegistryEntry(r))
+        (unsafe { riot_sys::saul_reg_find_nth(pos as _).as_mut() }).map(|r| RegistryEntry(r))
     }
 
-    pub fn all() -> impl Iterator<Item=Self> {
+    pub fn all() -> impl Iterator<Item = Self> {
         // Could alternatively be implemented by hopping through the list's next pointer -- more
         // efficient, but relies on internals that are not part of the API
         //
         // (The shell command in sc_saul_reg also jumps through next, but that's in-tree.)
-        (0..)
-            .map(|n| Self::nth(n))
-            .map_while(|p| p)
+        (0..).map(|n| Self::nth(n)).map_while(|p| p)
     }
 
     pub fn type_(&self) -> Option<Class> {
@@ -178,13 +171,13 @@ impl RegistryEntry {
 
     pub fn name(&self) -> Option<&'static str> {
         // unsafe: Registrations are stable, and point to null-terminated strings or are NULL.
-        unsafe { Some((*self.0).name
-            .as_ref()
-            .map(|s| {
-                CStr::from_ptr(s as _)
-                    .to_str()
-                    .ok()
-            })??)
+        unsafe {
+            Some(
+                (*self.0)
+                    .name
+                    .as_ref()
+                    .map(|s| CStr::from_ptr(s as _).to_str().ok())??,
+            )
         }
     }
 
@@ -205,10 +198,14 @@ impl RegistryEntry {
     /// the returned length is expressed as an error.
     pub fn write(&self, value: Phydat) -> Result<(), error::NumericError> {
         // Value copied as we can't really be sure that no SAUL device will ever write here
-        let length = unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }.negative_to_error()?;
+        let length =
+            unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }
+                .negative_to_error()?;
         if length != value.length.into() {
             // FIXME is this the best way to express the error?
-            Err(error::NumericError { number: length as isize })
+            Err(error::NumericError {
+                number: length as isize,
+            })
         } else {
             Ok(())
         }
@@ -237,7 +234,7 @@ impl Phydat {
             values: riot_sys::phydat_t {
                 val,
                 unit: Unit::to_c(unit),
-                scale: scale
+                scale: scale,
             },
             length: data.len() as _,
         }
@@ -264,7 +261,7 @@ impl core::fmt::Debug for Phydat {
             self.value(),
             self.scale(),
             self.unit()
-            )
+        )
     }
 }
 
@@ -295,13 +292,13 @@ impl core::fmt::Display for Phydat {
 #[derive(Copy, Clone, Debug)]
 pub enum Class {
     Actuator(Option<ActuatorClass>),
-    Sensor(Option<SensorClass>)
+    Sensor(Option<SensorClass>),
 }
 
 impl Class {
     fn from_c(input: u8) -> Option<Class> {
-        use Class::*;
         use ActuatorClass::*;
+        use Class::*;
         use SensorClass::*;
 
         match input as _ {
@@ -342,13 +339,13 @@ impl Class {
             riot_sys::SAUL_SENSE_SIZE => Some(Sensor(Some(Size))),
             x if x & riot_sys::SAUL_CAT_MASK == riot_sys::SAUL_CAT_ACT => Some(Actuator(None)),
             x if x & riot_sys::SAUL_CAT_MASK == riot_sys::SAUL_CAT_SENSE => Some(Sensor(None)),
-            _ => None
+            _ => None,
         }
     }
 
     fn to_c(self) -> u8 {
-        use Class::*;
         use ActuatorClass::*;
+        use Class::*;
         use SensorClass::*;
 
         (match self {
@@ -481,7 +478,7 @@ pub enum Unit {
 
 impl Unit {
     fn from_c(input: u8) -> Option<Self> {
-        match input as _{
+        match input as _ {
             riot_sys::UNIT_NONE => Some(Unit::None),
             riot_sys::UNIT_TEMP_C => Some(Unit::TempC),
             riot_sys::UNIT_TEMP_F => Some(Unit::TempF),

@@ -71,8 +71,7 @@ impl<'a> UdpSocket<'a> {
 
 impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
     /// Take one of the stack accessor's allocated slots
-    fn allocate(&self) -> Result<*mut riot_sys::sock_udp, NumericError>
-    {
+    fn allocate(&self) -> Result<*mut riot_sys::sock_udp, NumericError> {
         let index = self.stack.udp_sockets_used.get();
         if index == UDPCOUNT {
             return Err(NumericError::from_constant(riot_sys::ENOMEM as _));
@@ -104,9 +103,11 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
             riot_sys::sock_udp_create(
                 socket,
                 local.as_ref(),
-                remote.map(|r| {
-                    let r: &riot_sys::sock_udp_ep_t = r.as_ref();
-                    r as *const _})
+                remote
+                    .map(|r| {
+                        let r: &riot_sys::sock_udp_ep_t = r.as_ref();
+                        r as *const _
+                    })
                     .unwrap_or(core::ptr::null()),
                 0,
             )
@@ -132,15 +133,12 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
         Ok(UdpSocket { socket: None })
     }
 
-    fn connect(
-        &self,
-        handle: &mut Self::UdpSocket,
-        remote: SocketAddr,
-    ) -> Result<(), Self::Error> {
+    fn connect(&self, handle: &mut Self::UdpSocket, remote: SocketAddr) -> Result<(), Self::Error> {
         let local = match remote {
             SocketAddr::V4(_) => riot_sys::init_SOCK_IPV4_EP_ANY(),
             SocketAddr::V6(_) => riot_sys::init_SOCK_IPV6_EP_ANY(),
-        }.into();
+        }
+        .into();
 
         let remote = remote.into();
 
@@ -184,9 +182,9 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
                 crate::inline_cast_mut(remote.as_mut_ptr() as *mut _),
             )
         })
-            .negative_to_error()
-            .map(|e| e as usize)
-            .map_err(|e| e.again_is_wouldblock());
+        .negative_to_error()
+        .map(|e| e as usize)
+        .map_err(|e| e.again_is_wouldblock());
 
         // unsafe: Set by C function
         let remote = UdpEp(unsafe { remote.assume_init() });
@@ -202,13 +200,17 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
 
 impl<'a, const UDPCOUNT: usize> embedded_nal::UdpServer for StackAccessor<'a, UDPCOUNT> {
     fn bind(&self, handle: &mut UdpSocket<'a>, port: u16) -> Result<(), Self::Error> {
-        let local = UdpEp::ipv6_any()
-            .with_port(port);
+        let local = UdpEp::ipv6_any().with_port(port);
 
         self.create(handle, &local, None)
     }
 
-    fn send_to(&self, handle: &mut UdpSocket<'a>, remote: SocketAddr, buffer: &[u8]) -> Result<(), nb::Error<Self::Error>> {
+    fn send_to(
+        &self,
+        handle: &mut UdpSocket<'a>,
+        remote: SocketAddr,
+        buffer: &[u8],
+    ) -> Result<(), nb::Error<Self::Error>> {
         let socket = handle.access()?;
 
         let remote: UdpEp = remote.into();

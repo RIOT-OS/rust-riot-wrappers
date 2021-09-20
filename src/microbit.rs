@@ -2,14 +2,19 @@
 //!
 //! [microbit module]: https://doc.riot-os.org/group__boards__common__microbit.html
 
-
-use embedded_graphics::{DrawTarget, pixelcolor::BinaryColor, geometry::Size, drawable::Pixel, geometry::Point};
+use embedded_graphics::{
+    drawable::Pixel,
+    geometry::Point,
+    geometry::Size,
+    pixelcolor::BinaryColor,
+    DrawTarget,
+};
 
 /// The 5x5 LED matrix of the micro:bit boards
 ///
 /// Use the [embedded_hal] mechanisms to paint on them.
 pub struct LEDs {
-    _private: ()
+    _private: (),
 }
 
 impl LEDs {
@@ -36,6 +41,9 @@ impl DrawTarget<BinaryColor> for LEDs {
     }
 
     fn size(&self) -> Size {
-        Size::new(riot_sys::MICROBIT_MATRIX_COLS, riot_sys::MICROBIT_MATRIX_ROWS)
+        Size::new(
+            riot_sys::MICROBIT_MATRIX_COLS,
+            riot_sys::MICROBIT_MATRIX_ROWS,
+        )
     }
 }

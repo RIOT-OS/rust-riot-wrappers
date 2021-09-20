@@ -13,9 +13,9 @@
 //!   methods.
 
 use crate::{mutex, stdio};
-use riot_sys::libc;
-use riot_sys::{shell_command_t, shell_run_once, shell_run_forever};
 use cstr_core::CStr;
+use riot_sys::libc;
+use riot_sys::{shell_command_t, shell_run_forever, shell_run_once};
 
 /// Newtype around an (argc, argv) C style string array that presents itself as much as an `&'a
 /// [&'a str]` as possible. (Slicing is not implemented for reasons of laziness).
@@ -34,12 +34,16 @@ impl<'a> Args<'a> {
     ///
     /// argv must be a valid pointer, and its first argc items must be valid pointers. The
     /// underlying char strings do not need to be valid UTF-8, but must be null terminated.
-    pub unsafe fn new(argc: libc::c_int, argv: *const *const libc::c_char, _lifetime_marker: &'a ()) -> Self {
+    pub unsafe fn new(
+        argc: libc::c_int,
+        argv: *const *const libc::c_char,
+        _lifetime_marker: &'a (),
+    ) -> Self {
         Args(core::slice::from_raw_parts(argv as _, argc as usize))
     }
 
     /// Returns an iterator over the arguments.
-    pub fn iter(&self) -> impl Iterator<Item=&'a str> + ExactSizeIterator {
+    pub fn iter(&self) -> impl Iterator<Item = &'a str> + ExactSizeIterator {
         let backing = self.0;
         (0..self.0.len()).map(move |i| Self::index(backing, i))
     }
@@ -108,13 +112,16 @@ pub unsafe trait CommandListInternals: Sized {
     fn run_any<R, F: Fn(*const riot_sys::shell_command_t, *mut libc::c_char, i32) -> R>(
         &mut self,
         linebuffer: &mut [u8],
-        cb: F
+        cb: F,
     ) -> R {
         let mut global = CURRENT_SHELL_RUNNER.lock();
         // Actually, if we really needed this, *and* could be sure that the shells are strictly
         // nested and not just started in parallel threads (how would we?), we could just stash
         // away the other callback, do our thing and revert it before leaving this function.
-        assert!(global.is_none(), "Simultaneously running shells are not supported");
+        assert!(
+            global.is_none(),
+            "Simultaneously running shells are not supported"
+        );
 
         let built = self.build_shell_command::<Self>();
 
@@ -128,7 +135,11 @@ pub unsafe trait CommandListInternals: Sized {
 
         // unsafe: The cast is legitimized by the convention of all Built being constructed to give
         // a null-terminated array
-        let result = cb(&built as *const _ as *const riot_sys::shell_command_t, linebuffer.as_mut_ptr() as _, linebuffer.len() as _);
+        let result = cb(
+            &built as *const _ as *const riot_sys::shell_command_t,
+            linebuffer.as_mut_ptr() as _,
+            linebuffer.len() as _,
+        );
 
         CURRENT_SHELL_RUNNER.lock().take();
 
@@ -137,7 +148,12 @@ pub unsafe trait CommandListInternals: Sized {
 
     /// Run your own callback with argc and argv if the called argument is what the implementation
     /// put into its own entry of its Built, or defer to its next.
-    fn find_self_and_run(&mut self, argc: i32, argv: *mut *mut libc::c_char, command_index: usize) -> i32;
+    fn find_self_and_run(
+        &mut self,
+        argc: i32,
+        argv: *mut *mut libc::c_char,
+        command_index: usize,
+    ) -> i32;
 
     #[inline(never)]
     fn find_root_and_run(argc: i32, argv: *mut *mut libc::c_char, command_index: usize) -> i32 {
@@ -166,7 +182,9 @@ pub trait CommandList: CommandListInternals {
     /// [shell_run_once]: https://riot-os.org/api/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
     fn run_once(&mut self, linebuffer: &mut [u8]) {
         // unsafe: See unsafe in run_any where it's called
-        self.run_any(linebuffer, |built, buf, len| unsafe { shell_run_once(built, buf, len) })
+        self.run_any(linebuffer, |built, buf, len| unsafe {
+            shell_run_once(built, buf, len)
+        })
     }
 
     /// Run the shell prompt on stdio
@@ -176,7 +194,10 @@ pub trait CommandList: CommandListInternals {
     /// [shell_run_forever]: https://riot-os.org/api/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
     fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
         // unsafe: See unsafe in run_any where it's called
-        self.run_any(linebuffer, |built, buf, len| unsafe { shell_run_forever(built as _, buf, len); unreachable!() })
+        self.run_any(linebuffer, |built, buf, len| unsafe {
+            shell_run_forever(built as _, buf, len);
+            unreachable!()
+        })
     }
 
     /// Extend the list of commands by an additional one.
@@ -193,7 +214,7 @@ pub trait CommandList: CommandListInternals {
             name,
             desc,
             handler,
-            next: self
+            next: self,
         }
     }
 }
@@ -229,7 +250,7 @@ pub struct BuiltCommand<NextBuilt> {
 ///
 /// (Exposed publicly as the [`CommandList::and`] trait method can not return an `impl CommandList`
 /// yet)
-pub struct Command<'a, Next, H, T=i32>
+pub struct Command<'a, Next, H, T = i32>
 where
     Next: CommandListInternals,
     H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
@@ -258,7 +279,10 @@ where
     /// jumps are from a contiguous small range (think `match ... {1 => one(), 2 => two(), _ =>
     /// panic!()}` rather than arbitrary large numbers; the compiler range check once and then pick
     /// the jump address from a table).
-    extern "C" fn handle<Root: CommandListInternals>(argc: i32, argv: *mut *mut libc::c_char) -> i32 {
+    extern "C" fn handle<Root: CommandListInternals>(
+        argc: i32,
+        argv: *mut *mut libc::c_char,
+    ) -> i32 {
         Root::find_root_and_run(argc, argv, Self::tailsize())
     }
 
@@ -266,7 +290,8 @@ where
     ///
     /// Usef for finding the own instance again, see handle documentation.
     const fn tailsize() -> usize {
-        core::mem::size_of::<<Self as CommandListInternals>::Built>() / core::mem::size_of::<shell_command_t>()
+        core::mem::size_of::<<Self as CommandListInternals>::Built>()
+            / core::mem::size_of::<shell_command_t>()
     }
 }
 
@@ -293,8 +318,12 @@ where
     // should really be treated like a match by the optimizer, and not accumulate stack frames for
     // the commands deep down in the tree.
     #[inline]
-    fn find_self_and_run(&mut self, argc: i32, argv: *mut *mut libc::c_char, command_index: usize) -> i32
-    {
+    fn find_self_and_run(
+        &mut self,
+        argc: i32,
+        argv: *mut *mut libc::c_char,
+        command_index: usize,
+    ) -> i32 {
         if command_index == Self::tailsize() {
             let marker = ();
             let args = unsafe { Args::new(argc, argv as _, &marker) };
@@ -314,7 +343,8 @@ where
     Next: CommandListInternals,
     H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
     T: crate::main::Termination,
-{}
+{
+}
 
 struct CommandListEnd;
 
@@ -330,8 +360,12 @@ unsafe impl CommandListInternals for CommandListEnd {
     }
 
     #[inline]
-    fn find_self_and_run(&mut self, _argc: i32, _argv: *mut *mut libc::c_char, _command_index: usize) -> i32
-    {
+    fn find_self_and_run(
+        &mut self,
+        _argc: i32,
+        _argv: *mut *mut libc::c_char,
+        _command_index: usize,
+    ) -> i32 {
         panic!("No handler claimed the callback");
     }
 }
@@ -405,15 +439,17 @@ macro_rules! static_command {
             #[export_name = concat!("shell_commands_xfa_5_", stringify!($modname))]
             static THE_POINTER: &StaticCommand = &THE_STRUCT;
 
-            unsafe extern "C" fn the_function(argc: i32, argv: *mut *mut riot_sys::libc::c_char) -> i32 {
+            unsafe extern "C" fn the_function(
+                argc: i32,
+                argv: *mut *mut riot_sys::libc::c_char,
+            ) -> i32 {
                 let marker = ();
                 let args = unsafe { $crate::shell::Args::new(argc, argv as _, &marker) };
                 let mut stdio = $crate::stdio::Stdio {};
                 use $crate::main::Termination;
-                $fun(&mut stdio, args)
-                    .report()
+                $fun(&mut stdio, args).report()
             }
         }
-    }
+    };
 }
 pub use static_command;

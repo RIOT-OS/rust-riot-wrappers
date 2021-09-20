@@ -1,9 +1,9 @@
-use super::{KernelPID, Status, CStr};
+use super::{CStr, KernelPID, Status};
 
+use core::intrinsics::transmute;
+use core::marker::PhantomData;
 use riot_sys as raw;
 use riot_sys::libc;
-use core::marker::PhantomData;
-use core::intrinsics::transmute;
 
 /// Internal helper that does all the casting but relies on the caller to establish appropriate
 /// lifetimes.
@@ -68,7 +68,10 @@ pub fn scope<'env, F, R>(callback: F) -> R
 where
     F: for<'id> FnOnce(&mut CountingThreadScope<'env, 'id>) -> R,
 {
-    let mut s = CountingThreadScope { threads: 0, _phantom: PhantomData };
+    let mut s = CountingThreadScope {
+        threads: 0,
+        _phantom: PhantomData,
+    };
 
     let ret = callback(&mut s);
 
@@ -108,7 +111,7 @@ pub struct CountingThreadScope<'env, 'id> {
     _phantom: PhantomData<(&'env (), &'id ())>,
 }
 
-impl<'env, 'id> CountingThreadScope<'env,'id> {
+impl<'env, 'id> CountingThreadScope<'env, 'id> {
     /// Start a thread in the given stack, in which the closure is run. The thread gets a human
     /// readable name (ignored in no-DEVHELP mode), and is started with the priority and flags as
     /// per thread_create documentation.
@@ -248,9 +251,7 @@ impl TrackedThread {
     pub fn status(&self) -> Status {
         let status = self.pid.status();
         let tcb = self.pid.thread();
-        if let (Ok(status), Some(tcb), Some(startup_tcb)) =
-            (status, tcb, self.tcb)
-        {
+        if let (Ok(status), Some(tcb), Some(startup_tcb)) = (status, tcb, self.tcb) {
             if crate::inline_cast(tcb) == startup_tcb {
                 status
             } else {

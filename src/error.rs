@@ -36,7 +36,10 @@ impl NumericError {
     ///
     /// In debug mode, this ensures that the given error is greater than zero.
     pub fn from_constant(name: isize) -> Self {
-        debug_assert!(name > 0, "Error names are expected to be positive for conversion into negative error numbers.");
+        debug_assert!(
+            name > 0,
+            "Error names are expected to be positive for conversion into negative error numbers."
+        );
         NumericError { number: -name }
     }
 

@@ -23,7 +23,7 @@
 //! clear.
 
 use core::marker::PhantomData;
-use core::mem::{MaybeUninit, ManuallyDrop};
+use core::mem::{ManuallyDrop, MaybeUninit};
 
 use crate::thread;
 
@@ -82,26 +82,41 @@ impl<'a, TYPE: Send, const TYPENO: u16> MessageAddressTicket<'a, TYPE, TYPENO> {
 
         // See extract(); this is the reverse
         let mut incoming = ManuallyDrop::new(data);
-        core::mem::swap(&mut incoming, unsafe { core::mem::transmute(&mut msg.content) });
+        core::mem::swap(&mut incoming, unsafe {
+            core::mem::transmute(&mut msg.content)
+        });
 
         let result = unsafe { riot_sys::msg_try_send(&mut msg, self.destination.into()) };
         // Outside debug, behaves like the thread isn't ready, which is quite accurate for an
         // invalid one.
-        debug_assert!(result >= 0, "Target PID vanished even though a MessageAddressTicket was still around");
+        debug_assert!(
+            result >= 0,
+            "Target PID vanished even though a MessageAddressTicket was still around"
+        );
         match result {
             1 => Ok(()),
             _ => {
                 // Swap back to return; the raw msg will be dropped unceremoniously.
-                core::mem::swap(&mut incoming, unsafe { core::mem::transmute(&mut msg.content) });
+                core::mem::swap(&mut incoming, unsafe {
+                    core::mem::transmute(&mut msg.content)
+                });
                 Err(ManuallyDrop::into_inner(incoming))
-            },
+            }
         }
     }
 }
 
-impl<'a, TYPE: Send, const TYPENO: u16> core::fmt::Debug for MessageAddressTicket<'a, TYPE, TYPENO> {
+impl<'a, TYPE: Send, const TYPENO: u16> core::fmt::Debug
+    for MessageAddressTicket<'a, TYPE, TYPENO>
+{
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        write!(f, "MessageAddressTicket<{}, {}> {{ destination: {:?} }}", core::any::type_name::<TYPE>(), TYPENO, self.destination)
+        write!(
+            f,
+            "MessageAddressTicket<{}, {}> {{ destination: {:?} }}",
+            core::any::type_name::<TYPE>(),
+            TYPENO,
+            self.destination
+        )
     }
 }
 
@@ -130,22 +145,44 @@ pub trait MessageSemantics: Sized {
     /// The conditions for these panics should be evaluatable at build time (i.e. not be part of
     /// optimized code); over time these will hopfully become static assertion errors.
     // No override should be necessary for this, not even for internal impls (see sealing above)
-    fn split_off<NEW_TYPE: Send, const NEW_TYPENO: u16>(self) -> (Processing<Self, NEW_TYPE, NEW_TYPENO>, MessagePort<NEW_TYPE, NEW_TYPENO>)
-    {
+    fn split_off<NEW_TYPE: Send, const NEW_TYPENO: u16>(
+        self,
+    ) -> (
+        Processing<Self, NEW_TYPE, NEW_TYPENO>,
+        MessagePort<NEW_TYPE, NEW_TYPENO>,
+    ) {
         // Should ideally be a static assert. Checks probably happen at build time anyway due to
         // const propagation, but the panic only triggers at runtime :-(
-        assert!(!self.typeno_is_known(NEW_TYPENO), "Type number is already in use for this thread.");
+        assert!(
+            !self.typeno_is_known(NEW_TYPENO),
+            "Type number is already in use for this thread."
+        );
 
         // Similarly static -- better err out early
-        assert!(core::mem::size_of::<NEW_TYPE>() <= core::mem::size_of::<riot_sys::msg_t__bindgen_ty_1>(), "Type is too large to be transported in a message");
+        assert!(
+            core::mem::size_of::<NEW_TYPE>()
+                <= core::mem::size_of::<riot_sys::msg_t__bindgen_ty_1>(),
+            "Type is too large to be transported in a message"
+        );
 
         // ... and the alignment must suffice because the data is moved in and outthrough a &mut
         // SomethingTransparent<T>
-        assert!(core::mem::align_of::<NEW_TYPE>() <= core::mem::align_of::<riot_sys::msg_t__bindgen_ty_1>(), "Type has stricter alignment requirements than the message content");
+        assert!(
+            core::mem::align_of::<NEW_TYPE>()
+                <= core::mem::align_of::<riot_sys::msg_t__bindgen_ty_1>(),
+            "Type has stricter alignment requirements than the message content"
+        );
 
         (
-            Processing { tail: self, _type: PhantomData },
-            MessagePort { _private: (), _types: PhantomData, _not_send: PhantomData }
+            Processing {
+                tail: self,
+                _type: PhantomData,
+            },
+            MessagePort {
+                _private: (),
+                _types: PhantomData,
+                _not_send: PhantomData,
+            },
         )
     }
 
@@ -219,7 +256,9 @@ pub struct Processing<TAIL: MessageSemantics, TYPE, const TYPENO: u16> {
     _type: PhantomData<TYPE>,
 }
 
-impl<TAIL: MessageSemantics, TYPE, const TYPENO: u16> MessageSemantics for Processing<TAIL, TYPE, TYPENO> {
+impl<TAIL: MessageSemantics, TYPE, const TYPENO: u16> MessageSemantics
+    for Processing<TAIL, TYPE, TYPENO>
+{
     fn typeno_is_known(&self, typeno: u16) -> bool {
         if typeno == TYPENO {
             true
@@ -248,7 +287,12 @@ pub struct ReceivedMessage<S: MessageSemantics> {
 
 impl<S: MessageSemantics> core::fmt::Debug for ReceivedMessage<S> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        write!(f, "ReceivedMessage {{ type: {}, sender: {:?} }}", self.msg.type_, self.sender())
+        write!(
+            f,
+            "ReceivedMessage {{ type: {}, sender: {:?} }}",
+            self.msg.type_,
+            self.sender()
+        )
     }
 }
 
@@ -273,11 +317,17 @@ impl<S: MessageSemantics> ReceivedMessage<S> {
         let mut transmuted = MaybeUninit::uninit();
         // Hoping that the compiler is clever and doesn't *really* move data around ... then
         // again, it's only 4 byte or a pointer...
-        core::mem::swap(&mut transmuted, unsafe { core::mem::transmute(&mut self.msg.content) });
+        core::mem::swap(&mut transmuted, unsafe {
+            core::mem::transmute(&mut self.msg.content)
+        });
         unsafe { transmuted.assume_init() }
     }
 
-    pub fn decode<R, F: FnOnce(Sender, TYPE) -> R, TYPE: Send, const TYPENO: u16>(mut self, _port: &MessagePort<TYPE, TYPENO>, f: F) -> Result<R, ReceivedMessage<S>> {
+    pub fn decode<R, F: FnOnce(Sender, TYPE) -> R, TYPE: Send, const TYPENO: u16>(
+        mut self,
+        _port: &MessagePort<TYPE, TYPENO>,
+        f: F,
+    ) -> Result<R, ReceivedMessage<S>> {
         // Not actually using the port argument, it's just the ZST on whose presence the type
         // constraint rides in. It's more for convenience of calling ("if it came on this port,
         // do...") than for correctness: The presence of a ReceivedMessage<S> instance suffices to

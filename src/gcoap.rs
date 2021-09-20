@@ -15,7 +15,9 @@ pub fn scope<'env, F, R>(callback: F) -> R
 where
     F: for<'id> FnOnce(&mut RegistrationScope<'env, 'id>) -> R,
 {
-    let mut r = RegistrationScope { _phantom: PhantomData };
+    let mut r = RegistrationScope {
+        _phantom: PhantomData,
+    };
 
     let ret = callback(&mut r);
 
@@ -96,11 +98,13 @@ where
                 resources: 0 as *const _,
                 resources_len: 0,
                 next: 0 as *mut _,
-                link_encoder: None, // FIXME expose -- or tell people to write their own .wk/c,
-                                    // leave this NULL or even no-op (which ain't NULL) and expose
-                                    // the encoding mechanism for extension in an own .wk/c writer
+                // FIXME expose -- or tell people to write their own .wk/c, leave this NULL or even
+                // no-op (which ain't NULL) and expose the encoding mechanism for extension in an
+                // own .wk/c writer
+                //
                 // Works both for older versions without request_matcher and for current ones
-                .. Default::default()
+                link_encoder: None,
+                ..Default::default()
             },
         }
     }
@@ -118,15 +122,15 @@ where
         Self::new(
             cstr_core::cstr!("/"),
             riot_sys::COAP_GET
-            | riot_sys::COAP_POST
-            | riot_sys::COAP_PUT
-            | riot_sys::COAP_DELETE
-            | riot_sys::COAP_FETCH
-            | riot_sys::COAP_PATCH
-            | riot_sys::COAP_IPATCH
-            | riot_sys::COAP_MATCH_SUBTREE
-            ,
-            handler)
+                | riot_sys::COAP_POST
+                | riot_sys::COAP_PUT
+                | riot_sys::COAP_DELETE
+                | riot_sys::COAP_FETCH
+                | riot_sys::COAP_PATCH
+                | riot_sys::COAP_IPATCH
+                | riot_sys::COAP_MATCH_SUBTREE,
+            handler,
+        )
     }
 
     unsafe extern "C" fn call_handler(
@@ -283,7 +287,8 @@ impl PacketBuffer {
 
     /// Add an integer value as an option
     pub fn opt_add_uint(&mut self, optnum: u16, value: u32) -> Result<(), ()> {
-        unsafe { coap_opt_add_uint(self.pkt, optnum, value) } .negative_to_error()
+        unsafe { coap_opt_add_uint(self.pkt, optnum, value) }
+            .negative_to_error()
             .map_err(|_| ())?;
         Ok(())
     }

@@ -1,8 +1,8 @@
 //! [Bluetil](https://doc.riot-os.org/group__ble__bluetil__ad.html) tools for BLE Advertising Data (AD)
 
+use crate::error::NegativeErrorExt;
 use core::convert::TryInto;
 use riot_sys::bluetil_ad_t;
-use crate::error::NegativeErrorExt;
 
 /// Wrapper around [bluetil_ad](https://doc.riot-os.org/group__ble__bluetil__ad.html) (BLE Advertising Data)
 ///
@@ -67,8 +67,10 @@ impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
     pub fn add_flags(&mut self, flags: u32) -> Result<(), Error> {
         let mut ad = self.build();
         // unsafe: regular C call
-        unsafe { riot_sys::bluetil_ad_add_flags(crate::inline_cast_mut(&mut ad as *mut _), flags as _) }
-            .negative_to_error()?;
+        unsafe {
+            riot_sys::bluetil_ad_add_flags(crate::inline_cast_mut(&mut ad as *mut _), flags as _)
+        }
+        .negative_to_error()?;
         // unsafe: bluetil doesn't set pos after size
         unsafe { self.0.set_len(ad.pos as _) };
         Ok(())
@@ -79,8 +81,10 @@ impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
     pub fn add(&mut self, type_: u32, data: &[u8]) -> Result<(), Error> {
         let mut ad = self.build();
         // unsafe: regular C call
-        unsafe { riot_sys::bluetil_ad_add(&mut ad, type_ as _, data.as_ptr() as _, data.len() as _) }
-            .negative_to_error()?;
+        unsafe {
+            riot_sys::bluetil_ad_add(&mut ad, type_ as _, data.as_ptr() as _, data.len() as _)
+        }
+        .negative_to_error()?;
         // unsafe: bluetil doesn't set pos after size
         unsafe { self.0.set_len(ad.pos as _) };
         Ok(())

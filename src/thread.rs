@@ -1,11 +1,11 @@
 //! Create, inspect or modify RIOT processes ("threads")
 
-use riot_sys as raw;
 use cstr_core::CStr;
+use riot_sys as raw;
 
 /// Offloaded tools for creation
 mod creation;
-pub use creation::{scope, CountingThreadScope, CountedThread, spawn, TrackedThread};
+pub use creation::{scope, spawn, CountedThread, CountingThreadScope, TrackedThread};
 
 // // wrongly detected as u32, it's actually used as an i32
 // pub const THREAD_CREATE_SLEEPING: i32 = 1;
@@ -85,7 +85,9 @@ pub enum Status {
 }
 
 impl Status {
-    #[deprecated(note = "Not used by any known code, and if kept should be a wrapper around thread_is_active by mechanism and name")]
+    #[deprecated(
+        note = "Not used by any known code, and if kept should be a wrapper around thread_is_active by mechanism and name"
+    )]
     pub fn is_on_runqueue(&self) -> bool {
         // FIXME: While we do get STATUS_ON_RUNQUEUE, the information about whether an Other is on
         // the runqueue or not is lost. Maybe split Other up to OtherOnRunqueue and
@@ -174,7 +176,7 @@ impl KernelPID {
     }
 
     /// Pick the thread_t out of sched_threads for the PID, with NULL mapped to None.
-    #[doc(alias="thread_get")]
+    #[doc(alias = "thread_get")]
     fn thread(&self) -> Option<*const riot_sys::thread_t> {
         // unsafe: C function's "checked" precondition met by type constraint on PID validity
         let t = unsafe { riot_sys::thread_get_unchecked(self.0) };
@@ -188,8 +190,7 @@ impl KernelPID {
     }
 
     pub fn priority(&self) -> Result<u8, ()> {
-        let thread = self.thread()
-            .ok_or(())?;
+        let thread = self.thread().ok_or(())?;
         Ok(unsafe { (*thread).priority })
     }
 
@@ -202,8 +203,7 @@ impl KernelPID {
     /// This is not backed by C functions (as most of the rest of this crate is), but rather a
     /// practical way to access struct members that may or may not be present in a build.
     pub fn stack_stats(&self) -> Result<StackStats, StackStatsError> {
-        let thread = self.thread()
-            .ok_or(StackStatsError::NoSuchThread)?;
+        let thread = self.thread().ok_or(StackStatsError::NoSuchThread)?;
         #[cfg(riot_develhelp)]
         return Ok(StackStats {
             // This cast is relevant because different platforms (eg. native and arm) disagree on

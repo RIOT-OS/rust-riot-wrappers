@@ -74,7 +74,7 @@ mod nal_impls {
             // Constructing via default avoids using the volatile names of the union types
             let mut ep: riot_sys::sock_udp_ep_t = Default::default();
 
-            ep.family =  match self {
+            ep.family = match self {
                 V4(_) => riot_sys::AF_INET as _,
                 V6(_) => riot_sys::AF_INET6 as _,
             };
@@ -105,21 +105,21 @@ mod nal_impls {
     impl Into<SocketAddr> for &UdpEp {
         fn into(self) -> SocketAddr {
             match self.0.family as _ {
-                riot_sys::AF_INET6 =>
-                    embedded_nal::SocketAddrV6::new(
-                            // unsafe: Access to C union whose type was just checked
-                            unsafe { self.0.addr.ipv6.into() },
-                            self.0.port,
-                            0,
-                            self.0.netif.into(),
-                        ).into(),
+                riot_sys::AF_INET6 => embedded_nal::SocketAddrV6::new(
+                    // unsafe: Access to C union whose type was just checked
+                    unsafe { self.0.addr.ipv6.into() },
+                    self.0.port,
+                    0,
+                    self.0.netif.into(),
+                )
+                .into(),
 
-                riot_sys::AF_INET =>
-                    embedded_nal::SocketAddrV4::new(
-                            // unsafe: Access to C union whose type was just checked
-                            unsafe { self.0.addr.ipv4.into() },
-                            self.0.port
-                        ).into(),
+                riot_sys::AF_INET => embedded_nal::SocketAddrV4::new(
+                    // unsafe: Access to C union whose type was just checked
+                    unsafe { self.0.addr.ipv4.into() },
+                    self.0.port,
+                )
+                .into(),
 
                 _ => panic!("Endpoint not expressible in embedded_nal"),
             }

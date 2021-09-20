@@ -3,7 +3,7 @@
 //! The various configured GPIO types ([InputGPIO], [OutputGPIO], [InOutGPIO]) can be used through
 //! the [embedded_hal::digital::v2] traits.
 
-use riot_sys::{gpio_clear, gpio_read, gpio_set, gpio_t, gpio_toggle, gpio_mode_t};
+use riot_sys::{gpio_clear, gpio_mode_t, gpio_read, gpio_set, gpio_t, gpio_toggle};
 
 use embedded_hal::digital::v2::{InputPin, OutputPin, ToggleableOutputPin};
 
@@ -93,33 +93,39 @@ impl GPIO {
     //         GPIO(((port << 5) | pin).into())
     //     }
 
-    #[deprecated(note="Use configure_as_output")]
+    #[deprecated(note = "Use configure_as_output")]
     pub unsafe fn as_output(self) -> OutputGPIO {
         // FIXME should we configure here? it's probably even safe
         OutputGPIO(self)
     }
 
-    #[deprecated(note="Use configure_as_input")]
+    #[deprecated(note = "Use configure_as_input")]
     pub unsafe fn as_input(self) -> InputGPIO {
         // FIXME should we configure here? it's probably even safe
         InputGPIO(self)
     }
 
-    pub fn configure_as_output(self, mode: OutputMode) -> Result<OutputGPIO, crate::error::NumericError> {
-        unsafe { riot_sys::gpio_init(self.0, mode.to_c()) }
-            .negative_to_error()?;
+    pub fn configure_as_output(
+        self,
+        mode: OutputMode,
+    ) -> Result<OutputGPIO, crate::error::NumericError> {
+        unsafe { riot_sys::gpio_init(self.0, mode.to_c()) }.negative_to_error()?;
         Ok(OutputGPIO(self))
     }
 
-    pub fn configure_as_input(self, mode: InputMode) -> Result<InputGPIO, crate::error::NumericError> {
-        unsafe { riot_sys::gpio_init(self.0, mode.to_c()) }
-            .negative_to_error()?;
+    pub fn configure_as_input(
+        self,
+        mode: InputMode,
+    ) -> Result<InputGPIO, crate::error::NumericError> {
+        unsafe { riot_sys::gpio_init(self.0, mode.to_c()) }.negative_to_error()?;
         Ok(InputGPIO(self))
     }
 
-    pub fn configure_as_inout(self, mode: InOutMode) -> Result<InOutGPIO, crate::error::NumericError> {
-        unsafe { riot_sys::gpio_init(self.0, mode.to_c()) }
-            .negative_to_error()?;
+    pub fn configure_as_inout(
+        self,
+        mode: InOutMode,
+    ) -> Result<InOutGPIO, crate::error::NumericError> {
+        unsafe { riot_sys::gpio_init(self.0, mode.to_c()) }.negative_to_error()?;
         Ok(InOutGPIO(self))
     }
 

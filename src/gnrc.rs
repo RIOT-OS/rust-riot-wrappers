@@ -4,10 +4,10 @@ pub mod pktbuf;
 
 use riot_sys::{gnrc_netif_iter, gnrc_netif_t, ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
 
+use crate::error::{NegativeErrorExt, NumericError};
+use crate::thread::KernelPID;
 use core::iter::Iterator;
 use core::mem::MaybeUninit;
-use crate::thread::KernelPID;
-use crate::error::{NegativeErrorExt, NumericError};
 
 struct NetifIter {
     current: *const gnrc_netif_t,
@@ -43,7 +43,7 @@ pub struct Netif(*const gnrc_netif_t);
 
 impl Netif {
     #[doc(alias = "gnrc_netif_iter")]
-    pub fn all() -> impl Iterator<Item=Netif> {
+    pub fn all() -> impl Iterator<Item = Netif> {
         netif_iter().map(Netif)
     }
 
@@ -52,7 +52,7 @@ impl Netif {
         const NULL: *mut riot_sys::gnrc_netif_t = 0 as _;
         match unsafe { riot_sys::gnrc_netif_get_by_pid(pid.into()) } {
             NULL => None,
-            x => Some(Netif(x))
+            x => Some(Netif(x)),
         }
     }
 
@@ -64,17 +64,22 @@ impl Netif {
         unsafe { &(*self.0).l2addr[..(*self.0).l2addr_len as usize] }
     }
 
-    pub fn ipv6_addrs(&self) -> Result<IPv6AddrList<{ riot_sys::CONFIG_GNRC_NETIF_IPV6_ADDRS_NUMOF as _ }>, NumericError> {
+    pub fn ipv6_addrs(
+        &self,
+    ) -> Result<IPv6AddrList<{ riot_sys::CONFIG_GNRC_NETIF_IPV6_ADDRS_NUMOF as _ }>, NumericError>
+    {
         let mut addrs = IPv6AddrList {
             // unsafe: as per "Initializing an array element-by-element" documentation
             addresses: unsafe { MaybeUninit::uninit().assume_init() },
             len: 0,
         };
-        let result = unsafe { riot_sys::gnrc_netif_ipv6_addrs_get(
+        let result = unsafe {
+            riot_sys::gnrc_netif_ipv6_addrs_get(
                 crate::inline_cast(self.0),
-                addrs.addresses.as_mut() as *mut _ as _ /* justified by array guarantees and repr(Transparent) */,
+                addrs.addresses.as_mut() as *mut _ as _, /* justified by array guarantees and repr(Transparent) */
                 core::mem::size_of_val(&addrs.addresses) as _,
-                ) };
+            )
+        };
         addrs.len = (result.negative_to_error()? as usize) / core::mem::size_of::<IPv6Addr>();
         Ok(addrs)
     }
