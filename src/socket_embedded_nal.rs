@@ -24,6 +24,18 @@ pub struct Stack<const UDPCOUNT: usize> {
     udp_sockets_used: core::cell::Cell<usize>,
 }
 
+impl<const UDPCOUNT: usize> core::fmt::Debug for Stack<UDPCOUNT> {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(
+            fmt,
+            "Stack {{ {} of {} sockets used }}",
+            self.udp_sockets_used.get(),
+            UDPCOUNT
+        )
+    }
+}
+
+#[derive(Debug)]
 pub struct StackAccessor<'a, const UDPCOUNT: usize> {
     stack: &'a Stack<UDPCOUNT>,
 }
@@ -49,6 +61,11 @@ impl<const UDPCOUNT: usize> Stack<UDPCOUNT> {
 }
 
 pub struct UdpSocket<'a> {
+    // This indirection -- not having the sock_udp_t inside UdpSocket -- is necessary becasue the
+    // way they are created (embedded-nal .socket()) produces owned values and needs owned values
+    // later -- while what we'd prefer would be producing owned values and needing pinned ones.
+    //
+    // See also https://github.com/rust-embedded-community/embedded-nal/issues/61
     socket: Option<&'a mut riot_sys::sock_udp_t>,
 }
 
