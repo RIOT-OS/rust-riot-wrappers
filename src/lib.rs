@@ -102,8 +102,10 @@ pub mod coap_message;
 
 #[cfg(riot_module_sock)]
 pub mod socket;
-#[cfg(all(riot_module_sock, feature = "with_embedded_nal"))]
+#[cfg(all(riot_module_sock_udp, feature = "with_embedded_nal"))]
 pub mod socket_embedded_nal;
+#[cfg(all(riot_module_sock_tcp, feature = "with_embedded_nal"))]
+pub mod socket_embedded_nal_tcp;
 
 #[cfg(riot_module_periph_gpio)]
 pub mod gpio;
