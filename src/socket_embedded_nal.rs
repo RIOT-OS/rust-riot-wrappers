@@ -10,13 +10,13 @@ use crate::socket::UdpEp;
 use embedded_nal::SocketAddr;
 
 /// The operating system's network stack, used to get an implementation of
-/// ``embedded_nal::UdpClient``.
+/// ``embedded_nal::UdpClientStack``.
 ///
 /// Using this is not trivial, as RIOT needs its sockets pinned to memory for their lifetime.
 /// Without a heap allocator, this is achieved by allocating all the required UDP sockets in a
 /// stack object. To ensure that it is not moved, sockets on it can only be created in (and live
 /// only for the duration of) a the `run` callback, which gives the actual implemtation of
-/// UdpClient.
+/// UdpClientStack.
 ///
 /// The number of UDP sockets allocated is configurable using the UDPCOUNT const generic.
 pub struct Stack<const UDPCOUNT: usize> {
@@ -142,15 +142,19 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
     }
 }
 
-impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UDPCOUNT> {
+impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClientStack for StackAccessor<'a, UDPCOUNT> {
     type UdpSocket = UdpSocket<'a>;
     type Error = NumericError;
 
-    fn socket(&self) -> Result<UdpSocket<'a>, Self::Error> {
+    fn socket(&mut self) -> Result<UdpSocket<'a>, Self::Error> {
         Ok(UdpSocket { socket: None })
     }
 
-    fn connect(&self, handle: &mut Self::UdpSocket, remote: SocketAddr) -> Result<(), Self::Error> {
+    fn connect(
+        &mut self,
+        handle: &mut Self::UdpSocket,
+        remote: SocketAddr,
+    ) -> Result<(), Self::Error> {
         let local = match remote {
             SocketAddr::V4(_) => riot_sys::init_SOCK_IPV4_EP_ANY(),
             SocketAddr::V6(_) => riot_sys::init_SOCK_IPV6_EP_ANY(),
@@ -162,7 +166,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
         self.create(handle, &local, Some(&remote))
     }
     fn send(
-        &self,
+        &mut self,
         socket: &mut Self::UdpSocket,
         buffer: &[u8],
     ) -> Result<(), nb::Error<Self::Error>> {
@@ -182,7 +186,7 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
         .map_err(|e| nb::Error::Other(e))
     }
     fn receive(
-        &self,
+        &mut self,
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> Result<(usize, SocketAddr), nb::Error<Self::Error>> {
@@ -209,21 +213,21 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClient for StackAccessor<'a, UD
         Ok((read?, remote.into()))
     }
 
-    fn close(&self, mut socket: Self::UdpSocket) -> Result<(), Self::Error> {
+    fn close(&mut self, mut socket: Self::UdpSocket) -> Result<(), Self::Error> {
         socket.close();
         Ok(())
     }
 }
 
-impl<'a, const UDPCOUNT: usize> embedded_nal::UdpServer for StackAccessor<'a, UDPCOUNT> {
-    fn bind(&self, handle: &mut UdpSocket<'a>, port: u16) -> Result<(), Self::Error> {
+impl<'a, const UDPCOUNT: usize> embedded_nal::UdpFullStack for StackAccessor<'a, UDPCOUNT> {
+    fn bind(&mut self, handle: &mut UdpSocket<'a>, port: u16) -> Result<(), Self::Error> {
         let local = UdpEp::ipv6_any().with_port(port);
 
         self.create(handle, &local, None)
     }
 
     fn send_to(
-        &self,
+        &mut self,
         handle: &mut UdpSocket<'a>,
         remote: SocketAddr,
         buffer: &[u8],
