@@ -28,8 +28,7 @@ mutex-trait = "0.2"
 # nightly is required to get everything const nicely
 cstr_core = { version = "^0.2.4", default-features = false, features = [ "nightly" ] }
 
-# For bluetil
-heapless = "^0.5"
+heapless = "^0.7"
 
 # For nimble UUID parsing
 # see https://github.com/KokaKiwi/rust-hex/pull/42

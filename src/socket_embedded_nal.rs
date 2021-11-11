@@ -20,8 +20,7 @@ use embedded_nal::SocketAddr;
 ///
 /// The number of UDP sockets allocated is configurable using the UDPCOUNT const generic.
 pub struct Stack<const UDPCOUNT: usize> {
-    udp_sockets: [core::cell::UnsafeCell<MaybeUninit<riot_sys::sock_udp_t>>; UDPCOUNT],
-    udp_sockets_used: core::cell::Cell<usize>,
+    udp_sockets: heapless::Vec<riot_sys::sock_udp_t, UDPCOUNT>,
 }
 
 impl<const UDPCOUNT: usize> core::fmt::Debug for Stack<UDPCOUNT> {
@@ -29,7 +28,7 @@ impl<const UDPCOUNT: usize> core::fmt::Debug for Stack<UDPCOUNT> {
         write!(
             fmt,
             "Stack {{ {} of {} sockets used }}",
-            self.udp_sockets_used.get(),
+            self.udp_sockets.len(),
             UDPCOUNT
         )
     }
@@ -37,22 +36,17 @@ impl<const UDPCOUNT: usize> core::fmt::Debug for Stack<UDPCOUNT> {
 
 #[derive(Debug)]
 pub struct StackAccessor<'a, const UDPCOUNT: usize> {
-    stack: &'a Stack<UDPCOUNT>,
+    stack: &'a mut Stack<UDPCOUNT>,
 }
 
 impl<const UDPCOUNT: usize> Stack<UDPCOUNT> {
     pub fn new() -> Self {
         Self {
-            // FIXME this should work with #![feature(const_in_array_repeat_expressions)]
-            // udp_sockets: [core::cell::UnsafeCell::new(MaybeUninit::uninit()); UDPCOUNT],
-            // unsafe: OK because neither the array nor UnsafeCell nor MaybeUninit have any
-            // uninhabited states
-            udp_sockets: unsafe { MaybeUninit::uninit().assume_init() },
-            udp_sockets_used: 0.into(),
+            udp_sockets: Default::default(),
         }
     }
 
-    pub fn run(&self, runner: impl for<'a> FnOnce(StackAccessor<'a, UDPCOUNT>)) {
+    pub fn run(&mut self, runner: impl for<'a> FnOnce(StackAccessor<'a, UDPCOUNT>)) {
         let accessor = StackAccessor { stack: self };
         runner(accessor);
         // In particular, this would require tracking of whether the sockets are closed
@@ -88,26 +82,20 @@ impl<'a> UdpSocket<'a> {
 
 impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
     /// Take one of the stack accessor's allocated slots
-    fn allocate(&self) -> Result<*mut riot_sys::sock_udp, NumericError> {
-        let index = self.stack.udp_sockets_used.get();
-        if index == UDPCOUNT {
-            return Err(NumericError::from_constant(riot_sys::ENOMEM as _));
-        }
+    fn allocate(&mut self) -> Result<*mut riot_sys::sock_udp, NumericError> {
+        // This happens rarely enough that any MaybeUninit trickery is unwarranted
+        self.stack
+            .udp_sockets
+            .push(Default::default())
+            .map_err(|_| NumericError::from_constant(riot_sys::ENOMEM as _))?;
 
-        // We're inside a non-Send (due to the udp_sockets_used that's just cleared us as
-        // the own allocation) function and thus will only ever be the single user of this slot.
-        // Therefore, we can get ourselves a mutable pointer to the content of the UnsafeCell we
-        // now own, and later make a mutable reference out of it
-        let socket: *mut riot_sys::sock_udp_t = self.stack.udp_sockets[index].get() as *mut _;
-        // FIXME replace bump allocator with anything more sensible that'd allow freeing
-        self.stack.udp_sockets_used.set(index + 1);
-
-        Ok(socket)
+        let last = self.stack.udp_sockets.len() - 1;
+        Ok(&mut self.stack.udp_sockets[last] as *mut _)
     }
 
     /// Wrapper around sock_udp_create
     fn create(
-        &self,
+        &mut self,
         handle: &mut UdpSocket<'a>,
         local: &UdpEp,
         remote: Option<&UdpEp>,
@@ -131,10 +119,10 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
         })
         .negative_to_error()?;
 
-        // unsafe: This is a manual assume_init (backed by the API), and having an 'a mutable
-        // reference for it is OK because the StackAccessor guarantees that the stack is available
-        // for 'a and won't move.
+        // unsafe: Having an 'a mutable reference for it is OK because the StackAccessor guarantees
+        // that the stack is available for 'a and won't move.
         let socket: &'a mut _ = unsafe { &mut *socket };
+
 
         handle.socket = Some(socket);
 
