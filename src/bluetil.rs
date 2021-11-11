@@ -43,7 +43,7 @@ impl From<crate::error::NumericError> for Error {
 
 // FIXME: flags and type are u32 because the riot_sys constants are; wrap?
 
-impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
+impl<const L: usize> Ad<heapless::Vec<u8, L>> {
     /// Create an empty AD object around owned memory; the size is given by the type parameter.
     pub fn new() -> Self {
         Self(heapless::Vec::new())
@@ -92,7 +92,7 @@ impl<L: heapless::ArrayLength<u8>> Ad<heapless::Vec<u8, L>> {
 }
 
 // FIXME: 31 is expanded from BLE_HCI_MAX_ADV_DATA_LEN
-impl Ad<heapless::Vec<u8, heapless::consts::U31>> {
+impl Ad<heapless::Vec<u8, 31>> {
     /// Create an empty AD object around owned memory with the maximum sendable size.
     ///
     /// This is often more convenient than `new` as it's not too large anyway (31 bytes).
