@@ -34,6 +34,8 @@ impl<const UDPCOUNT: usize> core::fmt::Debug for Stack<UDPCOUNT> {
     }
 }
 
+// FIXME: This should really just use Pin like socket_embedded_nal_tcp does; unfortunately, this
+// doesn't align well with the .run() API, maybe that's best just to break.
 #[derive(Debug)]
 pub struct StackAccessor<'a, const UDPCOUNT: usize> {
     stack: &'a mut Stack<UDPCOUNT>,
