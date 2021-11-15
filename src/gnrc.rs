@@ -151,7 +151,7 @@ impl ::core::str::FromStr for IPv6Addr {
 
 impl ::core::fmt::Debug for IPv6Addr {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        let as_u8 = unsafe { &self.inner.u8 };
+        let as_u8 = unsafe { &self.inner.u8_ };
         write!(
             f,
             "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:\
@@ -178,7 +178,7 @@ impl ::core::fmt::Debug for IPv6Addr {
 
 impl IPv6Addr {
     pub fn raw(&self) -> &[u8; 16] {
-        unsafe { &self.inner.u8 }
+        unsafe { &self.inner.u8_ }
     }
 
     pub unsafe fn as_ptr(&self) -> *const ipv6_addr_t {

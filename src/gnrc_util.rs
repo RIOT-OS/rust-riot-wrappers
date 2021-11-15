@@ -106,8 +106,8 @@ impl<N: RoundtripData> RoundtripData for UDPRoundtripDataFull<N> {
                 let hdr: &udp_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
                 use byteorder::{ByteOrder, NetworkEndian};
                 (
-                    NetworkEndian::read_u16(&unsafe { (*hdr).src_port.u8 }),
-                    NetworkEndian::read_u16(&unsafe { (*hdr).dst_port.u8 }),
+                    NetworkEndian::read_u16(&unsafe { (*hdr).src_port.u8_ }),
+                    NetworkEndian::read_u16(&unsafe { (*hdr).dst_port.u8_ }),
                 )
             })
             .unwrap();
