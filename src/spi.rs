@@ -29,11 +29,7 @@ impl SPIDevice {
         mode: spi_mode_t,
         clk: spi_clk_t,
     ) -> AcquiredSPI<'a> {
-        let result = unsafe { spi_acquire(self.0, cs, mode, clk) };
-
-        if result != 0 {
-            panic!("spi_acquire(...) = {}", result)
-        }
+        unsafe { spi_acquire(self.0, cs, mode, clk) };
 
         AcquiredSPI {
             device: self,
