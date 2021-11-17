@@ -93,7 +93,7 @@ pub struct IPv6AddrList<const MAX: usize> {
 }
 
 impl<const MAX: usize> IPv6AddrList<MAX> {
-    #[deprecated(note = "IPv6AddrList now derefs into a slice")]
+    #[deprecated(note = "&IPv6AddrList now implements IntoIterator")]
     pub fn addresses(&self) -> &[IPv6Addr] {
         self
     }
@@ -106,6 +106,16 @@ impl<const MAX: usize> core::ops::Deref for IPv6AddrList<MAX> {
         let slice = &self.addresses[..self.len];
         // unsafe: as per "Initializing an array element-by-element" documentation
         unsafe { core::mem::transmute(slice) }
+    }
+}
+
+impl<'a, const MAX: usize> core::iter::IntoIterator for &'a IPv6AddrList<MAX> {
+    type Item = &'a IPv6Addr;
+
+    type IntoIter = core::slice::Iter<'a, IPv6Addr>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self[..].iter()
     }
 }
 
