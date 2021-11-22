@@ -177,7 +177,7 @@ use riot_sys::{
     gcoap_register_listener,
     gcoap_resp_init,
 };
-#[deprecated] // I don't even know any more what this was used for
+#[deprecated(note = "Use direct riot_sys method codes instead")]
 pub const GET: u32 = riot_sys::COAP_GET;
 
 #[deprecated(note = "Use the coap_message abstractions")]
