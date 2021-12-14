@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(never_type)]
 #![feature(const_mut_refs)]
-#![feature(const_maybe_uninit_as_ptr)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
 // for SAUL
 #![feature(iter_map_while)]
