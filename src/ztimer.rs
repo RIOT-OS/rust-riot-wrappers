@@ -13,6 +13,7 @@ impl<const HZ: u32> ZTimer<HZ> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
     ///
     /// Wraps [ztimer_sleep](https://riot-os.org/api/group__sys__ztimer.html#gade98636e198f2d571c8acd861d29d360)
+    #[doc(alias = "ztimer_sleep")]
     pub fn sleep_ticks(&self, duration: u32) {
         unsafe { riot_sys::ztimer_sleep(self.0, duration) };
     }
@@ -24,6 +25,7 @@ impl<const HZ: u32> ZTimer<HZ> {
     /// *very* short delays.".
     ///
     /// Wraps [ztimer_spin](https://riot-os.org/api/group__sys__ztimer.html#ga9de3d9e3290746b856bb23eb2dccaa7c)
+    #[doc(alias = "ztimer_spin")]
     pub fn spin_ticks(&self, duration: u32) {
         unsafe { riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration) };
     }
@@ -52,6 +54,7 @@ impl ZTimer<1> {
     ///
     /// This function is only available if the ztimer_sec module is built.
     #[cfg(riot_module_ztimer_sec)]
+    #[doc(alias = "ZTIMER_SEC")]
     pub fn sec() -> Self {
         ZTimer(unsafe { riot_sys::ZTIMER_SEC })
     }
@@ -62,6 +65,7 @@ impl ZTimer<1000> {
     ///
     /// This function is only available if the ztimer_msec module is built.
     #[cfg(riot_module_ztimer_msec)]
+    #[doc(alias = "ZTIMER_MSEC")]
     pub fn msec() -> Self {
         ZTimer(unsafe { riot_sys::ZTIMER_MSEC })
     }
@@ -72,6 +76,7 @@ impl ZTimer<1000000> {
     ///
     /// This function is only available if the ztimer_usec module is built.
     #[cfg(riot_module_ztimer_usec)]
+    #[doc(alias = "ZTIMER_USEC")]
     pub fn usec() -> Self {
         ZTimer(unsafe { riot_sys::ZTIMER_USEC })
     }
