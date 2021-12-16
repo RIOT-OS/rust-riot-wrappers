@@ -179,7 +179,7 @@ pub trait CommandList: CommandListInternals {
     ///
     /// See [shell_run_once] for details.
     ///
-    /// [shell_run_once]: https://riot-os.org/api/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
+    /// [shell_run_once]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
     fn run_once(&mut self, linebuffer: &mut [u8]) {
         // unsafe: See unsafe in run_any where it's called
         self.run_any(linebuffer, |built, buf, len| unsafe {
@@ -191,7 +191,7 @@ pub trait CommandList: CommandListInternals {
     ///
     /// See [shell_run_forever] for details.
     ///
-    /// [shell_run_forever]: https://riot-os.org/api/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
+    /// [shell_run_forever]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
     fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
         // unsafe: See unsafe in run_any where it's called
         self.run_any(linebuffer, |built, buf, len| unsafe {

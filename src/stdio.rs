@@ -1,4 +1,4 @@
-//! Wrappers for the [stdio](https://riot-os.org/api/group__sys__stdio.html)
+//! Wrappers for the [stdio](https://doc.riot-os.org/group__sys__stdio.html)
 
 use core::intrinsics::transmute;
 use riot_sys::{stdio_read, stdio_write};

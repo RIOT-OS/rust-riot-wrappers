@@ -19,7 +19,7 @@
 //! * `Drivable` provides both a read and a write callback unconditionally; consequently, a device
 //!   built from it will alays err with `-ECANCELED` and never with `-ENOTSUP`.
 //!
-//! [SAUL]: https://riot-os.org/api/group__drivers__saul.html
+//! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
 
 use cstr_core::CStr;
 use riot_sys as raw;

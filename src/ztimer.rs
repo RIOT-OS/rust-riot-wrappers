@@ -1,4 +1,4 @@
-//! # [ztimer high level timer](https://riot-os.org/api/group__sys__ztimer.html)
+//! # [ztimer high level timer](https://doc.riot-os.org/group__sys__ztimer.html)
 
 use core::convert::TryInto;
 
@@ -12,7 +12,7 @@ pub struct ZTimer<const HZ: u32>(*mut ztimer_clock_t);
 impl<const HZ: u32> ZTimer<HZ> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
     ///
-    /// Wraps [ztimer_sleep](https://riot-os.org/api/group__sys__ztimer.html#gade98636e198f2d571c8acd861d29d360)
+    /// Wraps [ztimer_sleep](https://doc.riot-os.org/group__sys__ztimer.html#gade98636e198f2d571c8acd861d29d360)
     #[doc(alias = "ztimer_sleep")]
     pub fn sleep_ticks(&self, duration: u32) {
         unsafe { riot_sys::ztimer_sleep(self.0, duration) };
@@ -24,7 +24,7 @@ impl<const HZ: u32> ZTimer<HZ> {
     /// Quoting the original documentation, "This blocks lower priority threads. Use only for
     /// *very* short delays.".
     ///
-    /// Wraps [ztimer_spin](https://riot-os.org/api/group__sys__ztimer.html#ga9de3d9e3290746b856bb23eb2dccaa7c)
+    /// Wraps [ztimer_spin](https://doc.riot-os.org/group__sys__ztimer.html#ga9de3d9e3290746b856bb23eb2dccaa7c)
     #[doc(alias = "ztimer_spin")]
     pub fn spin_ticks(&self, duration: u32) {
         unsafe { riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration) };

@@ -2,7 +2,7 @@
 //!
 //! This roughly mimicks [std::sync::Mutex].
 //!
-//! [mutex]: https://riot-os.org/api/group__core__sync__mutex.html
+//! [mutex]: https://doc.riot-os.org/group__core__sync__mutex.html
 //! [std::sync::mutex]: https://doc.rust-lang.org/std/sync/struct.Mutex.html
 
 use core::ops::{Deref, DerefMut};
