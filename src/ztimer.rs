@@ -7,6 +7,7 @@ use riot_sys::ztimer_clock_t;
 /// A ZTimer that knows about its frequency. The pulse length is not given in core::time::Duration
 /// as that's not even supported by non-`min_` `const_generics`. This is likely to change, even
 /// though it breaks the API.
+#[derive(Copy, Clone)]
 pub struct ZTimer<const HZ: u32>(*mut ztimer_clock_t);
 
 impl<const HZ: u32> ZTimer<HZ> {
