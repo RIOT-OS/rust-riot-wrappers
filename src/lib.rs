@@ -19,6 +19,20 @@ pub use cstr_core as cstr;
 
 pub mod error;
 
+/// Name of the RIOT board that is being used
+///
+/// Development:
+///
+/// Once this can be const, it'll be deprecated in favor of a pub const &'static str. That'll also
+/// force the compiler to remove all the exceptions at build time (currently it does not, even with
+/// aggressive optimization).
+pub fn board() -> &'static str {
+    cstr::CStr::from_bytes_with_nul(riot_sys::RIOT_BOARD)
+        .expect("Board names are null-terminated C strings")
+        .to_str()
+        .expect("Board names should be ASCII")
+}
+
 /// Cast pointers around before passing them in to functions; this is sometimes needed when a
 /// struct is used from bindgen (`riot_sys::*`) but passed to a C2Rust function that uses its own
 /// definition (`riot_sys::inline::*`).
