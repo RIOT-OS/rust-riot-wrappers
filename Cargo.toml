@@ -25,6 +25,8 @@ byteorder = { version="1", default-features = false }
 num-traits = { version = "0.2", default-features = false }
 mutex-trait = "0.2"
 
+bare-metal = "1"
+
 # nightly is required to get everything const nicely
 cstr_core = { version = "^0.2.4", default-features = false, features = [ "nightly" ] }
 
