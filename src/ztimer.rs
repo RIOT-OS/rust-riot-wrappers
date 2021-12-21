@@ -1,5 +1,8 @@
 //! # [ztimer high level timer](https://doc.riot-os.org/group__sys__ztimer.html)
 
+#[cfg(riot_module_ztimer_periodic)]
+pub mod periodic;
+
 use core::convert::TryInto;
 
 use riot_sys::ztimer_clock_t;
