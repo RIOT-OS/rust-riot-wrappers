@@ -7,6 +7,9 @@ use core::convert::TryInto;
 
 use riot_sys::ztimer_clock_t;
 
+// Useful for working with durations
+const NANOS_PER_SEC: u32 = 1_000_000_000;
+
 /// A clock that knows about its frequency. The pulse length is not given in [core::time::Duration]
 /// as that's not even supported by non-`min_` `const_generics`. This change, even
 /// though it breaks the API.
@@ -15,6 +18,11 @@ pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 
 #[deprecated(note = "Use the new name 'Clock' instead")]
 pub type ZTimer<const HZ: u32> = Clock<HZ>;
+
+/// A number of ticks on clocks ticking at a fixed clock speed
+#[derive(Copy, Clone, Debug)]
+pub struct Ticks<const HZ: u32>(pub u32);
+
 
 impl<const HZ: u32> Clock<HZ> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
@@ -169,5 +177,75 @@ impl embedded_hal::blocking::delay::DelayMs<u32> for Clock<1000> {
 impl embedded_hal::blocking::delay::DelayUs<u32> for Clock<1000000> {
     fn delay_us(&mut self, us: u32) {
         self.sleep_ticks(us);
+    }
+}
+
+/// The error type of fallible conversions to ticks.
+///
+/// Overflow is the only ever indicated error type; lack of accuracy in the timer does not
+/// constitute a reportable error, and is always resolved by rounding up (consistent with ZTimer's
+/// and Duration's behavior).
+#[derive(Debug)]
+pub struct Overflow;
+
+impl<const HZ: u32> Ticks<HZ> {
+    /// Maximum duration expressible on a clock with the given frequency
+    const MAX: Self = Ticks(u32::MAX);
+
+    /// Fallible conversion from a Duration
+    ///
+    /// This is an extra function (equivalently available as try_from) as it allows the result to
+    /// be const (which many constructed durations are).
+    ///
+    /// Conversion is not perfect if HZ does not a divisor of $10^9$.
+    ///
+    /// This will be deprecated when TryFrom / TryInto can be optionally const (see
+    /// <https://github.com/rust-lang/rust/issues/67792> for efforts).
+    /*
+    pub fn from_duration(duration: core::time::Duration) -> Result<Self, Overflow> {
+        // Manual div_ceil while that's unstable, see
+        // <https://github.com/rust-lang/rust/issues/88581>
+        let subsec_ticks = match duration.subsec_nanos() {
+            0 => 0,
+            n => (n - 1) / (NANOS_PER_SEC / HZ) + 1
+        };
+        u32::try_from(duration.as_secs())
+            .ok()
+            .and_then(|s| s.checked_mul(HZ))
+            .and_then(|t| t.checked_add(subsec_ticks))
+            .map(|t| Ticks(t))
+            .ok_or(Overflow)
+    }
+    */
+    // Edited from the above until and_then & co are usable for const functions
+    pub const fn from_duration(duration: core::time::Duration) -> Result<Self, Overflow> {
+        // Manual div_ceil while that's unstable, see
+        // <https://github.com/rust-lang/rust/issues/88581>
+        let subsec_ticks = match duration.subsec_nanos() {
+            0 => 0,
+            n => (n - 1) / (NANOS_PER_SEC / HZ) + 1,
+        };
+        let secs = duration.as_secs();
+        if secs > u32::MAX as _ {
+            return Err(Overflow);
+        };
+        let secs = secs as u32;
+        let sec_ticks = match secs.checked_mul(HZ) {
+            Some(s) => s,
+            _ => return Err(Overflow),
+        };
+        let sum_ticks = match sec_ticks.checked_add(subsec_ticks) {
+            Some(s) => s,
+            _ => return Err(Overflow),
+        };
+        Ok(Ticks(sum_ticks))
+    }
+}
+
+impl<const HZ: u32> TryFrom<core::time::Duration> for Ticks<HZ> {
+    type Error = Overflow;
+
+    fn try_from(duration: core::time::Duration) -> Result<Self, Overflow> {
+        Self::from_duration(duration)
     }
 }

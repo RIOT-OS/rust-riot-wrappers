@@ -45,7 +45,7 @@ pub struct Timer<H: Handler, const HZ: u32> {
 }
 
 impl<H: Handler, const HZ: u32> Timer<H, HZ> {
-    pub fn new_ticks(clock: super::ZTimer<HZ>, handler: H, ticks: u32) -> Self {
+    pub fn new(clock: super::ZTimer<HZ>, handler: H, ticks: super::Ticks<HZ>) -> Self {
         let mut timer = MaybeUninit::uninit();
 
         // Leaving the arg blank for the moment, to be set later when we have a Pin<&mut self>
@@ -58,7 +58,7 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
                 timer.as_mut_ptr(),
                 Some(Self::callback),
                 0 as _,
-                ticks,
+                ticks.0,
             );
             timer.assume_init()
         };
