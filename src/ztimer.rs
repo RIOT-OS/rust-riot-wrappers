@@ -7,13 +7,16 @@ use core::convert::TryInto;
 
 use riot_sys::ztimer_clock_t;
 
-/// A ZTimer that knows about its frequency. The pulse length is not given in core::time::Duration
-/// as that's not even supported by non-`min_` `const_generics`. This is likely to change, even
+/// A clock that knows about its frequency. The pulse length is not given in [core::time::Duration]
+/// as that's not even supported by non-`min_` `const_generics`. This change, even
 /// though it breaks the API.
 #[derive(Copy, Clone)]
-pub struct ZTimer<const HZ: u32>(*mut ztimer_clock_t);
+pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 
-impl<const HZ: u32> ZTimer<HZ> {
+#[deprecated(note = "Use the new name 'Clock' instead")]
+pub type ZTimer<const HZ: u32> = Clock<HZ>;
+
+impl<const HZ: u32> Clock<HZ> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
     ///
     /// Wraps [ztimer_sleep](https://doc.riot-os.org/group__sys__ztimer.html#gade98636e198f2d571c8acd861d29d360)
@@ -39,7 +42,7 @@ impl<const HZ: u32> ZTimer<HZ> {
     /// The duration is converted into ticks (rounding up), and overflows are caught by sleeping
     /// multiple times.
     ///
-    /// It is up to the caller to select the ZTimer suitable for efficiency. (Even sleeping for
+    /// It is up to the caller to select the Clock suitable for efficiency. (Even sleeping for
     /// seconds on the microseconds timer would not overflow the timer's interface's u32, but the
     /// same multiple-sleeps trick may need to be employed by the implementation, *and* would keep
     /// the system from entering deeper sleep modes).
@@ -124,46 +127,46 @@ impl<const HZ: u32> ZTimer<HZ> {
         result
     }
 }
-impl ZTimer<1> {
-    /// Get the global second ZTimer, ZTIMER_SEC.
+impl Clock<1> {
+    /// Get the global second ZTimer clock, ZTIMER_SEC.
     ///
     /// This function is only available if the ztimer_sec module is built.
     #[cfg(riot_module_ztimer_sec)]
     #[doc(alias = "ZTIMER_SEC")]
     pub fn sec() -> Self {
-        ZTimer(unsafe { riot_sys::ZTIMER_SEC })
+        Clock(unsafe { riot_sys::ZTIMER_SEC })
     }
 }
 
-impl ZTimer<1000> {
-    /// Get the global milliseconds ZTimer, ZTIMER_MSEC.
+impl Clock<1000> {
+    /// Get the global milliseconds ZTimer clock, ZTIMER_MSEC.
     ///
     /// This function is only available if the ztimer_msec module is built.
     #[cfg(riot_module_ztimer_msec)]
     #[doc(alias = "ZTIMER_MSEC")]
     pub fn msec() -> Self {
-        ZTimer(unsafe { riot_sys::ZTIMER_MSEC })
+        Clock(unsafe { riot_sys::ZTIMER_MSEC })
     }
 }
 
-impl ZTimer<1000000> {
-    /// Get the global microseconds ZTimer, ZTIMER_USEC.
+impl Clock<1000000> {
+    /// Get the global microseconds ZTimer clock, ZTIMER_USEC.
     ///
     /// This function is only available if the ztimer_usec module is built.
     #[cfg(riot_module_ztimer_usec)]
     #[doc(alias = "ZTIMER_USEC")]
     pub fn usec() -> Self {
-        ZTimer(unsafe { riot_sys::ZTIMER_USEC })
+        Clock(unsafe { riot_sys::ZTIMER_USEC })
     }
 }
 
-impl embedded_hal::blocking::delay::DelayMs<u32> for ZTimer<1000> {
+impl embedded_hal::blocking::delay::DelayMs<u32> for Clock<1000> {
     fn delay_ms(&mut self, ms: u32) {
         self.sleep_ticks(ms.into());
     }
 }
 
-impl embedded_hal::blocking::delay::DelayUs<u32> for ZTimer<1000000> {
+impl embedded_hal::blocking::delay::DelayUs<u32> for Clock<1000000> {
     fn delay_us(&mut self, us: u32) {
         self.sleep_ticks(us);
     }
