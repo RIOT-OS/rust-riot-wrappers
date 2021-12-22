@@ -35,6 +35,8 @@ pub fn irq_is_in() -> bool {
 /// [`irq_is_enabled`](https://doc.riot-os.org/group__core__irq.html#ga7fa965063ff2f4f4cea34f1c2a8fac25)
 ///
 /// Returns true if interrupts are currently enabled
+///
+/// Note that this only returns reliable values when called from a thread context.
 pub fn irq_is_enabled() -> bool {
     (unsafe { riot_sys::irq_is_enabled() }) != 0
 }
