@@ -1,4 +1,13 @@
 //! # [ztimer high level timer](https://doc.riot-os.org/group__sys__ztimer.html)
+//!
+//! ZTimer clocks are usually obtained by calling constructors that depend on the presence of
+//! global clocks -- [Clock::sec], [Clock::msec] and [Clock::usec].
+//!
+//! The methods usable on the clocks typically take durations in the form of [Ticks], which ensure
+//! that time calculations are done early but can't be mixed up between clocks. The sleep and spin
+//! methods take numeric tick counts and durations, not only for historical reasons, but also
+//! because sleeping for a Duration works infallibly (even if the duration exceeds the maximum
+//! number of ticks a timer can sleep) by sleeping in repetitions.
 
 #[cfg(riot_module_ztimer_periodic)]
 pub mod periodic;
@@ -19,7 +28,10 @@ pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 #[deprecated(note = "Use the new name 'Clock' instead")]
 pub type ZTimer<const HZ: u32> = Clock<HZ>;
 
-/// A number of ticks on clocks ticking at a fixed clock speed
+/// A duration on a clock of fixed speed
+///
+/// In memory, these are numbers of ticks. Semantically, these are durations of `self.0 / HZ`
+/// seconds.
 #[derive(Copy, Clone, Debug)]
 pub struct Ticks<const HZ: u32>(pub u32);
 
@@ -85,10 +97,10 @@ impl<const HZ: u32> Clock<HZ> {
     ///   (Might make sense to do this without an extra function variant: if the callback ignores
     ///   the timer argument and always returns None, that's all in the caller type and probebly
     ///   inlined right away).
-    pub fn set_ticks_during<I: FnOnce() + Send, M: FnOnce() -> R, R>(
+    pub fn set_during<I: FnOnce() + Send, M: FnOnce() -> R, R>(
         &self,
         callback: I,
-        ticks: u32,
+        ticks: Ticks<HZ>,
         in_thread: M,
     ) -> R {
         use core::mem::ManuallyDrop;
@@ -117,7 +129,7 @@ impl<const HZ: u32> Clock<HZ> {
 
         // unsafe: OK per C API
         unsafe {
-            riot_sys::ztimer_set(self.0, &mut timer, ticks);
+            riot_sys::ztimer_set(self.0, &mut timer, ticks.0);
         }
 
         let result = in_thread();
@@ -133,6 +145,16 @@ impl<const HZ: u32> Clock<HZ> {
         }
 
         result
+    }
+
+    #[deprecated(note = "Pass ticks as [Ticks] to [set_during] instead")]
+    pub fn set_ticks_during<I: FnOnce() + Send, M: FnOnce() -> R, R>(
+        &self,
+        callback: I,
+        ticks: u32,
+        in_thread: M,
+    ) -> R {
+        self.set_during(callback, Ticks(ticks), in_thread)
     }
 }
 impl Clock<1> {
