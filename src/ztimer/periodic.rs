@@ -39,6 +39,9 @@ pub struct Timer<H: Handler, const HZ: u32> {
     // ZTimer's behavior of turning off all interrupts during execution is not made explicit
     // anywhere by manifesting a CriticalSection, it's just done unsafely here right away -- and
     // anyhow would need additional trickery to get a &mut out of it).
+
+    // FIXME: Should this be inside ... something (UnsafeCell is insufficient, as a &mut to it
+    // still implies exclusive access) that disallows assumptions on exclusivity?
     handler: H,
     // From the .start(), timer has an internal reference to the handler
     _phantom: PhantomPinned,
@@ -70,13 +73,17 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
         }
     }
 
+    fn restore_internal_references(&mut self) {
+        self.timer.arg = &mut self.handler as *mut _ as *mut _;
+        self.timer.timer.arg = &mut self.timer as *mut _ as *mut _;
+    }
+
     #[doc(alias = "ztimer_periodic_start")]
     pub fn start(self: &mut Pin<&mut Self>) {
         unsafe {
-            // unsafe: All uses here only set pointers and don't move anything
+            // unsafe: Nothing moved around with these references
             let mut s = Pin::into_inner_unchecked(self.as_mut());
-            s.timer.arg = &mut s.handler as *mut _ as *mut _;
-            s.timer.timer.arg = &mut s.timer as *mut _ as *mut _;
+            s.restore_internal_references();
             // unsafe: C API
             riot_sys::ztimer_periodic_start(&mut s.timer);
         }
