@@ -103,7 +103,7 @@ impl<const HZ: u32> Clock<HZ> {
         ticks: Ticks<HZ>,
         in_thread: M,
     ) -> R {
-        use core::mem::ManuallyDrop;
+        use core::{cell::UnsafeCell, mem::ManuallyDrop};
 
         // This is zero-initialized, which is the more efficient mode for ztimer_t.
         let mut timer = riot_sys::ztimer_t::default();
@@ -113,34 +113,54 @@ impl<const HZ: u32> Clock<HZ> {
         //
         // As this is later put into timer.arg, this will need to stay put now (but we can't
         // directly Pin<&mut> it because we need ownership for the FnOnce)
-        let mut callback = ManuallyDrop::new(callback);
+        //
+        // * ManuallyDrop because by the time we're done with it it may or may not have already been
+        //   dropped.
+        // * UnsafeCell because it may be mutaged in the ISR (although if it does get mutated, we're
+        //   not touching it any more, so that mightbe overkill).
+        let mut callback = UnsafeCell::new(ManuallyDrop::new(callback));
+
+        // Under the stacked borrows model, that's the SharedReadWrite baseline everybody builds on
+        // and nobody drops.
+        let callback: *mut _ = &mut callback;
 
         extern "C" fn caller<I: FnOnce() + Send>(arg: *mut riot_sys::libc::c_void) {
             // unsafe: Was cast from the same type when assigned to arg.
-            let callback: &mut ManuallyDrop<I> = unsafe { &mut *(arg as *mut ManuallyDrop<I>) };
+            //
+            // Reference construction: We're in a critical section, and the main thread only holds
+            // the *mut that this was derived from (so under the stacked borrows model, we pop down
+            // to that but there's nothing removed).
+            let callback: &mut UnsafeCell<ManuallyDrop<I>> =
+                unsafe { &mut *(arg as *mut UnsafeCell<ManuallyDrop<I>>) };
             // unsafe: The other take (actually drop) coordinates through the ztimer return value,
             // so that only one of these is ever run.
-            let taken = unsafe { ManuallyDrop::take(callback) };
+            let taken = unsafe { ManuallyDrop::take(callback.get_mut()) };
             taken();
         }
 
         timer.callback = Some(caller::<I>);
-        timer.arg = &mut callback as *mut _ as *mut _;
+        timer.arg = callback as *mut _;
+
+        // Placed in an UnsafeCell because while it is here it may get mutated inside an ISR
+        let mut timer = UnsafeCell::new(timer);
 
         // unsafe: OK per C API
         unsafe {
-            riot_sys::ztimer_set(self.0, &mut timer, ticks.0);
+            riot_sys::ztimer_set(self.0, timer.get(), ticks.0);
         }
 
         let result = in_thread();
 
         // unsafe: OK per C API
-        let removed = unsafe { riot_sys::ztimer_remove(self.0, &mut timer) };
+        let removed = unsafe { riot_sys::ztimer_remove(self.0, timer.get()) };
 
         if removed {
             // unsafe: removed == true means that the other drop (actually take) has not been run
+            //
+            // Reference construction: OK because while the IRQ has fired (and built on the shared
+            // base), it has run to completion already and doesn't need its stack items any more.
             unsafe {
-                ManuallyDrop::drop(&mut callback);
+                ManuallyDrop::drop((&mut *callback).get_mut());
             }
         }
 
