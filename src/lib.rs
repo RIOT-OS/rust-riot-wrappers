@@ -145,3 +145,5 @@ pub mod vfs;
 pub mod interrupt;
 #[path = "main_module.rs"]
 pub mod main;
+
+pub mod led;
