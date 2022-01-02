@@ -6,10 +6,9 @@
 //! indicated thread is ready to accept messages of some type on that message type.
 //!
 //! For safety, the module relies on other components not tossing around messages indiscriminately.
-//! Rust components can take a [MessageAddressTicket] and send through that (where objects'
-//! lifetimes guarantee that the receiving task is still prepared to receive the message). For C
-//! components, safe wrappers (TBD: will) require appropriate tickets and from there on rely on the
-//! C side to only send what is described in the API.
+//! Rust components can take a [MessageAddressTicket] and send through that. For C components, safe
+//! wrappers (TBD: will) require appropriate tickets and from there on rely on the C side to only
+//! send what is described in the API.
 //!
 //! ## Example
 //!
@@ -29,6 +28,13 @@ use crate::thread;
 
 /// Thread-bound information carrier that indicates that a given type number was reserved for this
 /// given content type.
+///
+/// As long as a MessagePort lives (or the [MessageAddressTicket] derived from it), the current
+/// thread must not quit; this is ensured in the construction of the MessagePort.
+// (It'll still be extraordinarily tricky to do anything non-static here -- you'd need to return
+// the handed out ticket, then work the message queue to emptiness (or, if it never gets empty,
+// past the point when the ticket was returned) and only then can the port expire ... and all
+// of that needs to be encoded in the type system.
 pub struct MessagePort<TYPE: Send, const TYPENO: u16> {
     // Can only be constructed by split_off()
     _private: (),
@@ -44,15 +50,7 @@ pub struct MessagePort<TYPE: Send, const TYPENO: u16> {
 }
 
 impl<TYPE: Send, const TYPENO: u16> MessagePort<TYPE, TYPENO> {
-    // TBD: Can't we get the promise to not quit the thread any more easily than passing lifetimes
-    // with each and every ticket? Probably not. But can we get the promise in any more easily than
-    // the thread unsafely stating it by upgrading its message port lifetime?
-    //
-    // (Plus it'll be extraordinarily tricky to do anything non-static here -- you'd need to return
-    // the handed out ticket, then work the message queue to emptiness (or, if it never gets empty,
-    // past the point when the ticket was returned) and only then can the port expire ... and all
-    // of that needs to be encoded in the type system.
-    pub fn ticket(&self) -> MessageAddressTicket<'_, TYPE, TYPENO> {
+    pub fn ticket(self) -> MessageAddressTicket<TYPE, TYPENO> {
         MessageAddressTicket {
             destination: thread::get_pid(),
             _phantom: PhantomData,
@@ -60,12 +58,21 @@ impl<TYPE: Send, const TYPENO: u16> MessagePort<TYPE, TYPENO> {
     }
 }
 
-pub struct MessageAddressTicket<'a, TYPE: Send, const TYPENO: u16> {
+// FIXME: Maybe implement Deref to MessageAddressTicket so the port can be used to send to itself?
+
+/// A MessagePort turned Send and Sync by addign the runtime information of the destination Kernel
+/// PID to it.
+///
+/// This is what messages are sent through.
+///
+/// It is owned, but can be used through shared references (which are Send as well); ownership
+/// matters if one ever wants to stop accepting a certain type of message again.
+pub struct MessageAddressTicket<TYPE: Send, const TYPENO: u16> {
     destination: thread::KernelPID,
-    _phantom: PhantomData<&'a TYPE>,
+    _phantom: PhantomData<TYPE>,
 }
 
-impl<'a, TYPE: Send, const TYPENO: u16> MessageAddressTicket<'a, TYPE, TYPENO> {
+impl<TYPE: Send, const TYPENO: u16> MessageAddressTicket<TYPE, TYPENO> {
     /// Send a message to a given ticket.
     ///
     /// On success, the data is received by (or enqueued in, if a queue is set up) the thread
@@ -106,9 +113,7 @@ impl<'a, TYPE: Send, const TYPENO: u16> MessageAddressTicket<'a, TYPE, TYPENO> {
     }
 }
 
-impl<'a, TYPE: Send, const TYPENO: u16> core::fmt::Debug
-    for MessageAddressTicket<'a, TYPE, TYPENO>
-{
+impl<TYPE: Send, const TYPENO: u16> core::fmt::Debug for MessageAddressTicket<TYPE, TYPENO> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(
             f,
@@ -120,6 +125,10 @@ impl<'a, TYPE: Send, const TYPENO: u16> core::fmt::Debug
     }
 }
 
+/// Trait for types that indicate the current thread's readiness to receive some set of messages
+///
+/// In a sense, a MessageSemantics is factory for mutually nonconflicting [MessagePort]s, and a
+/// tracker of what was alerady issued.
 // TBD: seal? can still unseal later.
 pub trait MessageSemantics: Sized {
     // TBD: Would be great to be const
@@ -216,16 +225,36 @@ pub trait MessageSemantics: Sized {
 
 pub struct NoConfiguredMessages;
 
+/// The MessageSemantics of a thread that has made no previous commitment to receive any
+/// messages.
 impl NoConfiguredMessages {
-    /// The MessageSemantics of a thread that has made no previous commitment to receive any
-    /// messages.
+    /// Create a new MessageSemantics object to split into [MessagePort]s.
     ///
-    /// It must only be called once in such a thread.
+    /// **Conditions**, violating which is a safety violation:
+    ///
+    /// * The thread must currently not allow sending any messages to it, or even created an
+    ///   otherwise unused NoConfiguredMessages
+    ///
+    /// * The thread must not terminate.
     ///
     /// TBD: Add a version of the thread spawner that comes with all kinds of once-per-thread
     /// gadgets.
     pub unsafe fn new() -> Self {
         Self
+    }
+
+    /// Create a new MessageSemantics object to split into [MessagePort]s in a scope.
+    ///
+    /// This is somewhat safer to use than [new()] because by taking the NoConfiguredMessages
+    /// object back (which currently can only be done by not splitting off anything, and later by
+    /// returning everything that was split off); an easy way to do that is to just never return.
+    ///
+    /// **Conditions**, violating which is a safety violation:
+    ///
+    /// * The thread must currently not allow sending any messages to it, or even created an
+    ///   otherwise unused NoConfiguredMessages
+    pub unsafe fn new_scoped(f: impl FnOnce(Self) -> Self) {
+        f(Self);
     }
 }
 
