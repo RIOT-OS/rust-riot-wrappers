@@ -78,17 +78,6 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
         self.timer.timer.arg = &mut self.timer as *mut _ as *mut _;
     }
 
-    #[doc(alias = "ztimer_periodic_start")]
-    pub fn start(self: &mut Pin<&mut Self>) {
-        unsafe {
-            // unsafe: Nothing moved around with these references
-            let mut s = Pin::into_inner_unchecked(self.as_mut());
-            s.restore_internal_references();
-            // unsafe: C API
-            riot_sys::ztimer_periodic_start(&mut s.timer);
-        }
-    }
-
     pub fn stop(&mut self) {
         unsafe {
             riot_sys::ztimer_periodic_stop(&mut self.timer);
@@ -124,6 +113,25 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
             let s = unsafe { Pin::into_inner_unchecked(self.as_mut()) };
             f(&mut s.handler)
         })
+    }
+}
+
+impl<H: Handler + 'static, const HZ: u32> Timer<H, HZ> {
+    #[doc(alias = "ztimer_periodic_start")]
+    /// Start the timer, calling the handler at every interval.
+    ///
+    /// This requires a `Handler + 'static` because it relies on the timer's drop to stop the
+    /// process, and only a static handler can still safely be called if that drop never happens.
+    ///
+    /// (For non-static handlers, a scoped version might be introduced later).
+    pub fn start(self: &mut Pin<&mut Self>) {
+        unsafe {
+            // unsafe: Nothing moved around with these references
+            let mut s = Pin::into_inner_unchecked(self.as_mut());
+            s.restore_internal_references();
+            // unsafe: C API
+            riot_sys::ztimer_periodic_start(&mut s.timer);
+        }
     }
 }
 
