@@ -145,11 +145,14 @@ impl<'a, const UDPCOUNT: usize> embedded_nal::UdpClientStack for StackAccessor<'
         handle: &mut Self::UdpSocket,
         remote: SocketAddr,
     ) -> Result<(), Self::Error> {
-        let local = match remote {
-            SocketAddr::V4(_) => riot_sys::init_SOCK_IPV4_EP_ANY(),
-            SocketAddr::V6(_) => riot_sys::init_SOCK_IPV6_EP_ANY(),
-        }
-        .into();
+        // unsafe: Side effect free C macros
+        let local = unsafe {
+            match remote {
+                SocketAddr::V4(_) => riot_sys::macro_SOCK_IPV4_EP_ANY(),
+                SocketAddr::V6(_) => riot_sys::macro_SOCK_IPV6_EP_ANY(),
+            }
+            .into()
+        };
 
         let remote = remote.into();
 

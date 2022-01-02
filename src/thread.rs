@@ -152,8 +152,10 @@ impl KernelPID {
 
     /// Get the current status of the thread of that number, if one currently exists
     pub fn status(&self) -> Result<Status, ()> {
+        // unsafe: Side effect always-callable C function
         let status = unsafe { raw::thread_getstatus(self.0) };
-        if status == riot_sys::init_STATUS_NOT_FOUND() {
+        // unsafe: Side effect free C macros
+        if status == unsafe { riot_sys::macro_STATUS_NOT_FOUND() } {
             Err(())
         } else {
             Ok(Status::from_int(status as _))

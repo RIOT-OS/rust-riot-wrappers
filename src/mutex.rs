@@ -31,7 +31,8 @@ impl<T> Mutex<T> {
     /// Create a new mutex in an unlocked state
     #[doc(alias = "mutex_init")]
     pub const fn new(t: T) -> Mutex<T> {
-        let new = riot_sys::init_MUTEX_INIT();
+        // unsafe: Side effect free C macro
+        let new = unsafe { riot_sys::macro_MUTEX_INIT() };
         Mutex {
             data: UnsafeCell::new(t),
             mutex: UnsafeCell::new(new),

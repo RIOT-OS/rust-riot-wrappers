@@ -5,12 +5,14 @@ pub struct UdpEp(pub(crate) riot_sys::sock_udp_ep_t);
 impl UdpEp {
     #[doc(alias = "SOCK_IPV6_EP_ANY")]
     pub fn ipv6_any() -> Self {
-        riot_sys::init_SOCK_IPV6_EP_ANY().into()
+        // unsafe: Side effect free C macro
+        unsafe { riot_sys::macro_SOCK_IPV6_EP_ANY().into() }
     }
 
     #[doc(alias = "SOCK_IPV4_EP_ANY")]
     pub fn ipv4_any() -> Self {
-        riot_sys::init_SOCK_IPV4_EP_ANY().into()
+        // unsafe: Side effect free C macro
+        unsafe { riot_sys::macro_SOCK_IPV4_EP_ANY().into() }
     }
 
     pub fn with_port(mut self, port: u16) -> Self {
