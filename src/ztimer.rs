@@ -142,7 +142,7 @@ impl<const HZ: u32> Clock<HZ> {
         timer.arg = callback as *mut _;
 
         // Placed in an UnsafeCell because while it is here it may get mutated inside an ISR
-        let mut timer = UnsafeCell::new(timer);
+        let timer = UnsafeCell::new(timer);
 
         // unsafe: OK per C API
         unsafe {
@@ -232,7 +232,7 @@ pub struct Overflow;
 
 impl<const HZ: u32> Ticks<HZ> {
     /// Maximum duration expressible on a clock with the given frequency
-    const MAX: Self = Ticks(u32::MAX);
+    pub const MAX: Self = Ticks(u32::MAX);
 
     /// Fallible conversion from a Duration
     ///

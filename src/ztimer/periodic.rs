@@ -23,7 +23,7 @@ pub trait Handler: Send {
 
 /// A periodic timer
 ///
-/// This periodic timer is built on a [clock](super::ZTimer) and configured with a frequency and
+/// This periodic timer is built on a [clock](super::Clock) and configured with a frequency and
 /// tick handler.
 ///
 /// It contains the handler and a `ztimer_periodic_t` C struct that then contains the actual timer
@@ -48,7 +48,7 @@ pub struct Timer<H: Handler, const HZ: u32> {
 }
 
 impl<H: Handler, const HZ: u32> Timer<H, HZ> {
-    pub fn new(clock: super::ZTimer<HZ>, handler: H, ticks: super::Ticks<HZ>) -> Self {
+    pub fn new(clock: super::Clock<HZ>, handler: H, ticks: super::Ticks<HZ>) -> Self {
         let mut timer = MaybeUninit::uninit();
 
         // Leaving the arg blank for the moment, to be set later when we have a Pin<&mut self>
@@ -85,7 +85,7 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
     }
 
     extern "C" fn callback(arg: *mut riot_sys::libc::c_void) -> riot_sys::libc::c_int {
-        let mut handler = unsafe { &mut *(arg as *mut H) };
+        let handler = unsafe { &mut *(arg as *mut H) };
         handler.trigger() as _
     }
 
@@ -127,7 +127,7 @@ impl<H: Handler + 'static, const HZ: u32> Timer<H, HZ> {
     pub fn start(self: &mut Pin<&mut Self>) {
         unsafe {
             // unsafe: Nothing moved around with these references
-            let mut s = Pin::into_inner_unchecked(self.as_mut());
+            let s = Pin::into_inner_unchecked(self.as_mut());
             s.restore_internal_references();
             // unsafe: C API
             riot_sys::ztimer_periodic_start(&mut s.timer);

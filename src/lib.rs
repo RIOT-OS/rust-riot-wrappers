@@ -2,8 +2,6 @@
 #![feature(never_type)]
 #![feature(const_mut_refs)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
-// for SAUL
-#![feature(iter_map_while)]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
 #![feature(maybe_uninit_extra)]
 // for Args IntoIterator
@@ -59,6 +57,7 @@ fn inline_cast_mut<A, B>(input: *mut A) -> *mut B {
 
 /// `&` analogon to [inline_cast]
 #[inline]
+#[allow(unused)]
 unsafe fn inline_cast_ref<A, B>(input: &A) -> &B {
     assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
     core::mem::transmute(input)
@@ -66,6 +65,7 @@ unsafe fn inline_cast_ref<A, B>(input: &A) -> &B {
 
 /// `&mut` analogon to [inline_cast]
 #[inline]
+#[allow(unused)]
 unsafe fn inline_cast_ref_mut<A, B>(input: &mut A) -> &mut B {
     assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
     core::mem::transmute(input)
