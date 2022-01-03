@@ -185,12 +185,12 @@ pub trait MessageSemantics: Sized {
     /// The conditions for these panics should be evaluatable at build time (i.e. not be part of
     /// optimized code); over time these will hopfully become static assertion errors.
     // No override should be necessary for this, not even for internal impls (see sealing above)
-    fn split_off<NEW_TYPE: Send, const NEW_TYPENO: u16>(
+    fn split_off<NewType: Send, const NEW_TYPENO: u16>(
         self,
     ) -> (
-        Processing<Self, NEW_TYPE, NEW_TYPENO>,
-        ReceivePort<NEW_TYPE, NEW_TYPENO>,
-        SendPort<NEW_TYPE, NEW_TYPENO>,
+        Processing<Self, NewType, NEW_TYPENO>,
+        ReceivePort<NewType, NEW_TYPENO>,
+        SendPort<NewType, NEW_TYPENO>,
     ) {
         // Should ideally be a static assert. Checks probably happen at build time anyway due to
         // const propagation, but the panic only triggers at runtime :-(
@@ -201,7 +201,7 @@ pub trait MessageSemantics: Sized {
 
         // Similarly static -- better err out early
         assert!(
-            core::mem::size_of::<NEW_TYPE>()
+            core::mem::size_of::<NewType>()
                 <= core::mem::size_of::<riot_sys::msg_t__bindgen_ty_1>(),
             "Type is too large to be transported in a message"
         );
@@ -209,7 +209,7 @@ pub trait MessageSemantics: Sized {
         // ... and the alignment must suffice because the data is moved in and outthrough a &mut
         // SomethingTransparent<T>
         assert!(
-            core::mem::align_of::<NEW_TYPE>()
+            core::mem::align_of::<NewType>()
                 <= core::mem::align_of::<riot_sys::msg_t__bindgen_ty_1>(),
             "Type has stricter alignment requirements than the message content"
         );

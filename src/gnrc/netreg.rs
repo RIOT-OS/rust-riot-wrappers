@@ -12,6 +12,7 @@ pub struct Registration<'a> {
     entry: &'a mut gnrc_netreg_entry_t,
 }
 
+#[allow(deprecated)]
 impl<'a> Registration<'a> {
     pub fn new(nettype: gnrc_nettype_t, entry: &'a mut gnrc_netreg_entry_t) -> Self {
         let result = unsafe { gnrc_netreg_register(nettype, entry) };
@@ -20,6 +21,7 @@ impl<'a> Registration<'a> {
     }
 }
 
+#[allow(deprecated)]
 impl<'a> Drop for Registration<'a> {
     fn drop(&mut self) {
         unsafe { gnrc_netreg_unregister(self.nettype, self.entry) };
