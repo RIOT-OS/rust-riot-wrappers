@@ -4,7 +4,7 @@
 //!
 //! This overall method of sending and receiving messages provides no guarantees that even a
 //! pure-Rust thread doesn't accidentally reuse a number or does something else to misuse
-//! ContainerMsg::recognize; a better interface is WIP
+//! ContainerMsg::recognize; a better interface is WIP in the [v2] module.
 
 use crate::thread::KernelPID;
 use core::marker::PhantomData;
