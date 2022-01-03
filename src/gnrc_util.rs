@@ -8,10 +8,11 @@ use crate::gnrc::pktbuf::{Pktsnip, Shared};
 use crate::gnrc::IPv6Addr;
 use crate::thread::KernelPID;
 
+#[cfg(riot_module_gnrc_udp)]
+use riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UDP as GNRC_NETTYPE_UDP;
 use riot_sys::{
     gnrc_netif_hdr_t,
     gnrc_nettype_t_GNRC_NETTYPE_NETIF as GNRC_NETTYPE_NETIF,
-    gnrc_nettype_t_GNRC_NETTYPE_UDP as GNRC_NETTYPE_UDP,
     udp_hdr_t,
 };
 
@@ -91,6 +92,7 @@ impl<N: RoundtripData> RoundtripData for IPv6RoundtripDataFull<N> {
 
 // It'd be nice to have a UDPRoundtripData (not full) that wouldn't need to store the local port
 // (b/c it's usually known in the context), but how would that get past a .wrap()-ish API?
+#[cfg(riot_module_gnrc_udp)]
 #[derive(Debug)]
 pub struct UDPRoundtripDataFull<N: RoundtripData> {
     remote: u16,
@@ -98,6 +100,7 @@ pub struct UDPRoundtripDataFull<N: RoundtripData> {
     next: N,
 }
 
+#[cfg(riot_module_gnrc_udp)]
 impl<N: RoundtripData> RoundtripData for UDPRoundtripDataFull<N> {
     fn from_incoming(incoming: &Pktsnip<Shared>) -> Self {
         let (src, dst) = incoming
