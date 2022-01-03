@@ -35,9 +35,7 @@
 //! It might still be tricky to actually perform that recombination safely, as there can be queued
 //! up messages. One pattern that is anticipated to work here is to define a single channel on
 //! which a SendPort can be returned through the message queue; thus, by the time it gets returned,
-//! the receiver can be sure that nothing else is left in the queue. (It might be that some API
-//! changes are still needed to avoid that a [ReceivedMessage] is kept around and decoded only
-//! after the port has been recombined and the number possibly reused).
+//! the receiver can be sure that nothing else is left in the queue.
 
 use core::marker::PhantomData;
 use core::mem::{ManuallyDrop, MaybeUninit};
@@ -224,7 +222,7 @@ pub trait MessageSemantics: Sized {
     }
 
     // No override should be necessary for this, not even for internal impls (see sealing above)
-    fn receive(&self) -> ReceivedMessage<Self> {
+    fn receive(&self) -> ReceivedMessage<'_, Self> {
         let mut msg = MaybeUninit::uninit();
         unsafe { riot_sys::msg_receive(msg.as_mut_ptr()) };
         let msg = unsafe { msg.assume_init() };
@@ -248,7 +246,7 @@ pub trait MessageSemantics: Sized {
     ///
     /// This is unsafe for the same reasons you can't call Drop::drop(&mut T) (the compiler forbids
     /// it).
-    unsafe fn drop(message: &mut ReceivedMessage<Self>);
+    unsafe fn drop(message: &mut ReceivedMessage<'_, Self>);
 }
 
 pub struct NoConfiguredMessages;
@@ -301,7 +299,7 @@ impl MessageSemantics for NoConfiguredMessages {
     /// happen to send messages of a number this threads expects (and handles as something
     /// different) as well. If it is still undesired, you can [core::mem::forget()] the message
     /// after having decoded all desired types.
-    unsafe fn drop(_message: &mut ReceivedMessage<Self>) {
+    unsafe fn drop(_message: &mut ReceivedMessage<'_, Self>) {
         panic!("Unexpected message received");
     }
 }
@@ -326,7 +324,7 @@ impl<TAIL: MessageSemantics, TYPE, const TYPENO: u16> MessageSemantics
         }
     }
 
-    unsafe fn drop(message: &mut ReceivedMessage<Self>) {
+    unsafe fn drop(message: &mut ReceivedMessage<'_, Self>) {
         if message.msg.type_ == TYPENO {
             let t: TYPE = message.extract();
             drop(t);
@@ -338,13 +336,21 @@ impl<TAIL: MessageSemantics, TYPE, const TYPENO: u16> MessageSemantics
 
 pub use crate::msg::MsgSender as Sender;
 
+/// A message that was received while S was the current thread's semantics.
+///
+/// By including a lifetime argument this ensures that messages are decoded (or dropped) before
+/// the thread's message semantics change.
+///
+/// It may help to think of this as still holding a pointer to 's, just that it's a zero-sized
+/// phantom pointer (no need to lug around a word-sized pointer to a ZST object that's just there
+/// for typestate).
 #[repr(transparent)]
-pub struct ReceivedMessage<S: MessageSemantics> {
+pub struct ReceivedMessage<'a, S: MessageSemantics> {
     msg: riot_sys::msg_t,
-    _phantom: PhantomData<S>,
+    _phantom: PhantomData<&'a S>,
 }
 
-impl<S: MessageSemantics> core::fmt::Debug for ReceivedMessage<S> {
+impl<'a, S: MessageSemantics> core::fmt::Debug for ReceivedMessage<'a, S> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(
             f,
@@ -355,14 +361,14 @@ impl<S: MessageSemantics> core::fmt::Debug for ReceivedMessage<S> {
     }
 }
 
-impl<S: MessageSemantics> Drop for ReceivedMessage<S> {
+impl<'a, S: MessageSemantics> Drop for ReceivedMessage<'a, S> {
     #[inline]
     fn drop(&mut self) {
         unsafe { S::drop(self) };
     }
 }
 
-impl<S: MessageSemantics> ReceivedMessage<S> {
+impl<'a, S: MessageSemantics> ReceivedMessage<'a, S> {
     fn sender(&self) -> Sender {
         Sender::from_pid(self.msg.sender_pid)
     }
@@ -384,7 +390,7 @@ impl<S: MessageSemantics> ReceivedMessage<S> {
 
     pub fn decode<R, F: FnOnce(Sender, TYPE) -> R, TYPE: Send, const TYPENO: u16>(
         mut self,
-        _port: &ReceivePort<TYPE, TYPENO>,
+        _port: &'a ReceivePort<TYPE, TYPENO>,
         f: F,
     ) -> Result<R, ReceivedMessage<S>> {
         // Not actually using the port argument, it's just the ZST on whose presence the type
