@@ -1,14 +1,14 @@
 //! A safe-to-use interface for [RIOT messages](https://doc.riot-os.org/group__core__msg.html)
 //!
-//! This module's main contribution is [MessageSemantics], a chaining family of ZST types that
-//! represent which types a thread expects to come in on which message numbers. From that, sendable
-//! [MessageAddressTicket]s can be crated that indicate to message producers that indeed the
-//! indicated thread is ready to accept messages of some type on that message type.
+//! This module's main contribution is [MessageSemantics], a chaining family of ZSTs that
+//! represent which types a thread expects to come in on which message numbers. From that, pairs of
+//! [SendPort]s (through which other threads send messages) and [ReceivePort]s (using which
+//! received messages are decoded) are split off.
 //!
 //! For safety, the module relies on other components not tossing around messages indiscriminately.
-//! Rust components can take a [MessageAddressTicket] and send through that. For C components, safe
-//! wrappers (TBD: will) require appropriate tickets and from there on rely on the C side to only
-//! send what is described in the API.
+//! In Rust, senders are told through the SendPort how the recipient will transmute the data back.
+//! For C components, safe wrappers (TBD: will) require and consume appropriate tickets and from
+//! there on rely on the C side to only send what is described in the API.
 //!
 //! ## Example
 //!
@@ -20,6 +20,24 @@
 //! This module is still WIP and not subject to the semver-ish conduct upheld even in pre-1.0
 //! versions of riot-wrappers. The module is hidden behind the `with_msg_v2` feature to make that
 //! clear.
+//!
+//! ## Status vs. Road map
+//!
+//! Conceptually, this module is built for threads that can shut down again, or for receiving
+//! messages only in defined times (eg. when ). All information is preserved to allow ports split
+//! off from a thread's message number pool to be recombined, pending messages to be drained and
+//! the thread set up to receive completely different messages on the same message type numbers.
+//!
+//! Practically, this is not implemented, because threads are not commonly used in a
+//! run-and-shut-down pattern in RIOT. Some documentation refers to the process of recombination
+//! already.
+//!
+//! It might still be tricky to actually perform that recombination safely, as there can be queued
+//! up messages. One pattern that is anticipated to work here is to define a single channel on
+//! which a SendPort can be returned through the message queue; thus, by the time it gets returned,
+//! the receiver can be sure that nothing else is left in the queue. (It might be that some API
+//! changes are still needed to avoid that a [ReceivedMessage] is kept around and decoded only
+//! after the port has been recombined and the number possibly reused).
 
 use core::marker::PhantomData;
 use core::mem::{ManuallyDrop, MaybeUninit};
@@ -28,58 +46,52 @@ use crate::thread;
 
 /// Thread-bound information carrier that indicates that a given type number was reserved for this
 /// given content type.
-///
-/// As long as a MessagePort lives (or the [MessageAddressTicket] derived from it), the current
-/// thread must not quit; this is ensured in the construction of the MessagePort.
-// (It'll still be extraordinarily tricky to do anything non-static here -- you'd need to return
-// the handed out ticket, then work the message queue to emptiness (or, if it never gets empty,
-// past the point when the ticket was returned) and only then can the port expire ... and all
-// of that needs to be encoded in the type system.
-pub struct MessagePort<TYPE: Send, const TYPENO: u16> {
+pub struct ReceivePort<TYPE: Send, const TYPENO: u16> {
     // Can only be constructed by split_off()
     _private: (),
     // Regular PhantomData for information -- information is needd by several impl fns.
     _types: PhantomData<TYPE>,
-    // Ensure MessagePort is not Send or Sync -- it is specific to the one thread it's born in
+    // Ensure ReceivePort is not Send or Sync -- it is specific to the one thread it's born in
     // because it contains a statement about the current thread.
     //
-    // (The alternative would be to brand the MessagePort to the thread, but that only works well
+    // (The alternative would be to brand the ReceivePort to the thread, but that only works well
     // once there is a per-thread brand, eg. created along the mechansim described in the
     // NoConfiguredMessages::new TBD).
     _not_send: PhantomData<*const ()>,
 }
 
-impl<TYPE: Send, const TYPENO: u16> MessagePort<TYPE, TYPENO> {
-    pub fn ticket(self) -> MessageAddressTicket<TYPE, TYPENO> {
-        MessageAddressTicket {
-            destination: thread::get_pid(),
-            _phantom: PhantomData,
-        }
-    }
-}
+// FIXME: Maybe implement Deref to SendPort so the port can be used to send to itself?
 
-// FIXME: Maybe implement Deref to MessageAddressTicket so the port can be used to send to itself?
-
-/// A MessagePort turned Send and Sync by addign the runtime information of the destination Kernel
-/// PID to it.
+/// Object through which messages of a precise type can be sent to a precise thread.
 ///
-/// This is what messages are sent through.
+/// Unlike the ReceivePort, the SendPort is Send and Sync by addign the runtime information of the
+/// destination Kernel PID to it. That process / thread is guaranteed to be live (might have
+/// crashed to a non-unwinding panic but not been reused) by the construction of SendPort: A
+/// SendPort can only be created when the indicated thread gives the appropriate guarantees.
 ///
 /// It is owned, but can be used through shared references (which are Send as well); ownership
 /// matters if one ever wants to stop accepting a certain type of message again.
-pub struct MessageAddressTicket<TYPE: Send, const TYPENO: u16> {
+///
+/// If it is desired that multiple callers send on a single typeno (where the callers can not just
+/// share a shared reference), it would be possible to create a version of the SendPort
+/// that counts its clones at runtime and can only be returned when all of them are recombined, or
+/// just to create a version that can be cloned at will but never recombined any more. (One way to
+/// do the latter would be to add a const boolean type parameter "CLONED"; a `.clonable(self) ->
+/// Self` would switch that from false to true, and then copy and clone would be implemented for
+/// the result, whereas recombination would only be implemented for the CLONED = false version).
+pub struct SendPort<TYPE: Send, const TYPENO: u16> {
     destination: thread::KernelPID,
     _phantom: PhantomData<TYPE>,
 }
 
-impl<TYPE: Send, const TYPENO: u16> MessageAddressTicket<TYPE, TYPENO> {
+impl<TYPE: Send, const TYPENO: u16> SendPort<TYPE, TYPENO> {
     /// Send a message to a given ticket.
     ///
     /// On success, the data is received by (or enqueued in, if a queue is set up) the thread
     /// indicated in the ticket. Otherwise, the data is returned.
     ///
     /// Note that while the underlying `msg_try_send` function knows two error cases (thread is not
-    /// ready to receive, and invalid PID), the presence of a MessageAddressTicket implies that the
+    /// ready to receive, and invalid PID), the presence of a SendPort implies that the
     /// thread promised to still be around (it may have crashed, but it can't have exited), so that
     /// error can not happen here. (If it still does due to errors in unsafe code, trips up a debug
     /// assert and else is handled like the other failure to send).
@@ -98,7 +110,7 @@ impl<TYPE: Send, const TYPENO: u16> MessageAddressTicket<TYPE, TYPENO> {
         // invalid one.
         debug_assert!(
             result >= 0,
-            "Target PID vanished even though a MessageAddressTicket was still around"
+            "Target PID vanished even though a SendPort was still around"
         );
         match result {
             1 => Ok(()),
@@ -113,11 +125,22 @@ impl<TYPE: Send, const TYPENO: u16> MessageAddressTicket<TYPE, TYPENO> {
     }
 }
 
-impl<TYPE: Send, const TYPENO: u16> core::fmt::Debug for MessageAddressTicket<TYPE, TYPENO> {
+impl<TYPE: Send, const TYPENO: u16> core::fmt::Debug for ReceivePort<TYPE, TYPENO> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(
             f,
-            "MessageAddressTicket<{}, {}> {{ destination: {:?} }}",
+            "ReceivePort<{}, {}> {{ }}",
+            core::any::type_name::<TYPE>(),
+            TYPENO,
+        )
+    }
+}
+
+impl<TYPE: Send, const TYPENO: u16> core::fmt::Debug for SendPort<TYPE, TYPENO> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(
+            f,
+            "SendPort<{}, {}> {{ destination: {:?} }}",
             core::any::type_name::<TYPE>(),
             TYPENO,
             self.destination
@@ -127,7 +150,7 @@ impl<TYPE: Send, const TYPENO: u16> core::fmt::Debug for MessageAddressTicket<TY
 
 /// Trait for types that indicate the current thread's readiness to receive some set of messages
 ///
-/// In a sense, a MessageSemantics is factory for mutually nonconflicting [MessagePort]s, and a
+/// In a sense, a MessageSemantics is factory for mutually nonconflicting [ReceivePort]s, and a
 /// tracker of what was alerady issued.
 // TBD: seal? can still unseal later.
 pub trait MessageSemantics: Sized {
@@ -135,13 +158,13 @@ pub trait MessageSemantics: Sized {
     fn typeno_is_known(&self, typeno: u16) -> bool;
 
     /// Reduce the type into a new MessageSemantics that knows about one more typeno, and a
-    /// MessagePort that can be used to create a [MessageAddressTicket] or to process incoming
+    /// ReceivePort that can be used to create a [SendPort] or to process incoming
     /// messages.
     ///
     /// ```
-    /// # use riot_wrappers::msg::v2::MessagePort;
-    /// type NumberReceived = MessagePort<u32, 1>;
-    /// type BoolReceibed = MessagePort<bool, 2>;
+    /// # use riot_wrappers::msg::v2::ReceivePort;
+    /// type NumberReceived = ReceivePort<u32, 1>;
+    /// type BoolReceibed = ReceivePort<bool, 2>;
     /// let (message_semantics, mnum): (_, NumberReceived) = message_semantics.split_off();
     /// let (message_semantics, mbool): (_, BoolReceived) = message_semantics.split_off();
     /// ```
@@ -158,7 +181,8 @@ pub trait MessageSemantics: Sized {
         self,
     ) -> (
         Processing<Self, NEW_TYPE, NEW_TYPENO>,
-        MessagePort<NEW_TYPE, NEW_TYPENO>,
+        ReceivePort<NEW_TYPE, NEW_TYPENO>,
+        SendPort<NEW_TYPE, NEW_TYPENO>,
     ) {
         // Should ideally be a static assert. Checks probably happen at build time anyway due to
         // const propagation, but the panic only triggers at runtime :-(
@@ -187,10 +211,14 @@ pub trait MessageSemantics: Sized {
                 tail: self,
                 _type: PhantomData,
             },
-            MessagePort {
+            ReceivePort {
                 _private: (),
                 _types: PhantomData,
                 _not_send: PhantomData,
+            },
+            SendPort {
+                destination: thread::get_pid(),
+                _phantom: PhantomData,
             },
         )
     }
@@ -228,7 +256,7 @@ pub struct NoConfiguredMessages;
 /// The MessageSemantics of a thread that has made no previous commitment to receive any
 /// messages.
 impl NoConfiguredMessages {
-    /// Create a new MessageSemantics object to split into [MessagePort]s.
+    /// Create a new MessageSemantics object to split into [ReceivePort]s.
     ///
     /// **Conditions**, violating which is a safety violation:
     ///
@@ -243,7 +271,7 @@ impl NoConfiguredMessages {
         Self
     }
 
-    /// Create a new MessageSemantics object to split into [MessagePort]s in a scope.
+    /// Create a new MessageSemantics object to split into [ReceivePort]s in a scope.
     ///
     /// This is somewhat safer to use than [new()] because by taking the NoConfiguredMessages
     /// object back (which currently can only be done by not splitting off anything, and later by
@@ -255,6 +283,8 @@ impl NoConfiguredMessages {
     ///   otherwise unused NoConfiguredMessages
     pub unsafe fn new_scoped(f: impl FnOnce(Self) -> Self) {
         f(Self);
+        // FIXME: ensure that the queue is flushed (eg. by sending a terminal message, or by
+        // asserting that the queue is empty)
     }
 }
 
@@ -279,8 +309,8 @@ impl MessageSemantics for NoConfiguredMessages {
 pub struct Processing<TAIL: MessageSemantics, TYPE, const TYPENO: u16> {
     tail: TAIL,
     // Carried around solely to be able to drop messages that did not get decoded. (Otherwise we'd
-    // take solace in the fact that the MessagePort knows how to handle it, and there'll only be
-    // one MessagePort of a given type in a thread, and either that one takes the message or nobody
+    // take solace in the fact that the ReceivePort knows how to handle it, and there'll only be
+    // one ReceivePort of a given type in a thread, and either that one takes the message or nobody
     // does and it'd get dropped).
     _type: PhantomData<TYPE>,
 }
@@ -340,7 +370,7 @@ impl<S: MessageSemantics> ReceivedMessage<S> {
     #[inline]
     /// Move the T out of self, leaving the msg partially uninitialized
     ///
-    /// This can only be used on a type T that a MessagePort was created for.
+    /// This can only be used on a type T that a ReceivePort was created for.
     unsafe fn extract<T>(&mut self) -> T {
         // This'd be easier if we'd constrain transmuted to Clone...
         let mut transmuted = MaybeUninit::uninit();
@@ -354,7 +384,7 @@ impl<S: MessageSemantics> ReceivedMessage<S> {
 
     pub fn decode<R, F: FnOnce(Sender, TYPE) -> R, TYPE: Send, const TYPENO: u16>(
         mut self,
-        _port: &MessagePort<TYPE, TYPENO>,
+        _port: &ReceivePort<TYPE, TYPENO>,
         f: F,
     ) -> Result<R, ReceivedMessage<S>> {
         // Not actually using the port argument, it's just the ZST on whose presence the type
