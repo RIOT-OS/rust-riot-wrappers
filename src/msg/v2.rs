@@ -121,6 +121,16 @@ impl<TYPE: Send, const TYPENO: u16> SendPort<TYPE, TYPENO> {
             }
         }
     }
+
+    /// Access the port's destination
+    ///
+    /// This is particularly useful when messages are not sent directly through [`try_send()`], but
+    /// the port is stored (or dropped) after having been typechecked to match the described API of
+    /// a C function that will send messages -- and after having extracted the destination for
+    /// these messages with this function.
+    pub fn destination(&self) -> thread::KernelPID {
+        self.destination
+    }
 }
 
 impl<TYPE: Send, const TYPENO: u16> core::fmt::Debug for ReceivePort<TYPE, TYPENO> {
