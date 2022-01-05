@@ -32,6 +32,7 @@ impl<'a> Drop for Registration<'a> {
 // pointer; dropping it decrements the refcount. (Otherwise we'd leak packets).
 // What we drop here is what the netreg registration should consume: An owned (or lifetimed, if
 // we move the handling into a closure) permission to send data to the indicated thread.
+#[cfg(feature = "with_msg_v2")]
 type PktsnipPort = crate::msg::v2::SendPort<
     super::pktbuf::Pktsnip<super::pktbuf::Shared>,
     { riot_sys::GNRC_NETAPI_MSG_TYPE_RCV as _ },
