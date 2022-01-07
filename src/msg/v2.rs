@@ -231,7 +231,9 @@ pub trait MessageSemantics: Sized {
         )
     }
 
+    /// Block to receive a single message
     // No override should be necessary for this, not even for internal impls (see sealing above)
+    #[doc(alias = "msg_receive")]
     fn receive(&self) -> ReceivedMessage<'_, Self> {
         let mut msg = MaybeUninit::uninit();
         unsafe { riot_sys::msg_receive(msg.as_mut_ptr()) };
@@ -239,6 +241,22 @@ pub trait MessageSemantics: Sized {
         ReceivedMessage {
             msg,
             _phantom: PhantomData,
+        }
+    }
+
+    /// Receive a single message if one is available in the queue (or another thread is blocking to
+    /// send a message, if no queue is used)
+    #[doc(alias = "msg_try_receive")]
+    fn try_receive(&self) -> Option<ReceivedMessage<'_, Self>> {
+        let mut msg = MaybeUninit::uninit();
+        if unsafe { riot_sys::msg_try_receive(msg.as_mut_ptr()) } == 1 {
+            let msg = unsafe { msg.assume_init() };
+            Some(ReceivedMessage {
+                msg,
+                _phantom: PhantomData,
+            })
+        } else {
+            None
         }
     }
 
