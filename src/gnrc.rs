@@ -206,6 +206,24 @@ impl IPv6Addr {
     }
 }
 
+#[cfg(feature = "with_embedded_nal")]
+impl From<embedded_nal::Ipv6Addr> for IPv6Addr {
+    fn from(input: embedded_nal::Ipv6Addr) -> Self {
+        IPv6Addr {
+            inner: ipv6_addr_t {
+                u8_: input.octets(),
+            },
+        }
+    }
+}
+
+#[cfg(feature = "with_embedded_nal")]
+impl From<IPv6Addr> for embedded_nal::Ipv6Addr {
+    fn from(addr: IPv6Addr) -> Self {
+        Self::from(unsafe { addr.inner.u8_ })
+    }
+}
+
 /// Given an address like fe80::1%42, split it up into a IPv6Addr and a numeric interface
 /// identifier, if any is given. It is an error for the address not to be parsable, or for the
 /// interface identifier not to be numeric.
