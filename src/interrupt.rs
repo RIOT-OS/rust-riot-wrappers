@@ -28,7 +28,9 @@
 ///
 /// Returns true when called from an interrupt service routine
 pub fn irq_is_in() -> bool {
-    (unsafe { riot_sys::irq_is_in() }) != 0
+    // "as bool" cast: Necessary for versions before https://github.com/RIOT-OS/RIOT/pull/17359
+    // (2022.01)
+    (unsafe { riot_sys::irq_is_in() }) as bool
 }
 
 /// Trivial safe wrapper for
@@ -38,7 +40,9 @@ pub fn irq_is_in() -> bool {
 ///
 /// Note that this only returns reliable values when called from a thread context.
 pub fn irq_is_enabled() -> bool {
-    (unsafe { riot_sys::irq_is_enabled() }) != 0
+    // "as bool" cast: Necessary for versions before https://github.com/RIOT-OS/RIOT/pull/17359
+    // (2022.01)
+    (unsafe { riot_sys::irq_is_enabled() }) as bool
 }
 
 /// Proof of running inside a critical section. Reexported from the [bare_metal] crate.
