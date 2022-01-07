@@ -74,6 +74,19 @@ impl<'a> UdpSocket<'a> {
             .map(|s| &mut **s)
     }
 
+    /// Accessor to the inner socket pointer
+    ///
+    /// This can be used by users of the wrapper to alter properties of the socket, as long as that
+    /// does not interfere with the wrapper's operation. It is not specified which parts that are;
+    /// users of this beware that what the wrapper handles can be changed in subsequent versions.
+    ///
+    /// The method is safe on its own because all operations on the `*mut` are unsafe anyway
+    /// (including the functions exported in riot-sys). It is not returning a &mut on the inner
+    /// socket because that would allow swapping it out (which RIOT doesn't like at all).
+    pub fn socket(&mut self) -> Option<*mut riot_sys::sock_udp_t> {
+        self.socket.as_mut().map(|s| &mut **s as _)
+    }
+
     /// If there is an actuall socket in here, close it
     fn close(&mut self) {
         if let Some(socket) = self.socket.take() {
