@@ -66,12 +66,10 @@ pub struct UdpSocket<'a> {
 }
 
 impl<'a> UdpSocket<'a> {
-    /// Accessor to the inner socket pointer to mask the lack of type state in embedded-nal
-    fn access(&mut self) -> Result<&mut riot_sys::sock_udp_t, NumericError> {
-        self.socket
-            .as_mut()
+    /// Version of socket() that gives errors compatible with Self::Error
+    fn access(&mut self) -> Result<*mut riot_sys::sock_udp_t, NumericError> {
+        self.socket()
             .ok_or(NumericError::from_constant(riot_sys::ENOTCONN as _))
-            .map(|s| &mut **s)
     }
 
     /// Accessor to the inner socket pointer
