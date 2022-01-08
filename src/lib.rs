@@ -9,7 +9,6 @@
 // For shell
 #![feature(const_fn_trait_bound)]
 
-extern crate byteorder;
 extern crate embedded_hal;
 extern crate riot_sys;
 
