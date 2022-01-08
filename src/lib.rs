@@ -9,9 +9,6 @@
 // For shell
 #![feature(const_fn_trait_bound)]
 
-extern crate embedded_hal;
-extern crate riot_sys;
-
 pub use cstr_core as cstr;
 
 pub mod error;
