@@ -20,6 +20,12 @@ use riot_sys::{
 
 use crate::gnrc::IPv6Addr;
 
+/// Error type for pktsnip operations that need free buffer space
+///
+/// This is not used consistently yet; some methods still return Option<P> rather than Result<P,
+/// NotEnoughSpace> because they can not easily be transitioned without a breaking change.
+pub struct NotEnoughSpace;
+
 #[derive(Debug)]
 pub struct PktsnipPart<'a> {
     pub data: &'a [u8],
@@ -231,6 +237,22 @@ impl<'a> Pktsnip<Shared> {
         Pktsnip {
             ptr: input,
             _phantom: PhantomData,
+        }
+    }
+
+    /// Create an exclusive version of this pktsnip
+    ///
+    /// This involves a copy if the current reference count is > 1.
+    #[doc(alias = "gnrc_pktsnip_start_write")]
+    pub fn start_write(self) -> Result<Pktsnip<Writable>, NotEnoughSpace> {
+        // unsafe: The C functions justify the new type
+        unsafe {
+            let new = riot_sys::gnrc_pktbuf_start_write(self.to_ptr());
+            if new == 0 as _ {
+                Err(NotEnoughSpace)
+            } else {
+                Ok(Pktsnip::<Writable>::from_ptr(new))
+            }
         }
     }
 }
