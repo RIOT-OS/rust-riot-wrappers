@@ -74,9 +74,12 @@ pub struct Pktsnip<M: Mode> {
 /// obtained a COW copy using start_write.
 unsafe impl Send for Pktsnip<Shared> {}
 
+/// Deprecated: Use from_ptr instead (which is unsafe)
+///
+/// Unfortunately, this deprecation can not use the usual annotations due to
+/// https://github.com/rust-lang/rust/issues/39935
 impl<M: Mode> From<*mut gnrc_pktsnip_t> for Pktsnip<M> {
     /// Accept this pointer as the refcounting wrapper's responsibility
-    // FIXME should this be unsafe?
     fn from(input: *mut gnrc_pktsnip_t) -> Self {
         Pktsnip {
             ptr: input,
@@ -163,7 +166,7 @@ impl<M: Mode> Pktsnip<M> {
             None
         } else {
             forget(self);
-            Some(snip.into())
+            Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
         }
     }
 
@@ -181,7 +184,7 @@ impl<M: Mode> Pktsnip<M> {
             None
         } else {
             forget(self);
-            Some(snip.into())
+            Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
         }
     }
 
@@ -205,8 +208,10 @@ impl<M: Mode> Pktsnip<M> {
         if snip == 0 as *mut _ {
             None
         } else {
-            unsafe { (*snip).next = self.to_ptr() };
-            Some(snip.into())
+            unsafe {
+                (*snip).next = self.to_ptr();
+                Some(Pktsnip::<Writable>::from_ptr(snip))
+            }
         }
     }
 
@@ -217,7 +222,33 @@ impl<M: Mode> Pktsnip<M> {
     }
 }
 
+impl<'a> Pktsnip<Shared> {
+    /// Take responsibility for a pointer
+    ///
+    /// The pointer must currently have a refcount of at least 1; dropping the result decrements
+    /// it.
+    pub unsafe fn from_ptr(input: *mut gnrc_pktsnip_t) -> Self {
+        Pktsnip {
+            ptr: input,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 impl<'a> Pktsnip<Writable> {
+    /// Take responsibility for a pointer
+    ///
+    /// The pointer must currently have a refcount of 1; the buffer is freed when the result is
+    /// dropped.
+    pub unsafe fn from_ptr(input: *mut gnrc_pktsnip_t) -> Self {
+        debug_assert!(unsafe { (*input).users } == 1, "Buffer is shared");
+
+        Pktsnip {
+            ptr: input,
+            _phantom: PhantomData,
+        }
+    }
+
     /// Allocate an uninitialized pktsnip. That its data is uninitialized is currently not
     /// expressed in Rust as the author thinks it's harmless (any u8 is a valid u8, and the
     /// compiler can't know that we're receiving uninitialized memory here so it can't take any
@@ -249,8 +280,7 @@ impl<'a> Pktsnip<Writable> {
             return None;
         }
         forget(next);
-        // I *think* it's safe to not call gnrc_start_write as it's obviously my packet
-        Some(snip.into())
+        Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
     }
 
     #[deprecated(note = "use data_mut")]
