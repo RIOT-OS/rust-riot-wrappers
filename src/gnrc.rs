@@ -50,6 +50,9 @@ impl Netif {
     #[doc(alias = "gnrc_netif_get_by_pid")]
     pub fn by_pid(pid: KernelPID) -> Option<Self> {
         const NULL: *mut riot_sys::gnrc_netif_t = 0 as _;
+        // Not using as_ref: We can't guarantee that even for the short period between we're making
+        // it into a reference and casting it back to a pointer again, it is not used by anyone
+        // else
         match unsafe { riot_sys::gnrc_netif_get_by_pid(pid.into()) } {
             NULL => None,
             x => Some(Netif(x)),
@@ -124,6 +127,8 @@ pub struct IPv6Addr {
     inner: ipv6_addr_t,
 }
 
+// When no_std_net / embedded_nal is present, it may be a good idea to run through there (or allow
+// configuration to optimize which route to take for best deduplication of code)
 impl ::core::str::FromStr for IPv6Addr {
     type Err = ();
 
@@ -159,6 +164,7 @@ impl ::core::str::FromStr for IPv6Addr {
     }
 }
 
+// When no_std_net / embedded_nal is present, it may be a good idea to run through there.
 impl ::core::fmt::Debug for IPv6Addr {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         let as_u8 = unsafe { &self.inner.u8_ };
@@ -229,8 +235,8 @@ impl From<IPv6Addr> for embedded_nal::Ipv6Addr {
 /// interface identifier not to be numeric.
 ///
 /// Don't consider the error type final, that's just what works easily Right Now.
-// This is not implemented in terms of the RIOT ipv6_addr functions as they heavily rely on
-// null-terminated strings and mutating memory.
+// This is not implemented in terms of the RIOT ipv6_addr functions (ipv6_addr_split_iface) as they
+// heavily rely on null-terminated strings and mutating memory.
 pub fn split_ipv6_address(input: &str) -> Result<(IPv6Addr, Option<kernel_pid_t>), &'static str> {
     let mut s = input.splitn(2, "%");
     let addr = s
