@@ -99,17 +99,17 @@ impl<M: Mode> Drop for Pktsnip<M> {
 }
 
 impl<M: Mode> Pktsnip<M> {
+    #[doc(alias = "gnrc_pkt_len")]
     pub fn len(&self) -> usize {
-        // EXPANDED sys/include/net/gnrc/pkt.h:136 gnrc_pkt_len
-        self.iter_snips().map(|s| s.data.len()).sum()
+        (unsafe { riot_sys::inline::gnrc_pkt_len(crate::inline_cast(self.ptr)) }) as _
     }
 
+    #[doc(alias = "gnrc_pkt_count")]
     pub fn count(&self) -> usize {
-        // EXPANDED sys/include/net/gnrc/pkt.h:180 gnrc_pkt_count
-        self.iter_snips().count()
+        (unsafe { riot_sys::inline::gnrc_pkt_count(crate::inline_cast(self.ptr)) }) as _
     }
 
-    // Wrapper around gnrc_ipv6_get_header
+    #[doc(alias = "gnrc_ipv6_get_header")]
     pub fn get_ipv6_hdr(&self) -> Option<&ipv6_hdr_t> {
         let hdr = unsafe { gnrc_ipv6_get_header(self.ptr) };
         if hdr == 0 as *mut _ {
@@ -134,19 +134,29 @@ impl<M: Mode> Pktsnip<M> {
         self.iter_snips().filter(|x| x.type_ == type_).next()
     }
 
-    /// Return the data of only the first snip of self.
+    #[deprecated(note = "use .data() instead")]
     pub fn get_data(&self) -> &[u8] {
+        self.data()
+    }
+
+    /// Return the data of only the first snip of self.
+    pub fn data(&self) -> &[u8] {
         self.iter_snips().next().unwrap().data
     }
 
     /// Relinquish the safe Pktsnip into a pointer. The caller is responsible for calling
     /// gnrc_pktbuf_release on the result, or passing it on to someone who will.
+    ///
+    /// This is not *technically* unsafe as it leaks the item to get a pointer out; it's left
+    /// unsafe more as a warning flag.
     pub unsafe fn to_ptr(self) -> *mut gnrc_pktsnip_t {
         let ptr = self.ptr;
         forget(self);
         ptr
     }
 
+    /// Build a UDP header around the Pktsnip
+    #[doc(alias = "gnrc_udp_hdr_build")]
     pub fn udp_hdr_build(self, src: u16, dst: u16) -> Option<Pktsnip<Writable>> {
         let snip = unsafe { gnrc_udp_hdr_build(self.ptr, src, dst) };
         if snip == 0 as *mut _ {
@@ -157,6 +167,8 @@ impl<M: Mode> Pktsnip<M> {
         }
     }
 
+    /// Build an IPv6 header around the Pktsnip
+    #[doc(alias = "gnrc_ipv6_hdr_build")]
     pub fn ipv6_hdr_build(
         self,
         src: Option<&IPv6Addr>,
@@ -223,6 +235,7 @@ impl<'a> Pktsnip<Writable> {
 
     /// Actual wrapper around gnrc_pktbuf_add. Split into two API functions because .add() makes
     /// sense as a method, and with None as next it's more of a constructor function.
+    #[doc(alias = "gnrc_pktbuf_add")]
     fn _add(
         next: Option<Pktsnip<impl Mode>>,
         data: *const u8,
@@ -240,7 +253,12 @@ impl<'a> Pktsnip<Writable> {
         Some(snip.into())
     }
 
+    #[deprecated(note = "use data_mut")]
     pub fn get_data_mut(&'a mut self) -> &'a mut [u8] {
+        self.data_mut()
+    }
+
+    pub fn data_mut(&'a mut self) -> &'a mut [u8] {
         unsafe {
             ::core::slice::from_raw_parts_mut(
                 ::core::mem::transmute((*self.ptr).data),
