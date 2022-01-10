@@ -33,6 +33,7 @@ impl Iterator for NetifIter {
 /// Raw equivalent for gnrc_netif_iter; see [Netif::all] for a version that produces safely
 /// usable objects.
 #[doc(alias = "gnrc_netif_iter")]
+#[deprecated(note = "Helper-only function, use Netif::all instead")]
 pub fn netif_iter() -> impl Iterator<Item = *const gnrc_netif_t> {
     NetifIter {
         current: 0 as *const gnrc_netif_t,
@@ -48,6 +49,7 @@ pub struct Netif(*const gnrc_netif_t);
 impl Netif {
     #[doc(alias = "gnrc_netif_iter")]
     pub fn all() -> impl Iterator<Item = Netif> {
+        #[allow(deprecated)]
         netif_iter().map(Netif)
     }
 
