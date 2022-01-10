@@ -63,6 +63,7 @@ impl<'a, const MAX: usize> core::iter::IntoIterator for &'a AddrList<MAX> {
 }
 
 #[repr(transparent)] // which allows the AddrList addresss to be passed to gnrc_netif_ipv6_addrs_get
+#[derive(Copy, Clone)]
 pub struct Address {
     inner: ipv6_addr_t,
 }
@@ -214,6 +215,7 @@ impl<M: Mode> Pktsnip<M> {
 /// A transparent wrapper around ``ipv6_hdr_t`` that provides idiomatically typed fields
 #[repr(transparent)]
 #[doc(alias = "ipv6_hdr_t")]
+#[derive(Copy, Clone)]
 pub struct Header {
     inner: riot_sys::ipv6_hdr_t,
 }
