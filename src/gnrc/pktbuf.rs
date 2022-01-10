@@ -71,6 +71,10 @@ pub struct Writable();
 impl Mode for Writable {}
 
 /// Wrapper type around gnrc_pktsnip_t that takes care of the reference counting involved.
+///
+/// By constructing a Pktsnip, it is also asserted that any snip annotations are correct (for
+/// example, that a `GNRC_NETTYPE_IPV6` snip does contain a full IPv6 header, as demanded by
+/// `gnrc_ipv6_get_header`).
 pub struct Pktsnip<M: Mode> {
     ptr: *mut gnrc_pktsnip_t,
     _phantom: PhantomData<M>,
