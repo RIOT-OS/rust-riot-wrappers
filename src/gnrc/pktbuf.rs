@@ -20,10 +20,17 @@ use riot_sys::{
 
 use crate::gnrc::IPv6Addr;
 
+#[cfg(riot_module_gnrc_icmpv6)]
+pub enum Icmpv6EchoType {
+    EchoReq = riot_sys::ICMPV6_ECHO_REQ as _,
+    EchoRep = riot_sys::ICMPV6_ECHO_REP as _,
+}
+
 /// Error type for pktsnip operations that need free buffer space
 ///
 /// This is not used consistently yet; some methods still return Option<P> rather than Result<P,
 /// NotEnoughSpace> because they can not easily be transitioned without a breaking change.
+#[derive(Debug)]
 pub struct NotEnoughSpace;
 
 #[derive(Debug)]
@@ -326,6 +333,31 @@ impl<'a> Pktsnip<Writable> {
         } else {
             // Actually only on ENOMEM
             Err(())
+        }
+    }
+
+    #[cfg(riot_module_gnrc_icmpv6)]
+    #[doc(alias = "gnrc_icmpv6_echo_build")]
+    pub fn icmpv6_echo_build(
+        type_: Icmpv6EchoType,
+        id: u16,
+        seq: u16,
+        payload: &[u8],
+    ) -> Result<Pktsnip<Writable>, NotEnoughSpace> {
+        let snip = unsafe {
+            riot_sys::gnrc_icmpv6_echo_build(
+                type_ as _,
+                id,
+                seq,
+                // cast: C function lacks const declaration
+                payload.as_ptr() as *mut _,
+                payload.len() as _,
+            )
+        };
+        if snip == 0 as *mut _ {
+            Err(NotEnoughSpace)
+        } else {
+            unsafe { Ok(Pktsnip::<Writable>::from_ptr(snip)) }
         }
     }
 }
