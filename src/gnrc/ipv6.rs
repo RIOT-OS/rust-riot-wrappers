@@ -250,10 +250,14 @@ impl Header {
 
 impl core::fmt::Debug for Header {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        // FIXME: force this through a hex view
         let vtcfl = self.version_trafficclass_flowlabel();
+        let mut vtcfl_buf = [0u8; 8];
+        hex::encode_to_slice(&vtcfl, &mut vtcfl_buf).unwrap();
         f.debug_struct("Header")
-            .field("version / traffic class / flow label", &vtcfl)
+            .field(
+                "version / traffic class / flow label",
+                &core::str::from_utf8(&vtcfl_buf).unwrap(),
+            )
             .field("len", &self.len())
             .field("next_header", &self.next_header())
             .field("hop_limit", &self.hop_limit())
