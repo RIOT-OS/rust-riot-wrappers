@@ -4,6 +4,7 @@ use core::mem::MaybeUninit;
 
 use riot_sys::{ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
 
+use super::pktbuf::{Mode, Pktsnip, Writable};
 use crate::error::{NegativeErrorExt, NumericError};
 
 impl super::Netif {
@@ -189,4 +190,75 @@ pub fn split_address(input: &str) -> Result<(Address, Option<kernel_pid_t>), &'s
     };
 
     Ok((addr, interface))
+}
+
+impl<M: Mode> Pktsnip<M> {
+    /// Get the IPv6 header of the snip, if there is any thusly typed snip present
+    // Note that we can *not* just implement this with &mut on a Writable Pktsnip, because
+    // writability is only ever about the first snip
+    #[doc(alias = "gnrc_ipv6_get_header")]
+    pub fn ipv6_get_header(&self) -> Option<&Header> {
+        // unsafe: C API, and requirement on a Pktsnip that typed snips follow that type's
+        // conventions
+        let ptr = unsafe { riot_sys::gnrc_ipv6_get_header(self.ptr) };
+        if ptr == 0 as _ {
+            None
+        } else {
+            // unsafe: Header is a transparent wrapper around the actual ipv6_hdr_t, and the
+            // ipv6_hdr_t itself is valid as per Pktsnip reqirements
+            Some(unsafe { &*(ptr as *const Header) })
+        }
+    }
+}
+
+/// A transparent wrapper around ``ipv6_hdr_t`` that provides idiomatically typed fields
+#[repr(transparent)]
+#[doc(alias = "ipv6_hdr_t")]
+pub struct Header {
+    inner: riot_sys::ipv6_hdr_t,
+}
+
+impl Header {
+    pub fn src(&self) -> &Address {
+        // unsafe: Per transparency of the Address type
+        unsafe { core::mem::transmute(&self.inner.src) }
+    }
+
+    pub fn dst(&self) -> &Address {
+        // unsafe: Per transparency of the Address type
+        unsafe { core::mem::transmute(&self.inner.dst) }
+    }
+
+    pub fn len(&self) -> u16 {
+        // unsafe: It's a view of the fully inhabited simple union version
+        u16::from_be_bytes(unsafe { self.inner.len.u8_ })
+    }
+
+    pub fn next_header(&self) -> u8 {
+        self.inner.nh
+    }
+
+    pub fn hop_limit(&self) -> u8 {
+        self.inner.hl
+    }
+
+    pub fn version_trafficclass_flowlabel(&self) -> &[u8; 4] {
+        // unsafe: It's just a view on the network buffer we pass on unmodified
+        unsafe { &self.inner.v_tc_fl.u8_ }
+    }
+}
+
+impl core::fmt::Debug for Header {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        // FIXME: force this through a hex view
+        let vtcfl = self.version_trafficclass_flowlabel();
+        f.debug_struct("Header")
+            .field("version / traffic class / flow label", &vtcfl)
+            .field("len", &self.len())
+            .field("next_header", &self.next_header())
+            .field("hop_limit", &self.hop_limit())
+            .field("src", &self.src())
+            .field("dst", &self.dst())
+            .finish()
+    }
 }

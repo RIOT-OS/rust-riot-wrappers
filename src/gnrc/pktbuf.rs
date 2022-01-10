@@ -76,7 +76,7 @@ impl Mode for Writable {}
 /// example, that a `GNRC_NETTYPE_IPV6` snip does contain a full IPv6 header, as demanded by
 /// `gnrc_ipv6_get_header`).
 pub struct Pktsnip<M: Mode> {
-    ptr: *mut gnrc_pktsnip_t,
+    pub(crate) ptr: *mut gnrc_pktsnip_t,
     _phantom: PhantomData<M>,
 }
 
