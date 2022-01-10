@@ -1,3 +1,5 @@
+#[cfg(riot_module_gnrc_icmpv6)]
+pub mod icmpv6;
 pub mod netapi;
 pub mod netreg;
 pub mod pktbuf;
