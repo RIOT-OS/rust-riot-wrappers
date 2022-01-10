@@ -410,10 +410,8 @@ impl<'a, S: MessageSemantics> ReceivedMessage<'a, S> {
         let mut transmuted = MaybeUninit::uninit();
         // Hoping that the compiler is clever and doesn't *really* move data around ... then
         // again, it's only 4 byte or a pointer...
-        core::mem::swap(&mut transmuted, unsafe {
-            core::mem::transmute(&mut self.msg.content)
-        });
-        unsafe { transmuted.assume_init() }
+        core::mem::swap(&mut transmuted, core::mem::transmute(&mut self.msg.content));
+        transmuted.assume_init()
     }
 
     pub fn decode<R, F: FnOnce(Sender, TYPE) -> R, TYPE: Send, const TYPENO: u16>(

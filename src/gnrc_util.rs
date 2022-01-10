@@ -50,8 +50,7 @@ impl RoundtripData for NetifRoundtripData {
             Some(pid) => unsafe {
                 let mut netif = payload.netif_hdr_build(None, None)?;
 
-                let data: &mut gnrc_netif_hdr_t =
-                    ::core::mem::transmute(netif.get_data_mut().as_ptr());
+                let data: &mut gnrc_netif_hdr_t = ::core::mem::transmute(netif.data_mut().as_ptr());
                 data.if_pid = pid.into();
 
                 Some(netif.into())

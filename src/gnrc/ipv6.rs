@@ -4,7 +4,7 @@ use core::mem::MaybeUninit;
 
 use riot_sys::{ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
 
-use super::pktbuf::{Mode, Pktsnip, Writable};
+use super::pktbuf::{Mode, Pktsnip};
 use crate::error::{NegativeErrorExt, NumericError};
 
 impl super::Netif {

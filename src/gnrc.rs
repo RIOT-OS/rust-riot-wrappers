@@ -11,7 +11,6 @@ use riot_sys::{gnrc_netif_iter, gnrc_netif_t};
 
 use crate::thread::KernelPID;
 use core::iter::Iterator;
-use core::mem::MaybeUninit;
 
 struct NetifIter {
     current: *const gnrc_netif_t,

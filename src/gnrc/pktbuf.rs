@@ -268,7 +268,7 @@ impl<'a> Pktsnip<Writable> {
     /// The pointer must currently have a refcount of 1; the buffer is freed when the result is
     /// dropped.
     pub unsafe fn from_ptr(input: *mut gnrc_pktsnip_t) -> Self {
-        debug_assert!(unsafe { (*input).users } == 1, "Buffer is shared");
+        debug_assert!((*input).users == 1, "Buffer is shared");
 
         Pktsnip {
             ptr: input,
