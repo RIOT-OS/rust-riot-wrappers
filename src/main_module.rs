@@ -52,6 +52,22 @@ macro_rules! riot_main {
     };
 }
 
+#[macro_export]
+macro_rules! riot_main_with_tokens {
+    ($main:ident) => {
+        #[export_name = "main"]
+        pub extern "C" fn c_main() -> i32 {
+            // unsafe: By construction of the C main function this only happens at startup time
+            // with a thread that hasn't done anything relevant before.
+            let unique = unsafe { riot_wrappers::thread::StartToken::new() };
+
+            let (result, token): (_, riot_wrappers::thread::TerminationToken) = $main(unique);
+            use riot_wrappers::main::Termination;
+            result.report()
+        }
+    };
+}
+
 /// A result trait for main methods, analogous to std::process::Termination
 pub trait Termination {
     fn report(self) -> i32;

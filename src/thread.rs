@@ -1,11 +1,32 @@
 //! Create, inspect or modify RIOT processes ("threads")
+//!
+//! ## Tokens
+//!
+//! Some thread creation mechanisms (currently only [riot_main_with_tokens] and not those in here)
+//! are "with tokens". With these, the zero-sized type [StartToken] is used to pass along the
+//! information that the execution is currently happening in a thread, and more importantly that
+//! some operations doable only once per thread (eg. setting up a message queue) have not yet
+//! happed.
+//!
+//! When threads are created that way, they need to return a [TerminationToken] which ensures that
+//! no operations that preclude the termination of a thread have happened.
 
 use cstr_core::CStr;
 use riot_sys as raw;
 
 /// Offloaded tools for creation
 mod creation;
-pub use creation::{scope, spawn, CountedThread, CountingThreadScope, TrackedThread};
+#[cfg(doc)]
+pub use creation::TokenParts;
+pub use creation::{
+    scope,
+    spawn,
+    CountedThread,
+    CountingThreadScope,
+    StartToken,
+    TerminationToken,
+    TrackedThread,
+};
 
 /// Wrapper around a valid (not necessarily running, but in-range) [riot_sys::kernel_pid_t] that
 /// provides access to thread details and signaling.

@@ -293,6 +293,7 @@ impl NoConfiguredMessages {
     ///
     /// TBD: Add a version of the thread spawner that comes with all kinds of once-per-thread
     /// gadgets.
+    #[deprecated(note = "Use thread token instead")]
     pub unsafe fn new() -> Self {
         Self
     }
@@ -307,6 +308,7 @@ impl NoConfiguredMessages {
     ///
     /// * The thread must currently not allow sending any messages to it, or even created an
     ///   otherwise unused NoConfiguredMessages
+    #[deprecated(note = "Use thread token instead")]
     pub unsafe fn new_scoped(f: impl FnOnce(Self) -> Self) {
         f(Self);
         // FIXME: ensure that the queue is flushed (eg. by sending a terminal message, or by
