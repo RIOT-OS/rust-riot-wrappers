@@ -7,17 +7,6 @@ use riot_sys as raw;
 mod creation;
 pub use creation::{scope, spawn, CountedThread, CountingThreadScope, TrackedThread};
 
-// // wrongly detected as u32, it's actually used as an i32
-// pub const THREAD_CREATE_SLEEPING: i32 = 1;
-// pub const THREAD_AUTO_FREE: i32 = 2;
-// pub const THREAD_CREATE_WOUT_YIELD: i32 = 4;
-// pub const THREAD_CREATE_STACKTEST: i32 = 8;
-//
-// // wrongly detected as u32, it's actually used as a u8
-// pub const THREAD_PRIORITY_MIN: i8 = 15;
-// pub const THREAD_PRIORITY_IDLE: i8 = 15;
-// pub const THREAD_PRIORITY_MAIN: i8 = 7;
-
 /// Wrapper around a valid (not necessarily running, but in-range) [riot_sys::kernel_pid_t] that
 /// provides access to thread details and signaling.
 // Possible optimization: Make this NonZero
@@ -28,10 +17,10 @@ pub(crate) mod pid_converted {
     //! Converting the raw constants into consistently typed ones
     use riot_sys as raw;
 
-    // pub const KERNEL_PID_UNDEF: raw::kernel_pid_t = raw::KERNEL_PID_UNDEF as raw::kernel_pid_t;
-    pub const KERNEL_PID_FIRST: raw::kernel_pid_t = raw::KERNEL_PID_FIRST as raw::kernel_pid_t;
-    pub const KERNEL_PID_LAST: raw::kernel_pid_t = raw::KERNEL_PID_LAST as raw::kernel_pid_t;
-    pub const KERNEL_PID_ISR: raw::kernel_pid_t = raw::KERNEL_PID_ISR as raw::kernel_pid_t;
+    pub const KERNEL_PID_UNDEF: raw::kernel_pid_t = raw::KERNEL_PID_UNDEF as _;
+    pub const KERNEL_PID_FIRST: raw::kernel_pid_t = raw::KERNEL_PID_FIRST as _;
+    pub const KERNEL_PID_LAST: raw::kernel_pid_t = raw::KERNEL_PID_LAST as _;
+    pub const KERNEL_PID_ISR: raw::kernel_pid_t = raw::KERNEL_PID_ISR as _;
 }
 
 mod status_converted {
@@ -42,9 +31,10 @@ mod status_converted {
 
     use riot_sys as raw;
 
-    // STATUS_NOT_FOUND is not added here as it's not a proper status but rather a sentinel value,
-    // which moreover can't be processed in its current form by bindgen and would need to be copied
-    // over in here by manual expansion of the macro definition.
+    // This is special because it is not part of the enum but a cast -1
+    // unsafe: Side effect free C macros
+    pub const STATUS_NOT_FOUND: i32 = unsafe { raw::macro_STATUS_NOT_FOUND() as _ };
+
     pub const STATUS_STOPPED: i32 = raw::thread_status_t_STATUS_STOPPED as i32;
     pub const STATUS_SLEEPING: i32 = raw::thread_status_t_STATUS_SLEEPING as i32;
     pub const STATUS_MUTEX_BLOCKED: i32 = raw::thread_status_t_STATUS_MUTEX_BLOCKED as i32;
@@ -119,7 +109,6 @@ impl Status {
 
 impl KernelPID {
     pub fn new(pid: raw::kernel_pid_t) -> Option<Self> {
-        // casts needed due to untypedness of preprocessor constants
         if unsafe { raw::pid_is_valid(pid) } != 0 {
             Some(KernelPID(pid))
         } else {
@@ -151,14 +140,14 @@ impl KernelPID {
     }
 
     /// Get the current status of the thread of that number, if one currently exists
+    #[doc(alias = "thread_getstatus")]
     pub fn status(&self) -> Result<Status, ()> {
-        // unsafe: Side effect always-callable C function
-        let status = unsafe { raw::thread_getstatus(self.0) };
-        // unsafe: Side effect free C macros
-        if status == unsafe { riot_sys::macro_STATUS_NOT_FOUND() } {
+        // unsafe: Side effect free, always-callable C function
+        let status = unsafe { raw::thread_getstatus(self.0) } as _;
+        if status == status_converted::STATUS_NOT_FOUND {
             Err(())
         } else {
-            Ok(Status::from_int(status as _))
+            Ok(Status::from_int(status))
         }
     }
 
@@ -168,6 +157,7 @@ impl KernelPID {
         Status::from_int(status as _)
     }
 
+    #[doc(alias = "thread_wakeup")]
     pub fn wakeup(&self) -> Result<(), ()> {
         let success = unsafe { raw::thread_wakeup(self.0) };
         match success {
@@ -283,6 +273,9 @@ pub fn get_pid() -> KernelPID {
     KernelPID(unsafe { raw::thread_getpid() })
 }
 
+/// Put the current thread in the "sleeping" state, only to be continue when something calls
+/// [KernelPID::wakeup()] on its PID.
+#[doc(alias = "thread_sleep")]
 pub fn sleep() {
     unsafe { raw::thread_sleep() }
 }
