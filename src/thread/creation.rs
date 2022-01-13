@@ -297,8 +297,8 @@ pub struct TerminationToken {
 /// This has the downside that TokenParts can not easily be passed to downstream functions, and all
 /// splitting has to happen at the top level; this should not be a problem in practice.
 pub struct TokenParts<
-    const MsgSemantics: bool,
-    const MsgQueue: bool,
+    const MSG_SEMANTICS: bool,
+    const MSG_QUEUE: bool,
     // Do we need something for "we're in a thread" factory? (Probably also doesn't need tracking
     // b/c it can be Clone -- and everything in RIOT alerady does a cheap irq_is_in check rather
     // than taking a ZST)
