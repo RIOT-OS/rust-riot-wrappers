@@ -4,7 +4,7 @@ use core::mem::MaybeUninit;
 
 use riot_sys::{ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
 
-use super::pktbuf::{Mode, Pktsnip};
+use super::pktbuf::{Mode, Pktsnip, Writable};
 use crate::error::{NegativeErrorExt, NumericError};
 
 impl super::Netif {
@@ -208,6 +208,38 @@ impl<M: Mode> Pktsnip<M> {
             // unsafe: Header is a transparent wrapper around the actual ipv6_hdr_t, and the
             // ipv6_hdr_t itself is valid as per Pktsnip reqirements
             Some(unsafe { &*(ptr as *const Header) })
+        }
+    }
+
+    // Duplication because I didn't look at what's implementedc
+    #[deprecated(note = "Use ipv6_get_header instead (which is safely usable)")]
+    #[doc(alias = "gnrc_ipv6_get_header")]
+    pub fn get_ipv6_hdr(&self) -> Option<&riot_sys::ipv6_hdr_t> {
+        let hdr = unsafe { riot_sys::gnrc_ipv6_get_header(self.ptr) };
+        if hdr == 0 as *mut _ {
+            None
+        } else {
+            // It's OK to hand out a reference: self.ptr is immutable in its data areas, and hdr
+            // should point somewhere in there
+            Some(unsafe { &*hdr })
+        }
+    }
+
+    /// Build an IPv6 header around the Pktsnip
+    #[doc(alias = "gnrc_ipv6_hdr_build")]
+    pub fn ipv6_hdr_build(
+        self,
+        src: Option<&Address>,
+        dst: Option<&Address>,
+    ) -> Option<Pktsnip<Writable>> {
+        let src = src.map(|s| unsafe { s.as_ptr() }).unwrap_or(0 as *mut _);
+        let dst = dst.map(|d| unsafe { d.as_ptr() }).unwrap_or(0 as *mut _);
+        let snip = unsafe { riot_sys::gnrc_ipv6_hdr_build(self.ptr, src, dst) };
+        if snip == 0 as *mut _ {
+            None
+        } else {
+            core::mem::forget(self);
+            Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
         }
     }
 }

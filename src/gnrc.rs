@@ -73,8 +73,10 @@ impl Netif {
     }
 }
 
+#[cfg(riot_module_ipv6)]
 #[deprecated(note = "Use through the ipv6 module")]
 pub use ipv6::*;
+#[cfg(riot_module_ipv6)]
 #[deprecated(note = "Use through the new names in ipv6")]
 pub use ipv6::{
     split_address as split_ipv6_address,

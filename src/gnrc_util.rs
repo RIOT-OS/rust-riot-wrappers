@@ -5,6 +5,7 @@
 //! additions to the RIOT API, or are completely misguided.
 
 use crate::gnrc::pktbuf::{Pktsnip, Shared};
+#[cfg(riot_module_ipv6)]
 use crate::gnrc::IPv6Addr;
 use crate::thread::KernelPID;
 
@@ -59,6 +60,7 @@ impl RoundtripData for NetifRoundtripData {
     }
 }
 
+#[cfg(riot_module_ipv6)]
 #[derive(Debug)]
 pub struct IPv6RoundtripDataFull<N: RoundtripData> {
     remote: IPv6Addr,
@@ -69,6 +71,7 @@ pub struct IPv6RoundtripDataFull<N: RoundtripData> {
     next: N,
 }
 
+#[cfg(riot_module_ipv6)]
 impl<N: RoundtripData> RoundtripData for IPv6RoundtripDataFull<N> {
     fn from_incoming(incoming: &Pktsnip<Shared>) -> Self {
         let ip = incoming.get_ipv6_hdr().unwrap();

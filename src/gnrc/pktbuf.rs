@@ -4,8 +4,6 @@ use core::marker::PhantomData;
 use core::mem::forget;
 
 use riot_sys::{
-    gnrc_ipv6_get_header,
-    gnrc_ipv6_hdr_build,
     gnrc_netif_hdr_build,
     gnrc_nettype_t,
     gnrc_pktbuf_add,
@@ -14,11 +12,8 @@ use riot_sys::{
     gnrc_pktbuf_release_error,
     gnrc_pktsnip_t,
     gnrc_udp_hdr_build,
-    ipv6_hdr_t,
     GNRC_NETERR_SUCCESS,
 };
-
-use crate::gnrc::IPv6Addr;
 
 /// Error type for pktsnip operations that need free buffer space
 ///
@@ -123,18 +118,6 @@ impl<M: Mode> Pktsnip<M> {
         (unsafe { riot_sys::inline::gnrc_pkt_count(crate::inline_cast(self.ptr)) }) as _
     }
 
-    #[doc(alias = "gnrc_ipv6_get_header")]
-    pub fn get_ipv6_hdr(&self) -> Option<&ipv6_hdr_t> {
-        let hdr = unsafe { gnrc_ipv6_get_header(self.ptr) };
-        if hdr == 0 as *mut _ {
-            None
-        } else {
-            // It's OK to hand out a reference: self.ptr is immutable in its data areas, and hdr
-            // should point somewhere in there
-            Some(unsafe { &*hdr })
-        }
-    }
-
     pub fn iter_snips(&self) -> SnipIter {
         SnipIter {
             pointer: self.ptr,
@@ -170,27 +153,10 @@ impl<M: Mode> Pktsnip<M> {
     }
 
     /// Build a UDP header around the Pktsnip
+    #[cfg(riot_module_udp)]
     #[doc(alias = "gnrc_udp_hdr_build")]
     pub fn udp_hdr_build(self, src: u16, dst: u16) -> Option<Pktsnip<Writable>> {
         let snip = unsafe { gnrc_udp_hdr_build(self.ptr, src, dst) };
-        if snip == 0 as *mut _ {
-            None
-        } else {
-            forget(self);
-            Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
-        }
-    }
-
-    /// Build an IPv6 header around the Pktsnip
-    #[doc(alias = "gnrc_ipv6_hdr_build")]
-    pub fn ipv6_hdr_build(
-        self,
-        src: Option<&IPv6Addr>,
-        dst: Option<&IPv6Addr>,
-    ) -> Option<Pktsnip<Writable>> {
-        let src = src.map(|s| unsafe { s.as_ptr() }).unwrap_or(0 as *mut _);
-        let dst = dst.map(|d| unsafe { d.as_ptr() }).unwrap_or(0 as *mut _);
-        let snip = unsafe { gnrc_ipv6_hdr_build(self.ptr, src, dst) };
         if snip == 0 as *mut _ {
             None
         } else {
