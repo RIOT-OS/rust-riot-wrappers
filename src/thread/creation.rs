@@ -19,7 +19,7 @@ unsafe fn create<R>(
     name: &CStr,
     priority: u8,
     flags: i32,
-) -> (raw::kernel_pid_t, Option<*mut riot_sys::_thread>)
+) -> (raw::kernel_pid_t, Option<*mut riot_sys::thread_t>)
 where
     R: Send + FnMut(),
 {
@@ -237,7 +237,7 @@ where
 pub struct TrackedThread {
     pid: KernelPID,
     // If this is None, then the thread was so short-lived that the TCB couldn't even be extracted
-    tcb: Option<*mut riot_sys::_thread>,
+    tcb: Option<*mut riot_sys::thread_t>,
 }
 
 impl TrackedThread {
