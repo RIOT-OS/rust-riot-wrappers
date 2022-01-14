@@ -1,0 +1,25 @@
+test:nightly:
+  image: riot/riotbuild
+  script:
+  - "if [ -e RIOT ]; then (cd RIOT; git pull); else git clone https://github.com/RIOT-OS/RIOT; fi"
+  - "cd RIOT"
+  - "git reset --hard"
+  - "DIRS='examples/rust-hello-world examples/rust-gcoap tests/rust_minimal'"
+  # Not touching riot-wrappes explicitly: If a newer riot-sys is required, it
+  # ill be pulled even with `-p`.
+  - "
+    for D in ${DIRS}; do
+      cd ${D};
+      echo '=== TESTING' ${D};
+      echo '[patch.crates-io]' >> Cargo.toml;
+      echo 'riot-wrappers = { path = \"../../../\", version = \"*\" }' >> Cargo.toml;
+      cargo update -p riot-wrappers;
+      cargo tree;
+      make BOARDS='native sltb001a samr21-xpro' buildtest;
+      cd ../..;
+    done
+      "
+  cache:
+    paths:
+      - .cargo/
+      - RIOT
