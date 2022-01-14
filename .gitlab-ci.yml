@@ -8,6 +8,7 @@ test:nightly:
   # Not touching riot-wrappes explicitly: If a newer riot-sys is required, it
   # ill be pulled even with `-p`.
   - "
+    set -e;
     for D in ${DIRS}; do
       cd ${D};
       echo '=== TESTING' ${D};
