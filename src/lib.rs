@@ -1,6 +1,10 @@
 #![no_std]
 #![feature(never_type)]
-#![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
+// for eh_personality; only needed on native
+#![cfg_attr(
+    all(feature = "set_panic_handler", target_arch = "x86"),
+    feature(lang_items)
+)]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
 // for Args IntoIterator
 #![cfg_attr(riot_module_shell, feature(type_alias_impl_trait))]
