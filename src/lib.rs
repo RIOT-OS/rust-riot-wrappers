@@ -5,9 +5,9 @@
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
 #![feature(maybe_uninit_extra)]
 // for Args IntoIterator
-#![feature(type_alias_impl_trait)]
+#![cfg_attr(riot_module_shell, feature(type_alias_impl_trait))]
 // For shell
-#![feature(const_fn_trait_bound)]
+#![cfg_attr(riot_module_shell, feature(const_fn_trait_bound))]
 
 pub use cstr_core as cstr;
 
