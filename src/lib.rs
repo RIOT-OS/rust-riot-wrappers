@@ -1,9 +1,7 @@
 #![no_std]
 #![feature(never_type)]
-#![feature(const_mut_refs)]
 #![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
-#![feature(maybe_uninit_extra)]
 // for Args IntoIterator
 #![cfg_attr(riot_module_shell, feature(type_alias_impl_trait))]
 // For shell
