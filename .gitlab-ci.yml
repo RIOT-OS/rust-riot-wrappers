@@ -1,9 +1,8 @@
 test:nightly:
   image: riot/riotbuild
   script:
-  - "if [ -e RIOT ]; then (cd RIOT; git pull); else git clone https://github.com/RIOT-OS/RIOT; fi"
+  - "if [ -e RIOT ]; then (cd RIOT; git reset --hard; git pull); else git clone https://github.com/RIOT-OS/RIOT; fi"
   - "cd RIOT"
-  - "git reset --hard"
   - "DIRS='examples/rust-hello-world examples/rust-gcoap tests/rust_minimal'"
   # Not touching riot-wrappes explicitly: If a newer riot-sys is required, it
   # ill be pulled even with `-p`.
