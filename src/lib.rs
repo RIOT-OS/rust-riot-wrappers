@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(never_type)]
 // for eh_personality; only needed on native
 #![cfg_attr(
     all(feature = "set_panic_handler", target_arch = "x86"),
