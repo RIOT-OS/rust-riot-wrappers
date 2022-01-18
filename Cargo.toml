@@ -27,8 +27,7 @@ mutex-trait = "0.2"
 
 bare-metal = "1"
 
-# nightly is required to get everything const nicely
-cstr_core = { version = "^0.2.4", default-features = false, features = [ "nightly" ] }
+cstr_core = { version = "^0.2.4", default-features = false }
 
 heapless = "^0.7"
 
@@ -53,7 +52,10 @@ pin-utils = "0.1"
 shlex = "0.1.1"
 
 [features]
-default = ["set_panic_handler", "panic_handler_format"]
+# cstr_nightly is deprecated as an item in the default list (ie. users should
+# enable it actively if they need it in order to keep their code working even
+# after the next incompatible release).
+default = ["set_panic_handler", "panic_handler_format", "cstr_nightly" ]
 set_panic_handler = []
 # If present, the panic handler uses string formatting to produce an error
 # message. Otherwise, it just writes a static panic message to stdout.
@@ -66,3 +68,7 @@ with_embedded_nal = ["embedded-nal", "embedded-nal-tcpextensions"]
 # See msg::v2 documentation. Enabling this exposes components not under semver
 # guarantees.
 with_msg_v2 = []
+
+# Enable the nightly (additional constification) features of the pub-used cstr
+# library
+cstr_nightly = [ "cstr_core/nightly" ]
