@@ -44,7 +44,7 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     }
 }
 
-// This is only needed to build the i686 version
+#[cfg(target_arch = "x86")]
 #[lang = "eh_personality"]
 fn rust_eh_personality() {
     loop {}

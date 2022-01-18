@@ -1,13 +1,15 @@
 #![no_std]
 #![feature(never_type)]
-#![feature(const_mut_refs)]
-#![cfg_attr(feature = "set_panic_handler", feature(lang_items))]
+// for eh_personality; only needed on native
+#![cfg_attr(
+    all(feature = "set_panic_handler", target_arch = "x86"),
+    feature(lang_items)
+)]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
-#![feature(maybe_uninit_extra)]
 // for Args IntoIterator
-#![feature(type_alias_impl_trait)]
+#![cfg_attr(riot_module_shell, feature(type_alias_impl_trait))]
 // For shell
-#![feature(const_fn_trait_bound)]
+#![cfg_attr(riot_module_shell, feature(const_fn_trait_bound))]
 
 pub use cstr_core as cstr;
 
