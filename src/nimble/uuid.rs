@@ -2,7 +2,7 @@
 //!
 //! The [Uuid16], [Uuid32] and [Uuid128] types represent UUIDs of their given lengths, have
 //! conversion functions to get suitable pointers for the initialization of larger structs and for
-//! accessing the address in Bluetooth's serialization, and provide a convenient [FromStr]
+//! accessing the address in Bluetooth's serialization, and provide a convenient [core::str::FromStr]
 //! implementation (ie. can be `.parse()`d) for conversion from string-formatted UUIDs.
 
 #[derive(Debug)]
@@ -64,7 +64,7 @@ macro_rules! implementation {
             }
         }
 
-        /// Useful for building values for things like [ble_gatt_svc_def] that take a pointer to a
+        /// Useful for building values for things like `ble_gatt_svc_def` that take a pointer to a
         /// ble_uuid_t rather than to a ble_uuid_any_t, probably to simplify casting in C.
         impl<'a> Into<*const riot_sys::ble_uuid_t> for &'a $name {
             fn into(self) -> *const riot_sys::ble_uuid_t {

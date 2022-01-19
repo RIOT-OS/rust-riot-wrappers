@@ -34,7 +34,6 @@ pub enum Error {
     DeviceNotFound,
 }
 
-use super::*;
 use riot_sys::libc;
 use riot_sys::{i2c_acquire, i2c_read_bytes, i2c_release, i2c_write_bytes};
 

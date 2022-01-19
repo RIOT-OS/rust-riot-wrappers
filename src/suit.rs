@@ -57,7 +57,6 @@ pub mod coap {
             response: &mut impl coap_message::MutableWritableMessage,
             request: Self::RequestData,
         ) {
-            use core::convert::TryInto;
             response.set_code(
                 request
                     .try_into()

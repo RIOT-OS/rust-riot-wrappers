@@ -348,7 +348,7 @@ impl<const MQ: bool> TokenParts<true, MQ> {
 }
 
 impl<const MQ: bool> TokenParts<false, MQ> {
-    /// Inverse of [take_msg_semantics], indicating that the thread may be terminated again as far
+    /// Inverse of [TokenParts::take_msg_semantics], indicating that the thread may be terminated again as far
     /// as message semantics are concerned.
     #[cfg(feature = "with_msg_v2")]
     pub fn return_msg_semantics(

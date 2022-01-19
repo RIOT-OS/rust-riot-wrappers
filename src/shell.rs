@@ -235,7 +235,7 @@ unsafe impl Send for SleevedCommandList {}
 
 static CURRENT_SHELL_RUNNER: mutex::Mutex<Option<SleevedCommandList>> = mutex::Mutex::new(None);
 
-/// Internal helper that is used to create the linear [`riot_sys::shellcommand_t`] structure that a
+/// Internal helper that is used to create the linear [`riot_sys::shell_command_t`] structure that a
 /// command list needs to pass to RIOT
 ///
 /// (Exposed publicly as the [`CommandList::and`] trait method can not return an `impl CommandList`
@@ -382,7 +382,7 @@ pub fn new() -> impl CommandList {
 }
 
 
-/// Make a function whose signature is `fn(&mut `[`Stdio`](stdio::Stdio)`, `[`Args`]`<'b>) -> impl `[`Termination`](main::Termination) available through
+/// Make a function whose signature is `fn(&mut `[`Stdio`](stdio::Stdio)`, `[`Args`]`<'b>) -> impl `[`Termination`](crate::main::Termination) available through
 /// XFA in any RIOT shell, even when called throuch C. (The function's signature may be more
 /// generic, eg. accepting an `impl `[`Write`](core::fmt::Write) and an `impl `[`IntoIterator`]`<&str>`).
 ///

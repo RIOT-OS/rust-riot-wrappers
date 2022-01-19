@@ -83,7 +83,7 @@ unsafe impl Send for Pktsnip<Shared> {}
 /// Deprecated: Use from_ptr instead (which is unsafe)
 ///
 /// Unfortunately, this deprecation can not use the usual annotations due to
-/// https://github.com/rust-lang/rust/issues/39935
+/// <https://github.com/rust-lang/rust/issues/39935>
 impl<M: Mode> From<*mut gnrc_pktsnip_t> for Pktsnip<M> {
     /// Accept this pointer as the refcounting wrapper's responsibility
     fn from(input: *mut gnrc_pktsnip_t) -> Self {

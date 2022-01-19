@@ -28,7 +28,7 @@ impl super::Netif {
     }
 }
 
-/// Helper for [Netif::ipv6_addrs]: As the [riot_sys::gnrc_netif_ipv6_addrs_get] function requires
+/// Helper for [super::Netif::ipv6_addrs]: As the [riot_sys::gnrc_netif_ipv6_addrs_get] function requires
 /// a multiple-address buffer to write in, this carries a suitable buffer.
 pub struct AddrList<const MAX: usize> {
     addresses: [MaybeUninit<Address>; MAX],

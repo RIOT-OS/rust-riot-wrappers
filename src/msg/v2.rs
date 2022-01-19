@@ -124,7 +124,7 @@ impl<TYPE: Send, const TYPENO: u16> SendPort<TYPE, TYPENO> {
 
     /// Access the port's destination
     ///
-    /// This is particularly useful when messages are not sent directly through [`try_send()`], but
+    /// This is particularly useful when messages are not sent directly through [`SendPort::try_send()`], but
     /// the port is stored (or dropped) after having been typechecked to match the described API of
     /// a C function that will send messages -- and after having extracted the destination for
     /// these messages with this function.
@@ -267,7 +267,7 @@ pub trait MessageSemantics: Sized {
     /// sent and not handled, at least if they arrive. (Can't help if someone runs try_send and
     /// does no error handling).
     ///
-    /// * If all drops are trivial, this (and the [<ReceivedMessage as Drop>::drop()] caller)
+    /// * If all drops are trivial, this (and the `<ReceivedMessage as Drop>::drop()` caller)
     ///   should all fold into no code.
     /// * If code for a nontrivially dropped type comes after a decode(), the compiler should be
     ///   able to see that b/c that value was ruled out for .type_ just before.
@@ -300,7 +300,7 @@ impl NoConfiguredMessages {
 
     /// Create a new MessageSemantics object to split into [ReceivePort]s in a scope.
     ///
-    /// This is somewhat safer to use than [new()] because by taking the NoConfiguredMessages
+    /// This is somewhat safer to use than [NoConfiguredMessages::new()] because by taking the NoConfiguredMessages
     /// object back (which currently can only be done by not splitting off anything, and later by
     /// returning everything that was split off); an easy way to do that is to just never return.
     ///

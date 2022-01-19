@@ -5,7 +5,7 @@
 /// Used both to build echo packets (which, admittedly, are mainly requests in
 /// [Pktsnip::icmpv6_echo_build]) and for registering (mainly for responses) by giving a
 /// `u32::from(t)` as the demux context for the ICMPv6 nettype in
-/// [registration](riot_wrappers::gnrc::netreg::register_for_messages).
+/// [registration](crate::gnrc::netreg::register_for_messages).
 #[derive(Debug, Copy, Clone)]
 pub enum EchoType {
     Request = riot_sys::ICMPV6_ECHO_REQ as _,
