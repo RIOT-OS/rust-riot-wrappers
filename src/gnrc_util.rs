@@ -74,11 +74,11 @@ pub struct IPv6RoundtripDataFull<N: RoundtripData> {
 #[cfg(riot_module_ipv6)]
 impl<N: RoundtripData> RoundtripData for IPv6RoundtripDataFull<N> {
     fn from_incoming(incoming: &Pktsnip<Shared>) -> Self {
-        let ip = incoming.get_ipv6_hdr().unwrap();
+        let ip = incoming.ipv6_get_header().unwrap();
 
         Self {
-            remote: IPv6Addr::clone_from_ptr(&ip.src),
-            local: IPv6Addr::clone_from_ptr(&ip.dst),
+            remote: *ip.src(),
+            local: *ip.dst(),
             next: N::from_incoming(incoming),
         }
     }
