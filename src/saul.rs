@@ -26,6 +26,7 @@ use riot_sys as raw;
 use riot_sys::libc;
 
 use crate::error;
+use crate::Never;
 use error::NegativeErrorExt;
 
 // Sync is required because callers from any thread may use the raw methods to construct a self
@@ -126,9 +127,37 @@ impl<'a, D: Drivable> Registration<'a, D> {
         }
     }
 
-    #[deprecated(note = "This is unsound, use `.register_with()` instead")]
+    #[deprecated(note = "This is unsound, use `.register_with()` or `.register_static()` instead")]
     pub fn register(self: core::pin::Pin<&mut Self>) {
         (unsafe { riot_sys::saul_reg_add(&mut self.get_unchecked_mut().reg) })
+            .negative_to_error()
+            .expect("Constructed registries are always valid");
+    }
+
+    /// Hook the registration in with the global SAUL list
+    ///
+    /// Compared to [`Registration::register_static()`], this is convenient for threads that run
+    /// forever and which just need a mutable reference to move into an infinitely executing
+    /// closure to get the same guarantees as from a static reference.
+    // It would be nice to have a helper function that proves the infinite lifetime independently
+    // of the registration, but none such is known.
+    //
+    // If unwinding is ever added in RIOT, this will need a guard similar to the one in the
+    // `replace_with` crate.
+    pub fn register_with(&'a mut self, f: impl FnOnce() -> Never) -> ! {
+        (unsafe { riot_sys::saul_reg_add(&mut self.reg) })
+            .negative_to_error()
+            .expect("Constructed registries are always valid");
+        f()
+    }
+}
+
+impl<D: Drivable> Registration<'static, D> {
+    /// Hook the registration in with the global SAUL list
+    ///
+    /// If you can not obtain a &'static, you may consider [`Registration::register_with()`].
+    pub fn register_static(&'static mut self) {
+        (unsafe { riot_sys::saul_reg_add(&mut self.reg) })
             .negative_to_error()
             .expect("Constructed registries are always valid");
     }
