@@ -102,6 +102,12 @@ impl Termination for crate::Never {
     }
 }
 
+impl Termination for core::convert::Infallible {
+    fn report(self) -> i32 {
+        match self {}
+    }
+}
+
 impl<E: fmt::Debug> Termination for Result<crate::Never, E> {
     fn report(self) -> i32 {
         match self {
