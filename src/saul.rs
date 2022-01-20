@@ -114,7 +114,7 @@ pub struct Registration<'a, D: Drivable> {
 unsafe impl<'a, D: Drivable> Send for Registration<'a, D> {}
 
 impl<'a, D: Drivable> Registration<'a, D> {
-    pub fn new(driver: &Driver<D>, device: &D, name: Option<&CStr>) -> Self {
+    pub fn new(driver: &'a Driver<D>, device: &'a D, name: Option<&'a CStr>) -> Self {
         Registration {
             reg: riot_sys::saul_reg_t {
                 next: 0 as _,
