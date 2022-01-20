@@ -247,6 +247,13 @@ impl Into<raw::kernel_pid_t> for KernelPID {
 ///
 /// All accessors are unconditional, because the StackStats can't be obtained without develhelp in
 /// the first place.
+///
+/// ## Upgrade warning
+///
+/// In the next breaking release, together with several deprecations, this will be marked
+/// `#[non_exhaustive]`. Start adding a `..` to ensure a good upgrade path.
+///
+/// (This will pave the way for the addition of the stack pointer through `thread_get_sp`).
 #[derive(Debug)]
 pub struct StackStats {
     start: *mut i8,
