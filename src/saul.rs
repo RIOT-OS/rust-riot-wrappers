@@ -372,7 +372,7 @@ impl Class {
         }
     }
 
-    fn to_c(self) -> u8 {
+    const fn to_c(self) -> u8 {
         use ActuatorClass::*;
         use Class::*;
         use SensorClass::*;
