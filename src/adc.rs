@@ -1,3 +1,5 @@
+use crate::Never;
+
 pub struct ADCLine(riot_sys::adc_t);
 
 impl ADCLine {
@@ -29,9 +31,9 @@ impl embedded_hal::adc::Channel<ADC> for ADCLine {
 }
 
 impl embedded_hal::adc::OneShot<ADC, i32, ADCLine> for ADC {
-    type Error = !;
+    type Error = Never;
 
-    fn read(&mut self, pin: &mut ADCLine) -> nb::Result<i32, !> {
+    fn read(&mut self, pin: &mut ADCLine) -> nb::Result<i32, Never> {
         // Sorry, blocking still
         Ok(unsafe { riot_sys::adc_sample(pin.0, self.resolution) })
     }

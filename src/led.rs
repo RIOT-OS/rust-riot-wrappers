@@ -1,5 +1,7 @@
 //! Wrappers for the `LEDn_{ON,OFF,TOGGLE}` macros
 
+use crate::Never;
+
 /// The Ith LED (calling the `LED<I>_{ON,OFF,TOGGLE}` macros).
 ///
 /// LEDs are wrapped into GPIOs because it's convenient: they're available on native, semantics of
@@ -17,9 +19,9 @@ impl<const I: u8> LED<I> {
 }
 
 impl<const I: u8> embedded_hal::digital::v2::OutputPin for LED<I> {
-    type Error = !;
+    type Error = Never;
 
-    fn set_high(&mut self) -> Result<(), !> {
+    fn set_high(&mut self) -> Result<(), Never> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {
@@ -37,7 +39,7 @@ impl<const I: u8> embedded_hal::digital::v2::OutputPin for LED<I> {
         Ok(())
     }
 
-    fn set_low(&mut self) -> Result<(), !> {
+    fn set_low(&mut self) -> Result<(), Never> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {
@@ -57,9 +59,9 @@ impl<const I: u8> embedded_hal::digital::v2::OutputPin for LED<I> {
 }
 
 impl<const I: u8> embedded_hal::digital::v2::ToggleableOutputPin for LED<I> {
-    type Error = !;
+    type Error = Never;
 
-    fn toggle(&mut self) -> Result<(), !> {
+    fn toggle(&mut self) -> Result<(), Never> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {

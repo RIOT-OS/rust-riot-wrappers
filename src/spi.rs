@@ -1,3 +1,4 @@
+use crate::Never;
 use embedded_hal::blocking;
 use riot_sys::{
     spi_acquire,
@@ -59,7 +60,7 @@ impl SPIDevice {
 // }
 
 impl<'a> blocking::spi::Transfer<u8> for AcquiredSPI<'a> {
-    type Error = !;
+    type Error = Never;
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Self::Error> {
         unsafe {
