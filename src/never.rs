@@ -4,10 +4,10 @@
 /// From <https://github.com/rust-lang/rust/issues/43301#issuecomment-912390203>, adjusted for
 /// usability with pub interfaces by using a pub trait in a private module (sealing).
 
-pub trait WithOutput {
-    type Output;
+pub trait NeverHelper {
+    type Never;
 }
-impl<T> WithOutput for fn() -> T {
-    type Output = T;
+impl<T> NeverHelper for fn() -> T {
+    type Never = T;
 }
-pub(crate) type Never = <fn() -> ! as WithOutput>::Output;
+pub(crate) type Never = <fn() -> ! as NeverHelper>::Never;
