@@ -11,6 +11,11 @@
 #![cfg_attr(riot_module_shell, feature(const_fn_trait_bound))]
 // Primarily for documentation, see feature docs
 #![cfg_attr(feature = "actual_never_type", feature(never_type))]
+// for SAUL's const Driver::new
+#![cfg_attr(
+    riot_module_saul,
+    feature(const_fn_fn_ptr_basics, const_fn_trait_bound)
+)]
 
 pub use cstr_core as cstr;
 

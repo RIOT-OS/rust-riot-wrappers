@@ -2,24 +2,31 @@
 //!
 //! This modules falls largely into two parts:
 //!
-//! * `Drivable` and `Registration`, which are used to register custom sensors or actuators into
-//!   SAUL, and
-//! * `RegistrationEntry` with its various constructors that find sensors or actuators in SAUL,
+//! * [`registration::Drivable`] and [`registration::Registration`], which are used to register
+//!   custom sensors or actuators into SAUL, and
+//! * [`RegistryEntry`] with its various constructors that find sensors or actuators in SAUL,
 //!   which allows interacting with them.
 //!
 //!
 //! In mapping SAUL semantics to Rust, some parts are not aligned in full:
 //!
-//! * The `Phydat` type used here *always* has a length -- as opposed to `phydat_t` which contains
+//! * The [`Phydat`] type used here *always* has a length -- as opposed to `phydat_t` which contains
 //!   up to PHYDAT_DIM values, and transports the number of used items on the side -- but not
 //!   always.
 //!
 //!   This affects sensor data writing, and is documented with the respective calls.
 //!
-//! * `Drivable` provides both a read and a write callback unconditionally; consequently, a device
+//! * [`registration::Drivable`] provides both a read and a write callback unconditionally; consequently, a device
 //!   built from it will alays err with `-ECANCELED` and never with `-ENOTSUP`.
 //!
 //! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
+//!
+//! Note that there is a `Drivable`, `Registration` type in this module as well; these are
+//! deprecated. They are largely identical to the types in [`registration`], but encode choices
+//! made that do not allow building the Driver in a `const` way, and also include unsound Pin-based
+//! APIs that were deprecated previously already (along with some lifetimes that are not needed any
+//! more since the Pin-based API went away). In a sense, `riot_wrappers::saul::registration` is the
+//! "v2" of the registration interface (just that splitting it up avoided catching such a name).
 
 use cstr_core::CStr;
 use riot_sys as raw;
@@ -29,8 +36,11 @@ use crate::error;
 use crate::Never;
 use error::NegativeErrorExt;
 
+pub mod registration;
+
 // Sync is required because callers from any thread may use the raw methods to construct a self
 // reference through whihc it is used
+#[deprecated(note = "Implement registration::Drivable instead")]
 pub trait Drivable: Sized + Sync {
     /// Read the current state
     fn read(&self) -> Result<Phydat, ()>;
@@ -105,6 +115,7 @@ unsafe impl<D: Drivable> Send for Driver<D> {}
 // The 'a lifetime is only formal -- as for registration a Pin<&Self> is required and the
 // destructor blocks, the practically 'a is static (but the compiler can't know that by the time
 // it's checking).
+#[deprecated(note = "Use registration::Registration instead")]
 pub struct Registration<'a, D: Drivable> {
     reg: riot_sys::saul_reg_t,
     _phantom: core::marker::PhantomData<&'a D>,
