@@ -8,6 +8,7 @@ use riot_sys::{gpio_clear, gpio_mode_t, gpio_read, gpio_set, gpio_t, gpio_toggle
 use embedded_hal::digital::v2::{InputPin, OutputPin, ToggleableOutputPin};
 
 use crate::error::NegativeErrorExt;
+use crate::Never;
 
 /// A Rust representation of RIOT's gpio_t, representing a single pin in no particular
 /// configuration.
@@ -154,23 +155,23 @@ impl OutputGPIO {
 }
 
 impl OutputPin for OutputGPIO {
-    type Error = !;
+    type Error = Never;
 
-    fn set_high(&mut self) -> Result<(), !> {
+    fn set_high(&mut self) -> Result<(), Never> {
         unsafe { gpio_set(self.to_c()) };
         Ok(())
     }
 
-    fn set_low(&mut self) -> Result<(), !> {
+    fn set_low(&mut self) -> Result<(), Never> {
         unsafe { gpio_clear(self.to_c()) };
         Ok(())
     }
 }
 
 impl ToggleableOutputPin for OutputGPIO {
-    type Error = !;
+    type Error = Never;
 
-    fn toggle(&mut self) -> Result<(), !> {
+    fn toggle(&mut self) -> Result<(), Never> {
         unsafe { gpio_toggle(self.to_c()) };
         Ok(())
     }
@@ -192,13 +193,13 @@ impl InputGPIO {
 }
 
 impl InputPin for InputGPIO {
-    type Error = !;
+    type Error = Never;
 
-    fn is_high(&self) -> Result<bool, !> {
+    fn is_high(&self) -> Result<bool, Never> {
         Ok(unsafe { gpio_read(self.to_c()) } != 0)
     }
 
-    fn is_low(&self) -> Result<bool, !> {
+    fn is_low(&self) -> Result<bool, Never> {
         Ok(unsafe { gpio_read(self.to_c()) } == 0)
     }
 }
@@ -219,35 +220,35 @@ impl InOutGPIO {
 }
 
 impl InputPin for InOutGPIO {
-    type Error = !;
+    type Error = Never;
 
-    fn is_high(&self) -> Result<bool, !> {
+    fn is_high(&self) -> Result<bool, Never> {
         Ok(unsafe { gpio_read(self.to_c()) } != 0)
     }
 
-    fn is_low(&self) -> Result<bool, !> {
+    fn is_low(&self) -> Result<bool, Never> {
         Ok(unsafe { gpio_read(self.to_c()) } == 0)
     }
 }
 
 impl OutputPin for InOutGPIO {
-    type Error = !;
+    type Error = Never;
 
-    fn set_high(&mut self) -> Result<(), !> {
+    fn set_high(&mut self) -> Result<(), Never> {
         unsafe { gpio_set(self.to_c()) };
         Ok(())
     }
 
-    fn set_low(&mut self) -> Result<(), !> {
+    fn set_low(&mut self) -> Result<(), Never> {
         unsafe { gpio_clear(self.to_c()) };
         Ok(())
     }
 }
 
 impl ToggleableOutputPin for InOutGPIO {
-    type Error = !;
+    type Error = Never;
 
-    fn toggle(&mut self) -> Result<(), !> {
+    fn toggle(&mut self) -> Result<(), Never> {
         unsafe { gpio_toggle(self.to_c()) };
         Ok(())
     }

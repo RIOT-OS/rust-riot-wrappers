@@ -385,7 +385,7 @@ impl<const MS: bool> TokenParts<MS, true> {
     // unsound: The `true` MS would mean that the NoConfiguredMessages could be taken out again and
     // used to configure semantics, and then all of a sudden the still-configured message queue
     // would be sent to again.
-    pub fn with_message_queue<const N: usize, F: FnOnce(TokenParts<MS, false>) -> !>(
+    pub fn with_message_queue<const N: usize, F: FnOnce(TokenParts<MS, false>) -> crate::Never>(
         self,
         f: F,
     ) -> ! {

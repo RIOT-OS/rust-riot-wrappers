@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(never_type)]
 // for eh_personality; only needed on native
 #![cfg_attr(
     all(feature = "set_panic_handler", target_arch = "x86"),
@@ -10,10 +9,15 @@
 #![cfg_attr(riot_module_shell, feature(type_alias_impl_trait))]
 // For shell
 #![cfg_attr(riot_module_shell, feature(const_fn_trait_bound))]
+// Primarily for documentation, see feature docs
+#![cfg_attr(feature = "actual_never_type", feature(never_type))]
 
 pub use cstr_core as cstr;
 
 pub mod error;
+
+mod never;
+use never::Never;
 
 /// Name of the RIOT board that is being used
 ///

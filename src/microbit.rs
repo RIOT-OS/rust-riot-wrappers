@@ -10,6 +10,8 @@ use embedded_graphics::{
     DrawTarget,
 };
 
+use crate::Never;
+
 /// The 5x5 LED matrix of the micro:bit boards
 ///
 /// Use the [embedded_hal] mechanisms to paint on them.
@@ -26,9 +28,9 @@ impl LEDs {
 }
 
 impl DrawTarget<BinaryColor> for LEDs {
-    type Error = !;
+    type Error = Never;
 
-    fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), !> {
+    fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), Never> {
         let Pixel(Point { x, y }, color) = pixel;
 
         let setter = match color {

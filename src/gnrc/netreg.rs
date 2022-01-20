@@ -49,7 +49,7 @@ type PktsnipPort = crate::msg::v2::SendPort<
 /// used once more (with the risk that messages from the old registration arrive in the new one,
 /// which is wrong correctness-wise but safe because it'll still be a pointer to a pktsnip).
 #[cfg(feature = "with_msg_v2")]
-pub fn register_for_messages<F: FnOnce() -> !>(
+pub fn register_for_messages<F: FnOnce() -> crate::Never>(
     grant: PktsnipPort,
     nettype: riot_sys::gnrc_nettype_t,
     demux_ctx: u32,

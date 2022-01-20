@@ -91,18 +91,24 @@ impl<E: fmt::Debug> Termination for Result<(), E> {
     fn report(self) -> i32 {
         match self {
             Ok(()) => ().report(),
-            Err(err) => Err::<!, _>(err).report(),
+            Err(err) => Err::<crate::Never, _>(err).report(),
         }
     }
 }
 
-impl Termination for ! {
+impl Termination for crate::Never {
     fn report(self) -> i32 {
         self
     }
 }
 
-impl<E: fmt::Debug> Termination for Result<!, E> {
+impl Termination for core::convert::Infallible {
+    fn report(self) -> i32 {
+        match self {}
+    }
+}
+
+impl<E: fmt::Debug> Termination for Result<crate::Never, E> {
     fn report(self) -> i32 {
         match self {
             Err(err) => {
