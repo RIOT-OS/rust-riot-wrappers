@@ -126,8 +126,7 @@ impl<'a, D: Drivable> Registration<'a, D> {
         }
     }
 
-    // The signature ensures that the registration will always be around under penalty of a
-    // panicking drop, not moved, and that register is only called once.
+    #[deprecated(note = "This is unsound, use `.register_with()` instead")]
     pub fn register(self: core::pin::Pin<&mut Self>) {
         (unsafe { riot_sys::saul_reg_add(&mut self.get_unchecked_mut().reg) })
             .negative_to_error()
@@ -135,6 +134,7 @@ impl<'a, D: Drivable> Registration<'a, D> {
     }
 }
 
+// When the deprecated register function goes away, so can this implementation.
 impl<'a, D: Drivable> Drop for Registration<'a, D> {
     fn drop(&mut self) {
         panic!("A SAUL registration must persist for the complete device uptime.")
