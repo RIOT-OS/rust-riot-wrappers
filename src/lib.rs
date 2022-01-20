@@ -9,6 +9,8 @@
 #![cfg_attr(riot_module_shell, feature(type_alias_impl_trait))]
 // For shell
 #![cfg_attr(riot_module_shell, feature(const_fn_trait_bound))]
+// Primarily for documentation, see feature docs
+#![cfg_attr(feature = "actual_never_type", feature(never_type))]
 
 pub use cstr_core as cstr;
 

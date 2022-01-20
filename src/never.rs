@@ -10,4 +10,7 @@ pub trait NeverHelper {
 impl<T> NeverHelper for fn() -> T {
     type Never = T;
 }
+#[cfg(not(feature = "actual_never_type"))]
 pub(crate) type Never = <fn() -> ! as NeverHelper>::Never;
+#[cfg(feature = "actual_never_type")]
+pub(crate) type Never = !;

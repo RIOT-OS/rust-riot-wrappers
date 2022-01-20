@@ -72,3 +72,11 @@ with_msg_v2 = []
 # Enable the nightly (additional constification) features of the pub-used cstr
 # library
 cstr_nightly = [ "cstr_core/nightly" ]
+
+# Use actual `!` rather than the stable Never workaround. As far as the
+# workaround is understood, this causes no actual change in any types, just in
+# the private names that are assigned to them.
+#
+# This is primarily for documentation building; enabling it may also help users
+# of nightly when they see a mess of types.
+actual_never_type = []
