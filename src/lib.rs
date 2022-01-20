@@ -15,6 +15,9 @@ pub use cstr_core as cstr;
 
 pub mod error;
 
+mod never;
+use never::Never;
+
 /// Name of the RIOT board that is being used
 ///
 /// Development:
