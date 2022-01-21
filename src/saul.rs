@@ -2,34 +2,44 @@
 //!
 //! This modules falls largely into two parts:
 //!
-//! * `Drivable` and `Registration`, which are used to register custom sensors or actuators into
-//!   SAUL, and
-//! * `RegistrationEntry` with its various constructors that find sensors or actuators in SAUL,
-//!   which allows interacting with them.
+//! * For creating and registering SAUL devices, see the [registration] submodule.
 //!
+//! * [`RegistryEntry`] with its various constructors finds sensors or actuators in SAUL,
+//!   and allows interacting with them.
 //!
 //! In mapping SAUL semantics to Rust, some parts are not aligned in full:
 //!
-//! * The `Phydat` type used here *always* has a length -- as opposed to `phydat_t` which contains
+//! * The [`Phydat`] type used here *always* has a length -- as opposed to `phydat_t` which contains
 //!   up to PHYDAT_DIM values, and transports the number of used items on the side -- but not
 //!   always.
 //!
 //!   This affects sensor data writing, and is documented with the respective calls.
 //!
-//! * `Drivable` provides both a read and a write callback unconditionally; consequently, a device
-//!   built from it will alays err with `-ECANCELED` and never with `-ENOTSUP`.
-//!
 //! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
+//!
+//! Note that there is a `Drivable`, `Registration` type in this module as well; these are
+//! deprecated. They are largely identical to the types in [`registration`], but encode choices
+//! made that do not allow building the Driver in a `const` way, and also include unsound Pin-based
+//! APIs that were deprecated previously already (along with some lifetimes that are not needed any
+//! more since the Pin-based API went away). In a sense, `riot_wrappers::saul::registration` is the
+//! "v2" of the registration interface (just that splitting it up avoided catching such a name).
+#![allow(deprecated)]
+// ... because sure we have to *use* these to keep them implemented for the duration of their
+// deprecation
 
 use cstr_core::CStr;
 use riot_sys as raw;
 use riot_sys::libc;
 
 use crate::error;
+use crate::Never;
 use error::NegativeErrorExt;
+
+pub mod registration;
 
 // Sync is required because callers from any thread may use the raw methods to construct a self
 // reference through whihc it is used
+#[deprecated(note = "Implement registration::Drivable instead")]
 pub trait Drivable: Sized + Sync {
     /// Read the current state
     fn read(&self) -> Result<Phydat, ()>;
@@ -91,6 +101,7 @@ pub trait Drivable: Sized + Sync {
 
 /// A typed saul_driver_t, created from a Drivable's build_driver() static method, and used in
 /// pinned form in registrations.
+#[deprecated(note = "Use the registration submodule instead")]
 pub struct Driver<D: Drivable> {
     driver: riot_sys::saul_driver_t,
     _phantom: core::marker::PhantomData<D>,
@@ -104,6 +115,7 @@ unsafe impl<D: Drivable> Send for Driver<D> {}
 // The 'a lifetime is only formal -- as for registration a Pin<&Self> is required and the
 // destructor blocks, the practically 'a is static (but the compiler can't know that by the time
 // it's checking).
+#[deprecated(note = "Use registration::Registration instead")]
 pub struct Registration<'a, D: Drivable> {
     reg: riot_sys::saul_reg_t,
     _phantom: core::marker::PhantomData<&'a D>,
@@ -114,7 +126,7 @@ pub struct Registration<'a, D: Drivable> {
 unsafe impl<'a, D: Drivable> Send for Registration<'a, D> {}
 
 impl<'a, D: Drivable> Registration<'a, D> {
-    pub fn new(driver: &Driver<D>, device: &D, name: Option<&CStr>) -> Self {
+    pub fn new(driver: &'a Driver<D>, device: &'a D, name: Option<&'a CStr>) -> Self {
         Registration {
             reg: riot_sys::saul_reg_t {
                 next: 0 as _,
@@ -126,15 +138,45 @@ impl<'a, D: Drivable> Registration<'a, D> {
         }
     }
 
-    // The signature ensures that the registration will always be around under penalty of a
-    // panicking drop, not moved, and that register is only called once.
+    #[deprecated(
+        note = "This is unsound, use `.register_with()` or `.register_static()` instead or go to the newer `registration` module right away"
+    )]
     pub fn register(self: core::pin::Pin<&mut Self>) {
         (unsafe { riot_sys::saul_reg_add(&mut self.get_unchecked_mut().reg) })
             .negative_to_error()
             .expect("Constructed registries are always valid");
     }
+
+    /// Hook the registration in with the global SAUL list
+    ///
+    /// Compared to [`Registration::register_static()`], this is convenient for threads that run
+    /// forever and which just need a mutable reference to move into an infinitely executing
+    /// closure to get the same guarantees as from a static reference.
+    // It would be nice to have a helper function that proves the infinite lifetime independently
+    // of the registration, but none such is known.
+    //
+    // If unwinding is ever added in RIOT, this will need a guard similar to the one in the
+    // `replace_with` crate.
+    pub fn register_with(&'a mut self, f: impl FnOnce() -> Never) -> ! {
+        (unsafe { riot_sys::saul_reg_add(&mut self.reg) })
+            .negative_to_error()
+            .expect("Constructed registries are always valid");
+        f()
+    }
 }
 
+impl<D: Drivable> Registration<'static, D> {
+    /// Hook the registration in with the global SAUL list
+    ///
+    /// If you can not obtain a &'static, you may consider [`Registration::register_with()`].
+    pub fn register_static(&'static mut self) {
+        (unsafe { riot_sys::saul_reg_add(&mut self.reg) })
+            .negative_to_error()
+            .expect("Constructed registries are always valid");
+    }
+}
+
+// When the deprecated register function goes away, so can this implementation.
 impl<'a, D: Drivable> Drop for Registration<'a, D> {
     fn drop(&mut self) {
         panic!("A SAUL registration must persist for the complete device uptime.")
@@ -343,7 +385,7 @@ impl Class {
         }
     }
 
-    fn to_c(self) -> u8 {
+    const fn to_c(self) -> u8 {
         use ActuatorClass::*;
         use Class::*;
         use SensorClass::*;
@@ -387,6 +429,7 @@ impl Class {
         }) as _
     }
 
+    /// Human-readable name of the class
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::saul_class_to_str(self.to_c()).as_ref() }
             .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
@@ -396,6 +439,7 @@ impl Class {
 
 #[derive(Copy, Clone, Debug)]
 #[non_exhaustive]
+/// Classes of actuators; typically used as details on a [Class]
 pub enum ActuatorClass {
     LedRgb,
     Servo,
@@ -406,6 +450,7 @@ pub enum ActuatorClass {
 
 #[derive(Copy, Clone, Debug)]
 #[non_exhaustive]
+/// Classes of sensors; typically used as details on a [Class]
 pub enum SensorClass {
     Btn,
     Temp,
@@ -438,6 +483,8 @@ pub enum SensorClass {
 }
 
 #[derive(Copy, Clone, Debug)]
+/// Unit of measurement required to interpret numeric values in a [Phydat] exchanged with a SAUL
+/// device
 pub enum Unit {
     /// Note that this means "data has no physical unit", and is distinct from "No unit given",
     /// which is `Option::<Unit>::None` as opposed to `Some(Unit::None)`.
@@ -555,6 +602,7 @@ impl Unit {
         }) as _
     }
 
+    /// Human-readable name of the class
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).as_ref() }
             .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
