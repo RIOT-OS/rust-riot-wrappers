@@ -8,7 +8,7 @@ use crate::error::NegativeErrorExt;
 use crate::Never;
 
 // Sync is required because callers from any thread may use the raw methods to construct a self
-// reference through whihc it is used
+// reference through which it is used
 pub trait Drivable: Sized + Sync + 'static {
     /// Sensor class (type)
     const CLASS: Class;
@@ -113,41 +113,41 @@ impl<D: Drivable> Registration<D> {
 
     /// Hook the registration in with the global SAUL list
     ///
-    /// Compared to [`Registration::register_static()`], this is convenient for threads that run
-    /// forever and which just need a mutable reference to move into an infinitely executing
-    /// closure to get the same guarantees as from a static reference.
-    // It would be nice to have a helper function that proves the infinite lifetime independently
-    // of the registration, but none such is known.
-    //
-    // If unwinding is ever added in RIOT, this will need a guard similar to the one in the
-    // `replace_with` crate.
-    pub fn register_with(
-        driver: &Driver<D>,
-        device: &D,
-        name: Option<&CStr>,
-        f: impl FnOnce() -> Never,
-    ) -> ! {
-        // Reborrow for 'static lifetime.
-        //
-        // This is safe because we never terminate, and thus keep these references forever.
-        // (It could be done prettier, but see above on preferring to have a proper library for
-        // this anyway).
-        let (driver, device, name) = unsafe { core::mem::transmute((driver, device, name)) };
-
-        let mut registration = Registration::<D>::new(driver, device, name);
-
-        (unsafe { riot_sys::saul_reg_add(&mut registration.reg) })
-            .negative_to_error()
-            .expect("Constructed registries are always valid");
-        f()
-    }
-
-    /// Hook the registration in with the global SAUL list
-    ///
-    /// If you can not obtain a &'static, you may consider [`Registration::register_with()`].
+    /// If you can not obtain a &'static, you may consider [`register_and_then()`].
     pub fn register_static(&'static mut self) {
         (unsafe { riot_sys::saul_reg_add(&mut self.reg) })
             .negative_to_error()
             .expect("Constructed registries are always valid");
     }
+}
+
+/// Hook the registration in with the global SAUL list
+///
+/// Compared to [`Registration::register_static()`], this is convenient for threads that run
+/// forever and which just need a reference to move into an infinitely executing closure to get the
+/// same guarantees as from a static reference.
+// It would be nice to have a helper function that proves the infinite lifetime independently
+// of the registration, but none such is known.
+//
+// If unwinding is ever added in RIOT, this will need a guard similar to the one in the
+// `replace_with` crate.
+pub fn register_and_then<D: Drivable>(
+    driver: &Driver<D>,
+    device: &D,
+    name: Option<&CStr>,
+    f: impl FnOnce() -> Never,
+) -> ! {
+    // Reborrow for 'static lifetime.
+    //
+    // This is safe because we never terminate, and thus keep these references forever.
+    // (It could be done prettier, but see above on preferring to have a proper library for
+    // this anyway).
+    let (driver, device, name) = unsafe { core::mem::transmute((driver, device, name)) };
+
+    let mut registration = Registration::<D>::new(driver, device, name);
+
+    (unsafe { riot_sys::saul_reg_add(&mut registration.reg) })
+        .negative_to_error()
+        .expect("Constructed registries are always valid");
+    f()
 }

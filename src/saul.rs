@@ -138,7 +138,9 @@ impl<'a, D: Drivable> Registration<'a, D> {
         }
     }
 
-    #[deprecated(note = "This is unsound, use `.register_with()` or `.register_static()` instead")]
+    #[deprecated(
+        note = "This is unsound, use `.register_with()` or `.register_static()` instead or go to the newer `registration` module right away"
+    )]
     pub fn register(self: core::pin::Pin<&mut Self>) {
         (unsafe { riot_sys::saul_reg_add(&mut self.get_unchecked_mut().reg) })
             .negative_to_error()
