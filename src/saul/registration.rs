@@ -7,14 +7,33 @@ use super::{Class, Phydat};
 use crate::error::NegativeErrorExt;
 use crate::Never;
 
+/// The single error read and write operations may produce; corresponds to an `-ECANCELED`.
+/// (-ENOTSUP is expressed by not having support for the operation in the first place, indicated by
+/// the `HAS_{READ,WRITE}` consts).
+pub struct Error;
+
 // Sync is required because callers from any thread may use the raw methods to construct a self
 // reference through which it is used
 pub trait Drivable: Sized + Sync + 'static {
     /// Sensor class (type)
     const CLASS: Class;
 
+    /// Set to true if `read` is implemented.
+    ///
+    /// Doing this on the type level (rather than having read and write return a more
+    /// differentiated error) allows the driver to point to the shared [riot_sys::saul_notsup]
+    /// handler rather than to monomorphize a custom erring handler for each device.
+    const HAS_READ: bool = false;
+    /// Set to true if `write` is implemented.
+    const HAS_WRITE: bool = false;
+
     /// Read the current state
-    fn read(&self) -> Result<Phydat, ()>;
+    fn read(&self) -> Result<Phydat, Error> {
+        // This function's presence in generated code should already show that something is
+        // configured badly; could consider making that a linker error (but riot-wrappers is not in
+        // the habit of doing that).
+        unimplemented!("Sensor reading not implemented; HAS_READ should not have been set.")
+    }
 
     /// Set the state of an actuator, or reconfigure a sensor
     ///
@@ -26,7 +45,10 @@ pub trait Drivable: Sized + Sync + 'static {
     /// (which contains a length) with the maximum available length (some of which may contain
     /// uninitialized data, which is OK as i16 has no uninhabited values), and the writer needs to
     /// return how many of the entries it actually used.
-    fn write(&self, data: &Phydat) -> Result<u8, ()>;
+    fn write(&self, data: &Phydat) -> Result<u8, Error> {
+        // See also comment in read()
+        unimplemented!("Sensor writing not implemented; HAS_READ should not have been set.")
+    }
 
     unsafe extern "C" fn read_raw(dev: *const libc::c_void, res: *mut riot_sys::phydat_t) -> i32 {
         let device = &*(dev as *const Self);
@@ -67,9 +89,8 @@ impl<D: Drivable> Driver<D> {
     pub const fn new() -> Self {
         Driver {
             driver: riot_sys::saul_driver_t {
-                // FIXME: Allow the device not to implement one of them and then put None here
-                read: Some(D::read_raw),
-                write: Some(D::write_raw),
+                read: if D::HAS_READ { Some(D::read_raw) } else { Some(riot_sys::saul_notsup) },
+                write: if D::HAS_WRITE { Some(D::write_raw) } else { Some(riot_sys::saul_notsup) },
                 type_: D::CLASS.to_c(),
             },
             _phantom: core::marker::PhantomData,
