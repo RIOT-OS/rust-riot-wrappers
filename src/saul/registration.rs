@@ -54,7 +54,7 @@ pub trait Drivable: Sized + Sync + 'static {
     /// (which contains a length) with the maximum available length (some of which may contain
     /// uninitialized data, which is OK as i16 has no uninhabited values), and the writer needs to
     /// return how many of the entries it actually used.
-    fn write(&self, data: &Phydat) -> Result<u8, Error> {
+    fn write(&self, _data: &Phydat) -> Result<u8, Error> {
         // See also comment in read()
         unimplemented!("Sensor writing not implemented; HAS_READ should not have been set.")
     }

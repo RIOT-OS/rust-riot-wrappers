@@ -23,6 +23,9 @@
 //! APIs that were deprecated previously already (along with some lifetimes that are not needed any
 //! more since the Pin-based API went away). In a sense, `riot_wrappers::saul::registration` is the
 //! "v2" of the registration interface (just that splitting it up avoided catching such a name).
+#![allow(deprecated)]
+// ... because sure we have to *use* these to keep them implemented for the duration of their
+// deprecation
 
 use cstr_core::CStr;
 use riot_sys as raw;
