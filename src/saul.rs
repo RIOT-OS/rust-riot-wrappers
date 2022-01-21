@@ -2,11 +2,10 @@
 //!
 //! This modules falls largely into two parts:
 //!
-//! * [`registration::Drivable`] and [`registration::Registration`], which are used to register
-//!   custom sensors or actuators into SAUL, and
-//! * [`RegistryEntry`] with its various constructors that find sensors or actuators in SAUL,
-//!   which allows interacting with them.
+//! * For creating and registering SAUL devices, see the [registration] submodule.
 //!
+//! * [`RegistryEntry`] with its various constructors finds sensors or actuators in SAUL,
+//!   and allows interacting with them.
 //!
 //! In mapping SAUL semantics to Rust, some parts are not aligned in full:
 //!
@@ -15,9 +14,6 @@
 //!   always.
 //!
 //!   This affects sensor data writing, and is documented with the respective calls.
-//!
-//! * [`registration::Drivable`] provides both a read and a write callback unconditionally; consequently, a device
-//!   built from it will alays err with `-ECANCELED` and never with `-ENOTSUP`.
 //!
 //! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
 //!
@@ -102,6 +98,7 @@ pub trait Drivable: Sized + Sync {
 
 /// A typed saul_driver_t, created from a Drivable's build_driver() static method, and used in
 /// pinned form in registrations.
+#[deprecated(note = "Use the registration submodule instead")]
 pub struct Driver<D: Drivable> {
     driver: riot_sys::saul_driver_t,
     _phantom: core::marker::PhantomData<D>,
@@ -429,6 +426,7 @@ impl Class {
         }) as _
     }
 
+    /// Human-readable name of the class
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::saul_class_to_str(self.to_c()).as_ref() }
             .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
@@ -438,6 +436,7 @@ impl Class {
 
 #[derive(Copy, Clone, Debug)]
 #[non_exhaustive]
+/// Classes of actuators; typically used as details on a [Class]
 pub enum ActuatorClass {
     LedRgb,
     Servo,
@@ -448,6 +447,7 @@ pub enum ActuatorClass {
 
 #[derive(Copy, Clone, Debug)]
 #[non_exhaustive]
+/// Classes of sensors; typically used as details on a [Class]
 pub enum SensorClass {
     Btn,
     Temp,
@@ -480,6 +480,8 @@ pub enum SensorClass {
 }
 
 #[derive(Copy, Clone, Debug)]
+/// Unit of measurement required to interpret numeric values in a [Phydat] exchanged with a SAUL
+/// device
 pub enum Unit {
     /// Note that this means "data has no physical unit", and is distinct from "No unit given",
     /// which is `Option::<Unit>::None` as opposed to `Some(Unit::None)`.
@@ -597,6 +599,7 @@ impl Unit {
         }) as _
     }
 
+    /// Human-readable name of the class
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).as_ref() }
             .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())

@@ -1,4 +1,13 @@
-//! Tools for registering a Rust device in SAUL, see parent module documentation for details
+//! Tools for registering a Rust device in SAUL
+//!
+//! A SAUL sensor or actuator is expressed as an implementation of [Drivable]. Once built, that
+//! drivable is registered at SAUL, either through [register_and_then], or through building a
+//! [Registration] for a `'static` place and calling [Registration::register_static].
+//!
+//! As SAUL decouples the per-type parts of a sensor from the per-instance parts, there is a
+//! [Driver] struct that manages the per-type aspects. This driver also manages the dynamic
+//! dispatch by being generic over the [Drivable] and exposing untyped function pointers. (In a
+//! sense, SAUL ships its own version of Rust's `dyn`, and Driver manages that).
 
 use cstr_core::CStr;
 use riot_sys::libc;
@@ -89,8 +98,16 @@ impl<D: Drivable> Driver<D> {
     pub const fn new() -> Self {
         Driver {
             driver: riot_sys::saul_driver_t {
-                read: if D::HAS_READ { Some(D::read_raw) } else { Some(riot_sys::saul_notsup) },
-                write: if D::HAS_WRITE { Some(D::write_raw) } else { Some(riot_sys::saul_notsup) },
+                read: if D::HAS_READ {
+                    Some(D::read_raw)
+                } else {
+                    Some(riot_sys::saul_notsup)
+                },
+                write: if D::HAS_WRITE {
+                    Some(D::write_raw)
+                } else {
+                    Some(riot_sys::saul_notsup)
+                },
                 type_: D::CLASS.to_c(),
             },
             _phantom: core::marker::PhantomData,
