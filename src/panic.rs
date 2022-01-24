@@ -44,6 +44,10 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     }
 }
 
+// We could make this conditional also on panic="abort" and thus enable stable compilation when
+// that flag is enabled -- but then again https://github.com/rust-lang/rust/issues/77443 is not
+// stable yet so it's kind of moot (and I don't want to introduce yet another crate feature that'll
+// largely be untested).
 #[cfg(target_arch = "x86")]
 #[lang = "eh_personality"]
 fn rust_eh_personality() {
