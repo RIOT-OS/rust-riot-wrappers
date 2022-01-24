@@ -602,9 +602,18 @@ impl Unit {
         }) as _
     }
 
-    /// Human-readable name of the class
+    /// String representation of a given unit (e.g. `V` or `m`)
+    #[doc(alias = "phydat_unit_to_str")]
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).as_ref() }
+            .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
+            .flatten()
+    }
+
+    /// Like [`.name()`](Phydat::name), but with additional names like "none" or "time".
+    #[doc(alias = "phydat_unit_to_str_verbose")]
+    pub fn name_verbose(self) -> Option<&'static str> {
+        unsafe { riot_sys::phydat_unit_to_str_verbose(Self::to_c(Some(self))).as_ref() }
             .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
             .flatten()
     }
