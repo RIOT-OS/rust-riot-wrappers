@@ -58,33 +58,6 @@ pub trait Drivable: Sized + Sync + 'static {
         // See also comment in read()
         unimplemented!("Sensor writing not implemented; HAS_READ should not have been set.")
     }
-
-    unsafe extern "C" fn read_raw(dev: *const libc::c_void, res: *mut riot_sys::phydat_t) -> i32 {
-        let device = &*(dev as *const Self);
-        match device.read() {
-            Ok(d) => {
-                res.write(d.values);
-                d.length.into()
-            }
-            // The only legal device error -- ENOTSUP would mean there's no handler at all
-            Err(_) => -(riot_sys::ECANCELED as i32),
-        }
-    }
-
-    unsafe extern "C" fn write_raw(dev: *const libc::c_void, data: *mut riot_sys::phydat_t) -> i32 {
-        let device = &*(dev as *const Self);
-        let data = *data;
-        // PHYDAT_DIM: See write documentation
-        let data = Phydat {
-            values: data,
-            length: riot_sys::PHYDAT_DIM as _,
-        };
-        match Self::write(device, &data) {
-            Ok(n) => n as _,
-            // The only legal device error -- ENOTSUP would mean there's no handler at all
-            Err(_) => -(riot_sys::ECANCELED as i32),
-        }
-    }
 }
 
 /// A typed saul_driver_t, created from a Drivable's build_driver() static method, and used as
@@ -99,18 +72,45 @@ impl<D: Drivable> Driver<D> {
         Driver {
             driver: riot_sys::saul_driver_t {
                 read: if D::HAS_READ {
-                    Some(D::read_raw)
+                    Some(Self::read_raw)
                 } else {
                     Some(riot_sys::saul_notsup)
                 },
                 write: if D::HAS_WRITE {
-                    Some(D::write_raw)
+                    Some(Self::write_raw)
                 } else {
                     Some(riot_sys::saul_notsup)
                 },
                 type_: D::CLASS.to_c(),
             },
             _phantom: core::marker::PhantomData,
+        }
+    }
+
+    unsafe extern "C" fn read_raw(dev: *const libc::c_void, res: *mut riot_sys::phydat_t) -> i32 {
+        let device = &*(dev as *const D);
+        match device.read() {
+            Ok(d) => {
+                res.write(d.values);
+                d.length.into()
+            }
+            // The only legal device error -- ENOTSUP would mean there's no handler at all
+            Err(_) => -(riot_sys::ECANCELED as i32),
+        }
+    }
+
+    unsafe extern "C" fn write_raw(dev: *const libc::c_void, data: *mut riot_sys::phydat_t) -> i32 {
+        let device = &*(dev as *const D);
+        let data = *data;
+        // PHYDAT_DIM: See write documentation
+        let data = Phydat {
+            values: data,
+            length: riot_sys::PHYDAT_DIM as _,
+        };
+        match device.write(&data) {
+            Ok(n) => n as _,
+            // The only legal device error -- ENOTSUP would mean there's no handler at all
+            Err(_) => -(riot_sys::ECANCELED as i32),
         }
     }
 }
