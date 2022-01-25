@@ -282,6 +282,29 @@ impl Phydat {
         }
     }
 
+    /// Create a new pydat data value, from data adjusted using the scale to fit in the i16 phydat
+    /// uses internally
+    ///
+    /// See [phydat_fit](https://doc.riot-os.org/group__sys__phydat.html#gafafe8717882db85c250f203b020f8863)
+    /// for trade-offs.
+    ///
+    /// # Panics
+    ///
+    /// like `new()`
+    #[doc(alias = "phydat_fit")]
+    pub fn fit(data: &[i32], unit: Option<Unit>, scale: i8) -> Self {
+        let mut phydat = Phydat {
+            values: riot_sys::phydat_t {
+                val: Default::default(),
+                unit: Unit::to_c(unit),
+                scale: scale,
+            },
+            length: data.len() as _,
+        };
+        unsafe { riot_sys::phydat_fit(&mut phydat.values, data.as_ptr(), data.len() as _) };
+        phydat
+    }
+
     pub fn value(&self) -> &[i16] {
         &self.values.val[..self.length as _]
     }
