@@ -57,6 +57,13 @@ fn main() {
         */
     }
 
+    for (key, _) in env::vars() {
+        if let Some(marker) = key.strip_prefix("DEP_RIOT_SYS_MARKER_") {
+            println!("cargo:rerun-if-env-changed={}", key);
+            println!("cargo:rustc-cfg=marker_{}", marker);
+        }
+    }
+
     /*
     if riot_version_count != 1 {
         panic!("RIOT_VERSION missing from the defines.");

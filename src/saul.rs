@@ -565,6 +565,7 @@ impl Unit {
             riot_sys::UNIT_V => Some(Unit::V),
             riot_sys::UNIT_W => Some(Unit::W),
             riot_sys::UNIT_GS => Some(Unit::Gs),
+            #[cfg(marker_phydat_unit_t)]
             riot_sys::UNIT_T => Some(Unit::T),
             riot_sys::UNIT_DBM => Some(Unit::Dbm),
             riot_sys::UNIT_COULOMB => Some(Unit::Coulomb),
@@ -605,7 +606,10 @@ impl Unit {
             Some(Unit::V) => riot_sys::UNIT_V,
             Some(Unit::W) => riot_sys::UNIT_W,
             Some(Unit::Gs) => riot_sys::UNIT_GS,
+            #[cfg(marker_phydat_unit_t)]
             Some(Unit::T) => riot_sys::UNIT_T,
+            #[cfg(not(marker_phydat_unit_t))]
+            Some(Unit::T) => riot_sys::UNIT_UNDEF,
             Some(Unit::Dbm) => riot_sys::UNIT_DBM,
             Some(Unit::Coulomb) => riot_sys::UNIT_COULOMB,
             Some(Unit::F) => riot_sys::UNIT_F,
