@@ -640,7 +640,7 @@ impl Unit {
             .flatten()
     }
 
-    /// Like [`.name()`](Phydat::name), but with additional names like "none" or "time".
+    /// Like [`.name()`](Unit::name), but with additional names like "none" or "time".
     #[doc(alias = "phydat_unit_to_str_verbose")]
     pub fn name_verbose(self) -> Option<&'static str> {
         unsafe { riot_sys::phydat_unit_to_str_verbose(Self::to_c(Some(self))).as_ref() }
