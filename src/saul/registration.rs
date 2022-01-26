@@ -16,11 +16,6 @@ use super::{Class, Phydat};
 use crate::error::NegativeErrorExt;
 use crate::Never;
 
-/// The single error read and write operations may produce; corresponds to an `-ECANCELED`.
-/// (-ENOTSUP is expressed by not having support for the operation in the first place, indicated by
-/// the `HAS_{READ,WRITE}` consts).
-pub struct Error;
-
 /// API through which SAUL operations are done
 ///
 /// This is typically implemented on a `&T` (where T is what the Driver and Registration is for),
@@ -40,7 +35,7 @@ pub trait Drivable: Sized {
     const HAS_WRITE: bool = false;
 
     /// Read the current state
-    fn read(self) -> Result<Phydat, Error> {
+    fn read(self) -> Result<Phydat, ()> {
         // This function's presence in generated code should already show that something is
         // configured badly; could consider making that a linker error (but riot-wrappers is not in
         // the habit of doing that).
@@ -57,7 +52,7 @@ pub trait Drivable: Sized {
     /// (which contains a length) with the maximum available length (some of which may contain
     /// uninitialized data, which is OK as i16 has no uninhabited values), and the writer needs to
     /// return how many of the entries it actually used.
-    fn write(self, _data: &Phydat) -> Result<u8, Error> {
+    fn write(self, _data: &Phydat) -> Result<u8, ()> {
         // See also comment in read()
         unimplemented!("Sensor writing not implemented; HAS_READ should not have been set.")
     }
