@@ -18,17 +18,6 @@ fn main() {
             );
         }
 
-        if flag.starts_with("-DRIOT_BOARD=") {
-            println!(
-                "cargo:rustc-cfg=riot_board=\"{}\"",
-                flag[13..].to_lowercase()
-            );
-        }
-
-        if flag.starts_with("-DRIOT_CPU=") {
-            println!("cargo:rustc-cfg=riot_cpu=\"{}\"", flag[11..].to_lowercase());
-        }
-
         if flag == "-DDEVELHELP" {
             println!("cargo:rustc-cfg=riot_develhelp");
         }
