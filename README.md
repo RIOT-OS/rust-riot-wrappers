@@ -6,8 +6,11 @@ embedded-hal for peripherals, implementing fmt::Write for stdio) around those.
 The [crate documentation](https://rustdoc.etonomy.org/riot_wrappers/) outlines which
 modules are available, and which other crates' traits they implement.
 
-For practical use and an introduction, see the
+For a newcomer's starting point, see [RIOT's documentation on using it with Rust].
+For code examples of many of the wrapped APIs, see the
 [examples](https://gitlab.com/etonomy/riot-examples/).
+
+[RIOT's documentation on using it with Rust]: https://doc.riot-os.org/using-rust.html
 
 Library and run-time components
 -------------------------------
@@ -29,33 +32,32 @@ and be restarted).
 
 With such a main function and panic handler, a Rust crate can be built as a
 static library and linked as a part of the RIOT build process without the need
-for application specific C code.
-
-See the [riot-examples](https://gitlab.com/etonomy/riot-examples) repository
-for complete setup examples.
+for application specific C code. The RIOT build system automates that linking,
+and examples of the setup required in Cargo.toml and Makefile are available as
+part of RIOT's example directory.
 
 Supported RIOT versions
 -----------------------
 
-Currently, RIOT this crate targets the latest development version of RIOT. With
-the next release (2020.10), development will hopefully target released
-versions.
+Currently, RIOT this crate targets the latest development version of RIOT.
+Support for the latest release is maintained on a best-effort basis.
 
-On environment variables
-------------------------
+On item presence and modules
+----------------------------
 
-This module uses a `RIOT_CFLAGS` environment variable as does riot-sys,
-and decides from it which modules to enable: If `MODULE_SAUL` is not set, the
-saul module will not be built in. This is achieved by parsing the
-`-DMODULE_...` flags of the environment variable.
+This crate makes some of its modules' presence conditional on whether the
+corresponding RIOT module is active in the build configuration; that
+information is obtained through the riot-sys crate. For example,
+`riot_wrappers::saul` is only present if `USEMODULE += saul` is (directly or
+indirectly) set in the Makefile.
 
 This makes things very auto-magical, and I'm not yet sure whether that's the
 best way for things to be. The Cargo way would be that the crate using
-riot-wrappers actively enables some features in riot-wrappers, which then pulls
-in features in riot-sys -- but riot-sys can't enable RIOT modules any more as
-RIOT is already configured. The RIOT way would be to enable the modules the
-application needs in the Makefile (possibly with dependencies pulling others
-in), but the crate not being a module makes that hard.
+riot-wrappers actively enables some features in riot-wrappers -- but the crate
+can not act on RIOT's module selection, as by the time it is called, RIOT is
+already configured. The RIOT way would be to enable the modules the application
+needs in the Makefile (possibly with dependencies pulling others in), but the
+crate not being a module makes that hard.
 
 This automagic way is convenient now; later iterations might be more explicit
 and profit from better integration.
@@ -77,8 +79,11 @@ or commented with ``INLINE TRANSMUTE`` for the very hard cases.
 License
 -------
 
-This crate is licensed under the same terms as of the LGPL 2.1, following the
-license terms of the RIOT Operating System.
+This crate is dual-licensed under the same terms of the MIT license or the
+Apache 2.0 license, as is commonplace in the embedded Rust ecosystem.
 
-It is maintained by Christian M. Amsüss <ca@etonomy.org> as part of the etonomy
+Note that it crate depends on `riot-sys`, which is licensed under RIOT's LGPL
+2.1 to reflect that it uses code transpiled from RIOT.
+
+The crate is maintained by Christian M. Amsüss <ca@etonomy.org> as part of the etonomy
 project, see <https://etonomy.org/>.
