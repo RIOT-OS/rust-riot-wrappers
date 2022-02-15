@@ -115,6 +115,7 @@ impl Drop for File {
 /// A directory in the file system
 ///
 /// The directory can be iterated over, producing directory entries one by one.
+#[repr(transparent)]
 pub struct Dir(riot_sys::vfs_DIR);
 
 impl Dir {
@@ -173,5 +174,94 @@ impl Dirent {
         }
 
         name
+    }
+}
+
+/// A mount point, represented (and made un-unmountable) by its root directory
+pub struct Mount<'a>(&'a mut riot_sys::vfs_DIR);
+
+/// Lending iterator over all mount points
+///
+/// Note that while looking like an iterator, this does not actually implement Iterator -- it
+/// can't, for not all the items it produces necessarily live long enough. (It could if there were
+/// an `fdup` for directories, but then again that'd be wasteful for the typical case where the
+/// user doesn't need the iterator's long lifetime).
+///
+/// While `LendingIterator` is not in the core library, this just implements something sufficiently
+/// similar in the style of the
+/// [StreamingIterator](https://docs.rs/streaming-iterator/latest/streaming_iterator/) (thus
+/// avoiding GATs).
+pub struct MountIter {
+    dir: MaybeUninit<riot_sys::vfs_DIR>,
+}
+
+impl MountIter {
+    #[cfg(marker_vfs_iterate_mount_dirs)]
+    pub fn next(&mut self) -> Option<Mount<'_>> {
+        // unsafe: Our dir is always either zeroed or managed by mount_dirs
+        if unsafe { riot_sys::vfs_iterate_mount_dirs(self.dir.as_mut_ptr()) } {
+            // unsafe: API says there's something initialized in there (and the lifetime is
+            // justified from locking self which owns the dir)
+            Some(Mount(unsafe { self.dir.assume_init_mut() }))
+        } else {
+            // Go back to starting condition because there's no guarantee this won't be called
+            // after the last element. This restores safe order, and also contains the information
+            // Drop needs to decide whether or not something is in here that needs to be closed.
+            self.dir = MaybeUninit::zeroed();
+            None
+        }
+    }
+
+    #[cfg(not(marker_vfs_iterate_mount_dirs))]
+    pub fn next(&mut self) -> Option<Mount<'_>> {
+        None
+    }
+
+    fn is_zeroed(&self) -> bool {
+        // unsafe: Type has the right size and u8 seems like the best way to test for zeroness
+        (unsafe {
+            core::slice::from_raw_parts(
+                self.dir.as_ptr() as *const u8,
+                core::mem::size_of::<riot_sys::vfs_DIR>(),
+            )
+        }) == &[0; core::mem::size_of::<riot_sys::vfs_DIR>()]
+    }
+}
+
+impl Drop for MountIter {
+    fn drop(&mut self) {
+        if !self.is_zeroed() {
+            // unsafe: API function used as documented in vfs_iterate_mount_dirs
+            unsafe { riot_sys::vfs_closedir(self.dir.as_mut_ptr()) };
+        }
+    }
+}
+
+impl<'a> Mount<'a> {
+    /// List all mount points
+    #[doc(alias = "vfs_iterate_mount_dirs")]
+    pub fn all() -> MountIter {
+        MountIter {
+            dir: MaybeUninit::zeroed(),
+        }
+    }
+
+    /// Use the mount point as a directory iterator
+    ///
+    /// Note that reading its entries mutates the `Mount` instance as the opened directory is
+    /// internal to it; a second call to this function may produce an empty iterator (just like
+    /// attempting to read entries from an already exhausted [Dir] does); this may change if VFS's
+    /// directories gain rewind support.
+    pub fn root_dir(&mut self) -> &'a mut Dir {
+        // unsafe: Legitimized by the Dir being transparent, and by Dir not doing anything that'd
+        // invalidate the dir's openness as long as it's not owned.
+        unsafe { &mut *(self.0 as *mut _ as *mut _) }
+    }
+
+    pub fn mount_point(&self) -> &'a str {
+        // FIXME: Docs say to treat as opaque
+        unsafe { cstr_core::CStr::from_ptr((*self.0.mp).mount_point) }
+            .to_str()
+            .expect("Mount point not UTF-8 encoded")
     }
 }
