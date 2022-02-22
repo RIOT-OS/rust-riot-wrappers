@@ -23,3 +23,10 @@ test:nightly:
     paths:
       - .cargo/
       - RIOT
+
+cargo_fmt:
+  image: rust:latest
+  script:
+    - echo "nightly" > rust-toolchain
+    - rustup component add rustfmt
+    - cargo fmt --check
