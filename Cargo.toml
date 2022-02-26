@@ -52,9 +52,9 @@ pin-utils = "0.1"
 shlex = "0.1.1"
 
 [features]
-# cstr_nightly is deprecated as an item in the default list (ie. users should
-# enable it actively if they need it in order to keep their code working even
-# after the next incompatible release).
+# All default features are deprecated as items in the default list (ie. users
+# should enable it actively if they need it in order to keep their code working
+# even after the next incompatible release).
 default = ["set_panic_handler", "panic_handler_format", "cstr_nightly" ]
 set_panic_handler = []
 # If present, the panic handler uses string formatting to produce an error
