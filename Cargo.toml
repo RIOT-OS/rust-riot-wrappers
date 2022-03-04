@@ -56,11 +56,19 @@ shlex = "0.1.1"
 # should enable it actively if they need it in order to keep their code working
 # even after the next incompatible release).
 default = ["set_panic_handler", "panic_handler_format", "cstr_nightly" ]
+
+# Set a panic handler.
+#
+# Unless a panic handler is provided by another mechanism, exactly one crate in
+# an application should set this feature.
 set_panic_handler = []
+
 # If present, the panic handler uses string formatting to produce an error
 # message. Otherwise, it just writes a static panic message to stdout.
 panic_handler_format = []
 
+# If these are present, traits for the respective optional dependencies will be
+# implemented.
 with_coap_message = ["coap-message" ]
 with_coap_handler = ["coap-handler", "coap-numbers", "with_coap_message"]
 with_embedded_nal = ["embedded-nal", "embedded-nal-tcpextensions"]
