@@ -6,17 +6,7 @@ use super::{StackStats, StackStatsError};
 
 /// Offloaded tools for creation
 mod creation;
-#[cfg(doc)]
-pub use creation::TokenParts;
-pub use creation::{
-    scope,
-    spawn,
-    CountedThread,
-    CountingThreadScope,
-    StartToken,
-    TerminationToken,
-    TrackedThread,
-};
+pub use creation::{scope, spawn, CountedThread, CountingThreadScope};
 
 /// Wrapper around a valid (not necessarily running, but in-range) [riot_sys::kernel_pid_t] that
 /// provides access to thread details and signaling.
