@@ -15,7 +15,7 @@ test:nightly:
       echo 'riot-wrappers = { path = \"../../../\", version = \"*\" }' >> Cargo.toml;
       cargo update -p riot-wrappers;
       cargo tree;
-      make BOARDS='native sltb001a samr21-xpro' buildtest;
+      make BUILDTEST_MAKE_REDIRECT='' BOARDS='native sltb001a samr21-xpro' buildtest;
       cd ../..;
     done
       "
