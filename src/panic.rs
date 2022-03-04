@@ -3,14 +3,21 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     use crate::thread;
 
     if crate::interrupt::irq_is_in() {
-        // Tough luck. Jumping into an endless loop right away seems to be the only reliable way to
-        // keep the interupt from ever entering again.
-        loop {
-            // Primarily for its side effect of making the behavior not undefined, but also because
-            // any power saving would be good until the watchdog kicks in (you do have a watchdog,
-            // right?)
-            core::hint::spin_loop();
-        }
+        // We can't abort on stable -- but even if we could: Set a breakpoint and wait for the
+        // fault handler to reboot us of no debugger is attached? Spin endlessly? core_panic should
+        // already answer all these questions.
+
+        // Not attempting to print -- it would only get through on devices where stdio is provided
+        // by a UART, and with these the debugger is usually also close enough that the risk of
+        // smashing things by overflowing the ISR stack outweighs the benefits.
+
+        unsafe {
+            riot_sys::core_panic(
+                riot_sys::core_panic_t_PANIC_GENERAL_ERROR,
+                cstr_core::cstr!("RUST PANIC").as_ptr(),
+            )
+        };
+        unreachable!()
     }
 
     // I *guess* it's OK for a panic to simply make a thread into a zombie -- this does allow other
