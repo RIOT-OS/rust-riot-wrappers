@@ -27,6 +27,11 @@ use riot_sys::{shell_command_t, shell_run_forever, shell_run_once};
 /// niche cases.
 pub struct Args<'a>(&'a [*mut libc::c_char]);
 
+unsafe fn argconvert<'a>(data: *mut libc::c_char) -> &'a str {
+    let cstr = CStr::from_ptr(data);
+    core::str::from_utf8(cstr.to_bytes()).unwrap_or("�")
+}
+
 impl<'a> Args<'a> {
     /// Create the slice from its parts.
     ///
@@ -43,23 +48,14 @@ impl<'a> Args<'a> {
     }
 
     /// Returns an iterator over the arguments.
-    pub fn iter(&self) -> impl Iterator<Item = &'a str> + ExactSizeIterator {
-        let backing = self.0;
-        (0..self.0.len()).map(move |i| Self::index(backing, i))
-    }
-
-    /// Helper method for indexing that does not rely on a self reference. This allows implementing
-    /// iter easily; note that the iterator can live on even if the Args itself has been moved (but
-    /// the 'a backing data have not).
-    fn index(data: &'a [*mut libc::c_char], i: usize) -> &'a str {
-        let cstr = unsafe { CStr::from_ptr(data[i]) };
-        core::str::from_utf8(cstr.to_bytes()).unwrap_or("�")
+    pub fn iter(&self) -> ArgsIterator<'a> {
+        ArgsIterator(self.0.iter())
     }
 
     /// Returns the argument in the given position.
     pub fn get(&self, index: usize) -> Option<&str> {
         if index < self.0.len() {
-            Some(Self::index(self.0, index))
+            Some(unsafe { argconvert(self.0[index]) })
         } else {
             None
         }
@@ -71,9 +67,24 @@ impl<'a> Args<'a> {
     }
 }
 
+/// Iterator of [Args], created using [Args::iter()]
+pub struct ArgsIterator<'a>(core::slice::Iter<'a, *mut libc::c_char>);
+
+impl<'a> core::iter::Iterator for ArgsIterator<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let data = self.0.next()?;
+
+        Some(unsafe { argconvert(*data) })
+    }
+}
+
+impl<'a> ExactSizeIterator for ArgsIterator<'a> {}
+
 impl<'a> IntoIterator for Args<'a> {
     type Item = &'a str;
-    type IntoIter = impl Iterator<Item = Self::Item> + ExactSizeIterator;
+    type IntoIter = ArgsIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -84,7 +95,7 @@ impl<'a> core::ops::Index<usize> for Args<'a> {
     type Output = str;
 
     fn index(&self, i: usize) -> &str {
-        Args::index(self.0, i)
+        unsafe { argconvert(self.0[i]) }
     }
 }
 

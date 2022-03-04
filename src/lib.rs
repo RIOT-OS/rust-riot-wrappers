@@ -5,8 +5,6 @@
     feature(lang_items)
 )]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
-// for Args IntoIterator
-#![cfg_attr(riot_module_shell, feature(type_alias_impl_trait))]
 // For shell, but also SAUL
 #![cfg_attr(
     any(riot_module_shell, riot_module_saul),
