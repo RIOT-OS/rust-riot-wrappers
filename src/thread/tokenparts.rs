@@ -24,6 +24,14 @@ pub struct TerminationToken {
 /// user ever names the type and would thus run into conflicts when the list of generics grows).
 /// This has the downside that TokenParts can not easily be passed to downstream functions, and all
 /// splitting has to happen at the top level; this should not be a problem in practice.
+///
+/// The individual parameters are:
+///
+/// * `MSG_SEMANTICS`: If this is true, the thread has not assigned semantics to messages it would receive yet.
+/// * `MSG_QUEUE`: If this is true, the thread has not yet set up a message queue.
+/// * `FLAG_SEMANTICS`: If this is true, the thread has not assigned semantics to flags yet.
+///
+/// (FLAG_SEMANTICS are not used yet, but are already prepared for a wrapper similar to `msg::v2`).
 pub struct TokenParts<
     const MSG_SEMANTICS: bool,
     const MSG_QUEUE: bool,
