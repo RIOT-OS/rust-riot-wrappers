@@ -6,7 +6,7 @@ use core::mem::MaybeUninit;
 /// Data created for each thread that is spawned.
 ///
 /// It encodes for permission to do anything that can only be done once per thread.
-pub type StartToken = TokenParts<true, true>;
+pub type StartToken = TokenParts<true, true, true>;
 
 /// Data necessary to return from a thread that has received the [StartToken] permissions.
 ///
@@ -27,6 +27,7 @@ pub struct TerminationToken {
 pub struct TokenParts<
     const MSG_SEMANTICS: bool,
     const MSG_QUEUE: bool,
+    const FLAG_SEMANTICS: bool,
     // Do we need something for "we're in a thread" factory? (Probably also doesn't need tracking
     // b/c it can be Clone -- and everything in RIOT alerady does a cheap irq_is_in check rather
     // than taking a ZST)
@@ -34,7 +35,7 @@ pub struct TokenParts<
     pub(super) _not_send: PhantomData<*const ()>,
 }
 
-impl TokenParts<true, true> {
+impl TokenParts<true, true, true> {
     /// Claim that the current thread has not done anything yet that is covered by this type
     ///
     /// Do not call yourself; this needs to be public because [riot_main_with_tokens] is a macro
@@ -46,7 +47,7 @@ impl TokenParts<true, true> {
     }
 }
 
-impl<const MQ: bool> TokenParts<true, MQ> {
+impl<const MQ: bool, const FS: bool> TokenParts<true, MQ, FS> {
     /// Extract the claim that the thread was not previously configured with any messages that
     /// would be sent to it.
     ///
@@ -62,7 +63,10 @@ impl<const MQ: bool> TokenParts<true, MQ> {
     #[allow(deprecated)] // The deprecation note on NoConfiguredMessages::new only pertains to it being pub
     pub fn take_msg_semantics(
         self,
-    ) -> (TokenParts<false, MQ>, crate::msg::v2::NoConfiguredMessages) {
+    ) -> (
+        TokenParts<false, MQ, FS>,
+        crate::msg::v2::NoConfiguredMessages,
+    ) {
         (
             TokenParts {
                 _not_send: PhantomData,
@@ -75,14 +79,14 @@ impl<const MQ: bool> TokenParts<true, MQ> {
     }
 }
 
-impl<const MQ: bool> TokenParts<false, MQ> {
+impl<const MQ: bool, const FS: bool> TokenParts<false, MQ, FS> {
     /// Inverse of [TokenParts::take_msg_semantics], indicating that the thread may be terminated again as far
     /// as message semantics are concerned.
     #[cfg(feature = "with_msg_v2")]
     pub fn return_msg_semantics(
         self,
         semantics: crate::msg::v2::NoConfiguredMessages,
-    ) -> TokenParts<true, MQ> {
+    ) -> TokenParts<true, MQ, FS> {
         drop(semantics);
         TokenParts {
             _not_send: PhantomData,
@@ -90,7 +94,7 @@ impl<const MQ: bool> TokenParts<false, MQ> {
     }
 }
 
-impl<const MS: bool> TokenParts<MS, true> {
+impl<const MS: bool, const FS: bool> TokenParts<MS, true, FS> {
     /// Set up a message queue of given size N, and run the function `f` after that has been set
     /// up. `f` gets passed all the remaining thread invariants.
     ///
@@ -113,7 +117,10 @@ impl<const MS: bool> TokenParts<MS, true> {
     // unsound: The `true` MS would mean that the NoConfiguredMessages could be taken out again and
     // used to configure semantics, and then all of a sudden the still-configured message queue
     // would be sent to again.
-    pub fn with_message_queue<const N: usize, F: FnOnce(TokenParts<MS, false>) -> crate::Never>(
+    pub fn with_message_queue<
+        const N: usize,
+        F: FnOnce(TokenParts<MS, false, FS>) -> crate::Never,
+    >(
         self,
         f: F,
     ) -> ! {
@@ -130,7 +137,7 @@ impl<const MS: bool> TokenParts<MS, true> {
     }
 }
 
-impl<const MQ: bool> TokenParts<true, MQ> {
+impl<const MQ: bool> TokenParts<true, MQ, true> {
     /// Certify that nothing has been done in this thread that precludes the termination of the
     /// thread
     ///
