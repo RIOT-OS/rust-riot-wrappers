@@ -2,7 +2,7 @@
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     use crate::thread;
 
-    if crate::interrupt::irq_is_in() {
+    if crate::interrupt::irq_is_in() || !crate::interrupt::irq_is_enabled() {
         // We can't abort on stable -- but even if we could: Set a breakpoint and wait for the
         // fault handler to reboot us of no debugger is attached? Spin endlessly? core_panic should
         // already answer all these questions.

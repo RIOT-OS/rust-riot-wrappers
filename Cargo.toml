@@ -68,7 +68,8 @@ set_panic_handler = []
 panic_handler_format = []
 
 # If present, the panic handler calls to `core_panic` and thus halts the full
-# system. Otherwise, the panic in thread mode only affects that single thread.
+# system. Otherwise, the panic in thread mode outside of a critical section
+# only affects that single thread.
 panic_handler_crash = []
 
 # If these are present, traits for the respective optional dependencies will be
