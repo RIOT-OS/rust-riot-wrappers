@@ -44,6 +44,15 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
         let _ = stdio.write_str("!\n");
     }
 
+    if cfg!(feature = "panic_handler_crash") {
+        unsafe {
+            riot_sys::core_panic(
+                riot_sys::core_panic_t_PANIC_GENERAL_ERROR,
+                cstr_core::cstr!("RUST PANIC").as_ptr(),
+            )
+        }
+    }
+
     // Not trying any unwinding -- this thread is just dead, won't be re-claimed, any mutexes it
     // holds are just held indefinitely rather than throwing poison errors.
     loop {

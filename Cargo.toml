@@ -67,6 +67,10 @@ set_panic_handler = []
 # message. Otherwise, it just writes a static panic message to stdout.
 panic_handler_format = []
 
+# If present, the panic handler calls to `core_panic` and thus halts the full
+# system. Otherwise, the panic in thread mode only affects that single thread.
+panic_handler_crash = []
+
 # If these are present, traits for the respective optional dependencies will be
 # implemented.
 with_coap_message = ["coap-message" ]
