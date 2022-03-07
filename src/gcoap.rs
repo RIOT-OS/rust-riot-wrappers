@@ -3,7 +3,7 @@ use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 use riot_sys::libc::c_void;
-use riot_sys::{coap_optpos_t, coap_pkt_t, coap_resource_t, gcoap_listener_t};
+use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_resource_t, gcoap_listener_t};
 
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
@@ -66,7 +66,7 @@ pub trait ListenerProvider {
     unsafe fn get_listener<'a>(&'a mut self) -> &'a mut gcoap_listener_t;
 }
 
-/// A combination of the coap_resource_t and gcoap_listener_t structs with only a single resource
+/// A combination of the gcoap_resource_t and gcoap_listener_t structs with only a single resource
 /// (Compared to many resources, this allows easier creation in Rust at the expense of larger
 /// memory consumption and slower lookups in Gcoap).
 ///
@@ -74,7 +74,7 @@ pub trait ListenerProvider {
 /// x.`[`register`](RegistrationScope::register)`(l) })`.
 pub struct SingleHandlerListener<'a, H> {
     _phantom: PhantomData<&'a H>,
-    resource: coap_resource_t,
+    resource: gcoap_resource_t,
     listener: gcoap_listener_t,
 }
 
@@ -88,7 +88,7 @@ where
 
         SingleHandlerListener {
             _phantom: PhantomData,
-            resource: coap_resource_t {
+            resource: gcoap_resource_t {
                 path: path.as_ptr(),
                 handler: Some(Self::call_handler),
                 methods: methods,
