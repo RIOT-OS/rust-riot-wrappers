@@ -28,8 +28,16 @@ impl NumericError {
     /// the negative range.
     ///
     /// ```
-    /// let err = NumericError::from_constant(riot_sys::ENOTSUP);
-    /// println!("{}", err); # NumericError { number: -61 }
+    /// # #![no_std]
+    /// # #![feature(start)]
+    /// # #[start]
+    /// # fn main(_argc: isize, _argv: *const *const u8) -> isize {
+    /// # use riot_wrappers::error::NumericError;
+    /// # use riot_wrappers::stdio::println;
+    /// let err = NumericError::from_constant(riot_sys::ENOTSUP as _);
+    /// println!("{:?}", err); // NumericError { number: -61 }
+    /// # 0
+    /// # }
     /// ```
     ///
     /// ## Panics

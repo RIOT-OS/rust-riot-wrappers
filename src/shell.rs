@@ -410,6 +410,8 @@ pub fn new() -> impl CommandList {
 /// -------
 ///
 /// ```
+/// # #![no_std]
+/// # #![feature(start)]
 /// fn do_echo(
 ///         _stdio: &mut riot_wrappers::stdio::Stdio,
 ///         args: riot_wrappers::shell::Args<'_>,
@@ -421,7 +423,11 @@ pub fn new() -> impl CommandList {
 ///         println!("{:?}", a);
 ///     }
 /// }
+/// # #[start]
+/// # fn main(_argc: isize, _argv: *const *const u8) -> isize {
 /// riot_wrappers::static_command!(echo, "echo", "Print the arguments in separate lines", do_echo);
+/// # 0
+/// # }
 /// ```
 #[macro_export]
 macro_rules! static_command {

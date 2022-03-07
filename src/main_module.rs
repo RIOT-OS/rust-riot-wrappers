@@ -35,6 +35,8 @@ use core::fmt;
 /// Example:
 ///
 /// ```
+/// # #![no_std]
+/// # use riot_wrappers::riot_main;
 /// riot_main!(main);
 ///
 /// fn main() {

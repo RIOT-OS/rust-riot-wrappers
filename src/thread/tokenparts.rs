@@ -62,9 +62,20 @@ impl<const MQ: bool, const FS: bool> TokenParts<true, MQ, FS> {
     /// ## Example
     ///
     /// ```
+    /// # #![no_std]
+    /// # #![feature(start)]
+    /// # #[start]
+    /// # fn main(_argc: isize, _argv: *const *const u8) -> isize { panic!("Doc tests are not supposed to be run") }
+    /// # use riot_wrappers::thread::*;
     /// fn thread(tok: StartToken) -> TerminationToken {
     ///     let (tok, semantics) = tok.take_msg_semantics();
-    ///     ...
+    ///     // keep working with semantics and start receiving messages
+    ///     //
+    ///     // receive messages
+    ///     //
+    ///     // recover semantics when everyone has returned the license to send messages
+    ///     let tok = tok.return_msg_semantics(semantics);
+    ///     tok.termination()
     /// }
     /// ```
     #[cfg(feature = "with_msg_v2")]
@@ -113,9 +124,16 @@ impl<const MS: bool, const FS: bool> TokenParts<MS, true, FS> {
     /// ## Example
     ///
     /// ```
+    /// # #![no_std]
+    /// # #![feature(start)]
+    /// # #[start]
+    /// # fn fake_start(_argc: isize, _argv: *const *const u8) -> isize { panic!("Doc tests are not supposed to be run") }
+    /// # use riot_wrappers::thread::*;
     /// fn thread(tok: StartToken) -> TerminationToken {
     ///     tok.with_message_queue::<4, _>(|tok| {
-    ///         ...
+    ///         loop {
+    ///             // ...
+    ///         }
     ///     })
     /// }
     /// ```
