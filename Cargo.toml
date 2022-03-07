@@ -20,8 +20,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 embedded-hal = { version = "0.2.4", features = ["unproven"] }
 nb = "0.1.1"
-# 0.6 and 0.7 are compatible for the way riot-wrappers uses them
-riot-sys = ">= 0.6, < 0.8"
+riot-sys = "0.7.3"
 num-traits = { version = "0.2", default-features = false }
 mutex-trait = "0.2"
 
