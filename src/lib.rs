@@ -19,6 +19,7 @@ pub use cstr_core as cstr;
 
 pub mod error;
 
+mod helpers;
 mod never;
 use never::Never;
 

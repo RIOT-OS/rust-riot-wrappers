@@ -3,14 +3,9 @@
 ///
 /// From <https://github.com/rust-lang/rust/issues/43301#issuecomment-912390203>, adjusted for
 /// usability with pub interfaces by using a pub trait in a private module (sealing).
+use crate::helpers::*;
 
-pub trait NeverHelper {
-    type Never;
-}
-impl<T> NeverHelper for fn() -> T {
-    type Never = T;
-}
 #[cfg(not(feature = "actual_never_type"))]
-pub(crate) type Never = <fn() -> ! as NeverHelper>::Never;
+pub(crate) type Never = <fn() -> ! as ReturnTypeExtractor>::ReturnType;
 #[cfg(feature = "actual_never_type")]
 pub(crate) type Never = !;
