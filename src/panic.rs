@@ -64,7 +64,7 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
 // that flag is enabled -- but then again https://github.com/rust-lang/rust/issues/77443 is not
 // stable yet so it's kind of moot (and I don't want to introduce yet another crate feature that'll
 // largely be untested).
-#[cfg(target_arch = "x86")]
+#[cfg(all(target_arch = "x86", not(panic = "abort")))]
 #[lang = "eh_personality"]
 fn rust_eh_personality() {
     loop {}

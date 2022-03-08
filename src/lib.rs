@@ -1,7 +1,11 @@
 #![no_std]
 // for eh_personality; only needed on native
 #![cfg_attr(
-    all(feature = "set_panic_handler", target_arch = "x86"),
+    all(
+        feature = "set_panic_handler",
+        target_arch = "x86",
+        not(panic = "abort")
+    ),
     feature(lang_items)
 )]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
