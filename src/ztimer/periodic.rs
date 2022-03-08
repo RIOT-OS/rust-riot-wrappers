@@ -4,9 +4,9 @@ use core::marker::PhantomPinned;
 use core::mem::MaybeUninit;
 use core::pin::Pin;
 
-#[cfg(not(marker_ZTIMER_PERIODIC_CALLBACK_T))]
+#[cfg(not(marker_ztimer_periodic_callback_t))]
 type PeriodicReturnType = riot_sys::libc::c_int;
-#[cfg(marker_ZTIMER_PERIODIC_CALLBACK_T)]
+#[cfg(marker_ztimer_periodic_callback_t)]
 type PeriodicReturnType =
     <riot_sys::ztimer_periodic_callback_t as crate::helpers::ReturnTypeExtractor>::ReturnType;
 

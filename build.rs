@@ -26,7 +26,9 @@ fn main() {
     for (key, _) in env::vars() {
         if let Some(marker) = key.strip_prefix("DEP_RIOT_SYS_MARKER_") {
             println!("cargo:rerun-if-env-changed={}", key);
-            println!("cargo:rustc-cfg=marker_{}", marker);
+            // It appears that they get uppercased in Cargo -- but should be lower-case as in the
+            // original riot-sys build.rs, especially to not make the cfg statements look weird.
+            println!("cargo:rustc-cfg=marker_{}", marker.to_lowercase());
         }
     }
 }

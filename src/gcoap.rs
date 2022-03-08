@@ -5,12 +5,12 @@ use core::mem::MaybeUninit;
 use riot_sys::libc::c_void;
 use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_listener_t};
 
-#[cfg(marker_COAP_BUILD_PKT_T)]
+#[cfg(marker_coap_build_pkt_t)]
 use riot_sys::gcoap_resource_t;
 // Before <https://github.com/RIOT-OS/RIOT/pull/17544>, gcoap just used nanocoap's coap_resource_t.
-#[cfg(not(marker_COAP_BUILD_PKT_T))]
+#[cfg(not(marker_coap_build_pkt_t))]
 use riot_sys::coap_resource_t;
-#[cfg(not(marker_COAP_BUILD_PKT_T))]
+#[cfg(not(marker_coap_build_pkt_t))]
 #[allow(non_camel_case_types)]
 type gcoap_resource_t = coap_resource_t;
 
