@@ -3,7 +3,15 @@ use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 use riot_sys::libc::c_void;
-use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_resource_t, gcoap_listener_t};
+use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_listener_t};
+
+#[cfg(marker_COAP_BUILD_PKT_T)]
+use riot_sys::gcoap_resource_t;
+// Before <https://github.com/RIOT-OS/RIOT/pull/17544>, gcoap just used nanocoap's coap_resource_t.
+#[cfg(not(marker_COAP_BUILD_PKT_T))]
+use riot_sys::coap_resource_t;
+#[cfg(not(marker_COAP_BUILD_PKT_T))]
+type gcoap_resource_t = coap_resource_t;
 
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
