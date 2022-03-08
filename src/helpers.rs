@@ -10,3 +10,6 @@ pub trait ReturnTypeExtractor {
 impl<T> ReturnTypeExtractor for fn() -> T {
     type ReturnType = T;
 }
+impl<T, I1> ReturnTypeExtractor for Option<unsafe extern "C" fn(I1) -> T> {
+    type ReturnType = T;
+}

@@ -4,13 +4,39 @@ use core::marker::PhantomPinned;
 use core::mem::MaybeUninit;
 use core::pin::Pin;
 
+#[cfg(not(marker_ZTIMER_PERIODIC_CALLBACK_T))]
+type PeriodicReturnType = riot_sys::libc::c_int;
+#[cfg(marker_ZTIMER_PERIODIC_CALLBACK_T)]
+type PeriodicReturnType =
+    <riot_sys::ztimer_periodic_callback_t as crate::helpers::ReturnTypeExtractor>::ReturnType;
+
 /// Return value of a periodic callback
 #[derive(Copy, Clone, Debug)]
 pub enum Behavior {
+    // The explicit values should make the into functions trivial
     /// Invoke the callback on the next cycle
-    KeepGoing = riot_sys::ZTIMER_PERIODIC_KEEP_GOING as _,
+    KeepGoing = riot_sys::ZTIMER_PERIODIC_KEEP_GOING as isize,
     /// Stop invoking the callback
-    Abort,
+    Abort = (riot_sys::ZTIMER_PERIODIC_KEEP_GOING as isize) ^ 1,
+}
+
+impl Into<riot_sys::libc::c_int> for Behavior {
+    fn into(self) -> riot_sys::libc::c_int {
+        match self {
+            Behavior::KeepGoing => riot_sys::ZTIMER_PERIODIC_KEEP_GOING as _,
+            // "any other value"
+            Behavior::Abort => (riot_sys::ZTIMER_PERIODIC_KEEP_GOING as riot_sys::libc::c_int) ^ 1,
+        }
+    }
+}
+
+impl Into<bool> for Behavior {
+    fn into(self) -> bool {
+        match self {
+            Behavior::KeepGoing => true,
+            Behavior::Abort => false,
+        }
+    }
 }
 
 /// Callback for a periodic timer
@@ -84,9 +110,9 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
         }
     }
 
-    extern "C" fn callback(arg: *mut riot_sys::libc::c_void) -> riot_sys::libc::c_int {
+    extern "C" fn callback(arg: *mut riot_sys::libc::c_void) -> PeriodicReturnType {
         let handler = unsafe { &mut *(arg as *mut H) };
-        handler.trigger() as _
+        handler.trigger().into()
     }
 
     // Put on hold not only because I can't move the fields out due to the presence of a Drop
