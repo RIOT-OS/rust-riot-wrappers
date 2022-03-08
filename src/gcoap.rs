@@ -11,6 +11,7 @@ use riot_sys::gcoap_resource_t;
 #[cfg(not(marker_COAP_BUILD_PKT_T))]
 use riot_sys::coap_resource_t;
 #[cfg(not(marker_COAP_BUILD_PKT_T))]
+#[allow(non_camel_case_types)]
 type gcoap_resource_t = coap_resource_t;
 
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
