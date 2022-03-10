@@ -9,15 +9,8 @@
     feature(lang_items)
 )]
 #![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
-// For shell, but also SAUL
-#![cfg_attr(
-    any(riot_module_shell, riot_module_saul),
-    feature(const_fn_trait_bound)
-)]
 // Primarily for documentation, see feature docs
 #![cfg_attr(feature = "actual_never_type", feature(never_type))]
-// for SAUL's const Driver::new
-#![cfg_attr(riot_module_saul, feature(const_fn_fn_ptr_basics))]
 
 pub use cstr_core as cstr;
 
