@@ -36,11 +36,24 @@ for application specific C code. The RIOT build system automates that linking,
 and examples of the setup required in Cargo.toml and Makefile are available as
 part of RIOT's example directory.
 
-Supported RIOT versions
------------------------
+Supported RIOT & Rust versions
+------------------------------
 
 Currently, RIOT this crate targets the latest development version of RIOT.
 Support for the latest release is maintained on a best-effort basis.
+
+For most parts of this library, this crate requires a nightly version of Rust;
+more precisely, it is tested with the version that is shipped with the [riotbuild] images.
+If no parts are used that necessitate nightly, no features are set.
+There is no MSRV for the whole library;
+currently, the most basic parts work with 1.59,
+on the native port it needs 1.60,
+and if shell or SAUL are active it needs 1.61.
+
+When a released version of RIOT is used with anything but the riot-sys / riot-wrappers / nightly-compiler combination it was released with,
+it is likely that all these must be upgraded together.
+
+[riotbuild]: https://github.com/RIOT-OS/riotdocker/tree/master/riotbuild
 
 On item presence and modules
 ----------------------------
