@@ -151,6 +151,26 @@ impl Address {
             inner: unsafe { *raw },
         }
     }
+
+    #[doc(alias = "ipv6_addr_is_unspecified")]
+    pub fn is_unspecified(&self) -> bool {
+        unsafe { riot_sys::inline::ipv6_addr_is_unspecified(crate::inline_cast_ref(self)) }
+    }
+
+    #[doc(alias = "ipv6_addr_is_loopback")]
+    pub fn is_loopback(&self) -> bool {
+        unsafe { riot_sys::inline::ipv6_addr_is_loopback(crate::inline_cast_ref(self)) }
+    }
+
+    #[doc(alias = "ipv6_addr_is_multicast")]
+    pub fn is_multicast(&self) -> bool {
+        unsafe { riot_sys::inline::ipv6_addr_is_multicast(crate::inline_cast_ref(self)) }
+    }
+
+    #[doc(alias = "ipv6_addr_is_link_local")]
+    pub fn is_link_local(&self) -> bool {
+        unsafe { riot_sys::inline::ipv6_addr_is_link_local(crate::inline_cast_ref(self)) }
+    }
 }
 
 #[cfg(feature = "with_embedded_nal")]
