@@ -116,7 +116,7 @@ impl Drop for File {
 ///
 /// The directory can be iterated over, producing directory entries one by one.
 #[repr(transparent)]
-pub struct Dir(riot_sys::vfs_DIR);
+pub struct Dir(riot_sys::vfs_DIR, core::marker::PhantomPinned);
 
 impl Dir {
     pub fn open(dir: &str) -> Result<Self, NumericError> {
@@ -126,7 +126,7 @@ impl Dir {
         })
         .negative_to_error()?;
         let dirp = unsafe { dirp.assume_init() };
-        Ok(Dir(dirp))
+        Ok(Dir(dirp, core::marker::PhantomPinned))
     }
 }
 
@@ -193,6 +193,7 @@ pub struct Mount<'a>(&'a mut riot_sys::vfs_DIR);
 /// avoiding GATs).
 pub struct MountIter {
     dir: MaybeUninit<riot_sys::vfs_DIR>,
+    _phantom: core::marker::PhantomPinned,
 }
 
 impl MountIter {
@@ -243,6 +244,7 @@ impl<'a> Mount<'a> {
     pub fn all() -> MountIter {
         MountIter {
             dir: MaybeUninit::zeroed(),
+            _phantom: core::marker::PhantomPinned,
         }
     }
 
