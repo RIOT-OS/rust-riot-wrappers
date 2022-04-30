@@ -308,7 +308,7 @@ impl PacketBuffer {
             coap_opt_add_opaque(
                 self.pkt,
                 optnum,
-                data.as_ptr(),
+                data.as_ptr() as _,
                 data.len().try_into().unwrap(),
             )
         }
