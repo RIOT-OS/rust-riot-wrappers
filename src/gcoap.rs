@@ -3,7 +3,7 @@ use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 use riot_sys::libc::c_void;
-use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_listener_t};
+use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_listener_t, coap_request_ctx_t};
 
 #[cfg(marker_gcoap_resource_t)]
 use riot_sys::gcoap_resource_t;
@@ -146,9 +146,9 @@ where
         pkt: *mut coap_pkt_t,
         buf: *mut u8,
         len: u32,
-        context: *mut c_void,
+        context: *mut coap_request_ctx_t,
     ) -> i32 {
-        let h = context as *mut H;
+        let h = riot_sys::coap_request_ctx_get_context(context) as *mut H;
         let h = &mut *h;
         let mut pb = PacketBuffer {
             pkt,
