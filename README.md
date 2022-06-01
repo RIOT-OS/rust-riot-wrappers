@@ -98,5 +98,5 @@ Apache 2.0 license, as is commonplace in the embedded Rust ecosystem.
 Note that it crate depends on `riot-sys`, which is licensed under RIOT's LGPL
 2.1 to reflect that it uses code transpiled from RIOT.
 
-The crate is maintained by Christian M. Amsüss <ca@etonomy.org> as part of the etonomy
-project, see <https://etonomy.org/>.
+The crate is maintained by Christian Amsüss <chrysn@fsfe.org> as part of the etonomy
+project, see <https://etonomy.org/>, and the RIOT team.
