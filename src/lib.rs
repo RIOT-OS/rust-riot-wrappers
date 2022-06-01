@@ -1,3 +1,13 @@
+//! Safe and idiomatic Rust wrappers for [RIOT-OS]
+//!
+//! See [RIOT's documentation on using Rust] for a general introduction to Rust on RIOT, [this
+//! crate's README file] on general concepts (such as the interaction between modules here, RIOT
+//! modules and features), and the individual modules' documentation entries for details.
+//!
+//! [RIOT-OS]: https://www.riot-os.org/
+//! [RIOT's documentation on using Rust]: https://doc.riot-os.org/using-rust.html
+//! [this crate's README file]: https://github.com/RIOT-OS/rust-riot-wrappers
+
 #![no_std]
 // for eh_personality; only needed on native
 #![cfg_attr(
