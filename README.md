@@ -7,8 +7,10 @@ The [crate documentation](https://rustdoc.etonomy.org/riot_wrappers/) outlines w
 modules are available, and which other crates' traits they implement.
 
 For a newcomer's starting point, see [RIOT's documentation on using it with Rust].
-For code examples of many of the wrapped APIs, see the
-[examples](https://gitlab.com/etonomy/riot-examples/).
+For basic code examples see [RIOT's examples](https://github.com/RIOT-OS/RIOT/tree/master/examples)
+(those with "rust" in their name), and the
+[additional examples](https://gitlab.com/etonomy/riot-examples/)
+which showcase more of the wrapped APIs.
 
 [RIOT's documentation on using it with Rust]: https://doc.riot-os.org/using-rust.html
 
@@ -39,7 +41,7 @@ part of RIOT's example directory.
 Supported RIOT & Rust versions
 ------------------------------
 
-Currently, RIOT this crate targets the latest development version of RIOT.
+Currently, this crate targets the latest development version of RIOT.
 Support for the latest release is maintained on a best-effort basis.
 
 For most parts of this library, this crate requires a nightly version of Rust;
@@ -78,11 +80,9 @@ and profit from better integration.
 Code conventions
 ----------------
 
-In older pieces of code (until [1344] has been solved), static inline RIOT functions
+In older pieces of code (predating the use of C2Rust), static inline RIOT functions
 or expanded macros are used. To keep track of them, comments in the shape of
 ``EXPANDED ${FILE}:${LINE}`` are set (referring to line numbers in RIOT commit 6b96f69b).
-
-[1344]: https://github.com/rust-lang/rust-bindgen/issues/1344
 
 As these are being replaced by using C2Rust idioms, conflicts between C2Rust's
 and bindgen's versions of structs arise instead, typically around pointers. When these
