@@ -14,6 +14,11 @@ use riot_sys::coap_resource_t;
 #[allow(non_camel_case_types)]
 type gcoap_resource_t = coap_resource_t;
 
+#[cfg(marker_coap_request_ctx_t)]
+type HandlerArg4 = riot_sys::coap_request_ctx_t;
+#[cfg(not(marker_coap_request_ctx_t))]
+type HandlerArg4 = c_void;
+
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
 /// theoretically allowing the registration of non-'static handlers.
@@ -146,9 +151,15 @@ where
         pkt: *mut coap_pkt_t,
         buf: *mut u8,
         len: u32,
-        context: *mut c_void,
+        context: *mut HandlerArg4,
     ) -> i32 {
+        #[cfg(marker_coap_request_ctx_t)]
+        /* The remaining information in the request_ctx is inaccessible through the CoAP handler
+         * API as it is now */
+        let h = riot_sys::coap_request_ctx_get_context(context) as *mut H;
+        #[cfg(not(marker_coap_request_ctx_t))]
         let h = context as *mut H;
+
         let h = &mut *h;
         let mut pb = PacketBuffer {
             pkt,
