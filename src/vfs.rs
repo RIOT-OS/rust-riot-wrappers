@@ -197,7 +197,6 @@ pub struct MountIter {
 }
 
 impl MountIter {
-    #[cfg(marker_vfs_iterate_mount_dirs)]
     pub fn next(&mut self) -> Option<Mount<'_>> {
         // unsafe: Our dir is always either zeroed or managed by mount_dirs
         if unsafe { riot_sys::vfs_iterate_mount_dirs(self.dir.as_mut_ptr()) } {
@@ -211,11 +210,6 @@ impl MountIter {
             self.dir = MaybeUninit::zeroed();
             None
         }
-    }
-
-    #[cfg(not(marker_vfs_iterate_mount_dirs))]
-    pub fn next(&mut self) -> Option<Mount<'_>> {
-        None
     }
 
     fn is_zeroed(&self) -> bool {
