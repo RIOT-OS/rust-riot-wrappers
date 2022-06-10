@@ -22,6 +22,15 @@
 // Primarily for documentation, see feature docs
 #![cfg_attr(feature = "actual_never_type", feature(never_type))]
 
+/// riot-sys is re-exported here as it is necessary in some places when using it to get values (eg.
+/// in [error::NumericError::from_constant]). It is also used in macros such as [static_command!].
+///
+/// ### Stability
+///
+/// By directly mapping RIOT APIs, this is more volatile than the rest of riot-wrappers. Use this
+/// only where necessary to utilize riot-wrappers APIs.
+pub use riot_sys;
+
 pub use cstr_core as cstr;
 
 pub mod error;

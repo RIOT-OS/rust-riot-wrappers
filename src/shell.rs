@@ -441,13 +441,13 @@ macro_rules! static_command {
             // The transparent allows the &StaticCommand to have the right properties to be storable in a
             // static, and still be the same pointer.
             #[repr(transparent)]
-            pub struct StaticCommand(riot_sys::shell_command_t);
+            pub struct StaticCommand($crate::riot_sys::shell_command_t);
 
             // unsafe: OK due to the only construction way (the CStr is created from a literal and
             // thus static, and the_function is static by construction as well)
             unsafe impl Sync for StaticCommand {}
 
-            static THE_STRUCT: StaticCommand = StaticCommand(riot_sys::shell_command_t {
+            static THE_STRUCT: StaticCommand = StaticCommand($crate::riot_sys::shell_command_t {
                 name: $crate::cstr::cstr!($name).as_ptr(),
                 desc: $crate::cstr::cstr!($descr).as_ptr(),
                 handler: Some(the_function),
@@ -458,7 +458,7 @@ macro_rules! static_command {
 
             unsafe extern "C" fn the_function(
                 argc: i32,
-                argv: *mut *mut riot_sys::libc::c_char,
+                argv: *mut *mut $crate::riot_sys::libc::c_char,
             ) -> i32 {
                 let marker = ();
                 let args = unsafe { $crate::shell::Args::new(argc, argv as _, &marker) };
