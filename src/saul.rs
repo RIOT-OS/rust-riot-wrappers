@@ -71,7 +71,10 @@ pub trait Drivable: Sized + Sync {
         }
     }
 
-    unsafe extern "C" fn write_raw(dev: *const libc::c_void, data: *mut raw::phydat_t) -> i32 {
+    unsafe extern "C" fn write_raw(
+        dev: *const libc::c_void,
+        data: registration::WritePhydatPointer,
+    ) -> i32 {
         let device = &*(dev as *const Self);
         let data = *data;
         // PHYDAT_DIM: See write documentation
