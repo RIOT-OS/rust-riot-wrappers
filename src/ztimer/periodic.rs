@@ -4,12 +4,6 @@ use core::marker::PhantomPinned;
 use core::mem::MaybeUninit;
 use core::pin::Pin;
 
-#[cfg(not(marker_ztimer_periodic_callback_t))]
-type PeriodicReturnType = riot_sys::libc::c_int;
-#[cfg(marker_ztimer_periodic_callback_t)]
-type PeriodicReturnType =
-    <riot_sys::ztimer_periodic_callback_t as crate::helpers::ReturnTypeExtractor>::ReturnType;
-
 /// Return value of a periodic callback
 #[derive(Copy, Clone, Debug)]
 pub enum Behavior {
@@ -110,7 +104,7 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
         }
     }
 
-    extern "C" fn callback(arg: *mut riot_sys::libc::c_void) -> PeriodicReturnType {
+    extern "C" fn callback(arg: *mut riot_sys::libc::c_void) -> bool {
         let handler = unsafe { &mut *(arg as *mut H) };
         handler.trigger().into()
     }

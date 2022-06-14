@@ -5,14 +5,7 @@ use core::mem::MaybeUninit;
 use riot_sys::libc::c_void;
 use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_listener_t};
 
-#[cfg(marker_gcoap_resource_t)]
-use riot_sys::gcoap_resource_t;
-// Before <https://github.com/RIOT-OS/RIOT/pull/17544>, gcoap just used nanocoap's coap_resource_t.
-#[cfg(not(marker_gcoap_resource_t))]
 use riot_sys::coap_resource_t;
-#[cfg(not(marker_gcoap_resource_t))]
-#[allow(non_camel_case_types)]
-type gcoap_resource_t = coap_resource_t;
 
 #[cfg(marker_coap_request_ctx_t)]
 type HandlerArg4 = riot_sys::coap_request_ctx_t;
@@ -80,7 +73,7 @@ pub trait ListenerProvider {
     unsafe fn get_listener<'a>(&'a mut self) -> &'a mut gcoap_listener_t;
 }
 
-/// A combination of the gcoap_resource_t and gcoap_listener_t structs with only a single resource
+/// A combination of the coap_resource_t and gcoap_listener_t structs with only a single resource
 /// (Compared to many resources, this allows easier creation in Rust at the expense of larger
 /// memory consumption and slower lookups in Gcoap).
 ///
@@ -88,7 +81,7 @@ pub trait ListenerProvider {
 /// x.`[`register`](RegistrationScope::register)`(l) })`.
 pub struct SingleHandlerListener<'a, H> {
     _phantom: PhantomData<&'a H>,
-    resource: gcoap_resource_t,
+    resource: coap_resource_t,
     listener: gcoap_listener_t,
 }
 
@@ -102,7 +95,7 @@ where
 
         SingleHandlerListener {
             _phantom: PhantomData,
-            resource: gcoap_resource_t {
+            resource: coap_resource_t {
                 path: path.as_ptr(),
                 handler: Some(Self::call_handler),
                 methods: methods,
