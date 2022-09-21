@@ -191,16 +191,6 @@ impl<'id> CountedThread<'id> {
     pub fn status(&self) -> Status {
         self.thread.status()
     }
-
-    #[deprecated(note = "Use .pid() instead")]
-    pub fn get_pid(&self) -> KernelPID {
-        self.pid()
-    }
-
-    #[deprecated(note = "Use .status() instead")]
-    pub fn get_status(&self) -> Status {
-        self.status()
-    }
 }
 
 /// Create a thread with a statically allocated stack
@@ -261,15 +251,5 @@ impl TrackedThread {
             // Thread not in task list, so it's obviousy stopped
             Status::Stopped
         }
-    }
-
-    #[deprecated(note = "Use .pid() instead")]
-    pub fn get_pid(&self) -> KernelPID {
-        self.pid()
-    }
-
-    #[deprecated(note = "Use .status() instead")]
-    pub fn get_status(&self) -> Status {
-        self.status()
     }
 }

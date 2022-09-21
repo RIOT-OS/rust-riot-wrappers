@@ -76,20 +76,6 @@ pub enum Status {
 }
 
 impl Status {
-    #[deprecated(
-        note = "Not used by any known code, and if kept should be a wrapper around thread_is_active by mechanism and name"
-    )]
-    pub fn is_on_runqueue(&self) -> bool {
-        // FIXME: While we do get STATUS_ON_RUNQUEUE, the information about whether an Other is on
-        // the runqueue or not is lost. Maybe split Other up to OtherOnRunqueue and
-        // OtherNotOnRunqueue?
-        match self {
-            Status::Pending => true,
-            Status::Running => true,
-            _ => false,
-        }
-    }
-
     fn from_int(status: i32) -> Self {
         match status {
             status_converted::STATUS_STOPPED => Status::Stopped,
@@ -150,12 +136,6 @@ impl KernelPID {
         } else {
             Ok(Status::from_int(status))
         }
-    }
-
-    #[deprecated(note = "Use status() instead")]
-    pub fn get_status(&self) -> Status {
-        let status = unsafe { raw::thread_getstatus(self.0) };
-        Status::from_int(status as _)
     }
 
     #[doc(alias = "thread_wakeup")]
