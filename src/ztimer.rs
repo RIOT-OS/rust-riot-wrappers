@@ -20,8 +20,8 @@ use riot_sys::ztimer_clock_t;
 const NANOS_PER_SEC: u32 = 1_000_000_000;
 
 /// A clock that knows about its frequency. The pulse length is not given in [core::time::Duration]
-/// as that's not even supported by non-`min_` `const_generics`. This change, even
-/// though it breaks the API.
+/// as that's not yet supported by const generics, and because clock rates are often easier to
+/// express in Hertz than in multiples of 10^-n seconds.
 #[derive(Copy, Clone)]
 pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 
