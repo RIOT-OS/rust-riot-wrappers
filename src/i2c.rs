@@ -25,13 +25,11 @@ impl I2CDevice {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     AcquireError,
     WriteError(i32),
     ReadError(i32),
-    #[deprecated]
-    /// State returned in earlier versions that built the I2C module even if absent from RIOT
-    DeviceNotFound,
 }
 
 use riot_sys::libc;
