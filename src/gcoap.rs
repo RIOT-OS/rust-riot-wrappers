@@ -90,13 +90,13 @@ where
     H: 'a + Handler,
 {
     // keeping methods u32 because the sys constants are too
-    pub fn new(path: &'a cstr_core::CStr, methods: u32, handler: &'a mut H) -> Self {
+    pub fn new(path: &'a core::ffi::CStr, methods: u32, handler: &'a mut H) -> Self {
         let methods = methods.try_into().unwrap();
 
         SingleHandlerListener {
             _phantom: PhantomData,
             resource: coap_resource_t {
-                path: path.as_ptr(),
+                path: path.as_ptr() as _,
                 handler: Some(Self::call_handler),
                 methods: methods,
                 context: handler as *mut _ as *mut c_void,
@@ -127,7 +127,7 @@ where
     /// [coap_handler::Handler], you can wrap it in [crate::coap_handler::GcoapHandler] to for adaptation.
     pub fn new_catch_all(handler: &'a mut H) -> Self {
         Self::new(
-            cstr_core::cstr!("/"),
+            cstr::cstr!("/"),
             riot_sys::COAP_GET
                 | riot_sys::COAP_POST
                 | riot_sys::COAP_PUT

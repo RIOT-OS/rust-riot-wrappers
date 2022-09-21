@@ -1,5 +1,5 @@
 //! RIOT (C) thread implementation
-use cstr_core::CStr;
+use core::ffi::CStr;
 use riot_sys as raw;
 
 use super::{StackStats, StackStatsError};
@@ -122,7 +122,7 @@ impl KernelPID {
         // function might already have returned anything, and thread names are generally strings in
         // .text. Unwrapping because by the time non-ASCII text shows up in there, something
         // probably already went terribly wrong.
-        let name: &str = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap();
+        let name: &str = unsafe { CStr::from_ptr(ptr as _) }.to_str().unwrap();
         Some(name)
     }
 

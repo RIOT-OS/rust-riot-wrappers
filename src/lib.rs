@@ -31,7 +31,8 @@
 /// only where necessary to utilize riot-wrappers APIs.
 pub use riot_sys;
 
-pub use cstr_core as cstr;
+/// Re-exporting the cstr macro module because our macros in [shell] use it.
+pub use cstr;
 
 pub mod error;
 
@@ -47,7 +48,7 @@ use never::Never;
 /// force the compiler to remove all the exceptions at build time (currently it does not, even with
 /// aggressive optimization).
 pub fn board() -> &'static str {
-    cstr::CStr::from_bytes_with_nul(riot_sys::RIOT_BOARD)
+    core::ffi::CStr::from_bytes_with_nul(riot_sys::RIOT_BOARD)
         .expect("Board names are null-terminated C strings")
         .to_str()
         .expect("Board names should be ASCII")

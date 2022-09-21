@@ -164,7 +164,7 @@ impl Dirent {
     pub fn name(&self) -> &str {
         // unsafe: File systems need to provide null termination, buffer is sized accordingly.
         // cast: Some platforms have i8 chars, but that can be converted.
-        let mut name = unsafe { cstr_core::CStr::from_ptr((&self.0.d_name).as_ptr()) }
+        let mut name = unsafe { core::ffi::CStr::from_ptr((&self.0.d_name).as_ptr() as _) }
             .to_str()
             .expect("File name not UTF-8 encoded");
 
@@ -256,7 +256,7 @@ impl<'a> Mount<'a> {
 
     pub fn mount_point(&self) -> &'a str {
         // FIXME: Docs say to treat as opaque
-        unsafe { cstr_core::CStr::from_ptr((*self.0.mp).mount_point) }
+        unsafe { core::ffi::CStr::from_ptr((*self.0.mp).mount_point as _) }
             .to_str()
             .expect("Mount point not UTF-8 encoded")
     }

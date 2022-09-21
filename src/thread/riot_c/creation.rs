@@ -40,7 +40,7 @@ where
         flags,
         Some(run::<R>),
         closure as *mut R as *mut _,
-        name.as_ptr(),
+        name.as_ptr() as _,
     );
 
     let tcb = riot_sys::thread_get(pid);

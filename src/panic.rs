@@ -14,7 +14,7 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
         unsafe {
             riot_sys::core_panic(
                 riot_sys::core_panic_t_PANIC_GENERAL_ERROR,
-                cstr_core::cstr!("RUST PANIC").as_ptr(),
+                cstr::cstr!("RUST PANIC").as_ptr() as _,
             )
         };
         unreachable!()
@@ -48,7 +48,7 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
         unsafe {
             riot_sys::core_panic(
                 riot_sys::core_panic_t_PANIC_GENERAL_ERROR,
-                cstr_core::cstr!("RUST PANIC").as_ptr(),
+                cstr::cstr!("RUST PANIC").as_ptr() as _,
             )
         }
     }

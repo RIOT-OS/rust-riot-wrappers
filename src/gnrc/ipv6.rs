@@ -85,7 +85,7 @@ impl ::core::str::FromStr for Address {
         let conversion_result = unsafe {
             ipv6_addr_from_str(
                 inner.as_mut_ptr(),
-                cstr_core::CStr::from_bytes_with_nul_unchecked(&with_null).as_ptr(),
+                core::ffi::CStr::from_bytes_with_nul_unchecked(&with_null).as_ptr() as _,
             )
         };
 

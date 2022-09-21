@@ -17,7 +17,7 @@
 //!
 //! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
 
-use cstr_core::CStr;
+use core::ffi::CStr;
 use riot_sys as raw;
 use riot_sys::libc;
 
@@ -62,7 +62,7 @@ impl RegistryEntry {
                 (*self.0)
                     .name
                     .as_ref()
-                    .map(|s| CStr::from_ptr(s as _).to_str().ok())??,
+                    .map(|s| CStr::from_ptr(s as *const _ as _).to_str().ok())??,
             )
         }
     }
@@ -299,7 +299,7 @@ impl Class {
     /// Human-readable name of the class
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::saul_class_to_str(self.to_c()).as_ref() }
-            .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
+            .map(|r| unsafe { CStr::from_ptr(r as *const _ as _) }.to_str().ok())
             .flatten()
     }
 }
@@ -476,7 +476,7 @@ impl Unit {
     #[doc(alias = "phydat_unit_to_str")]
     pub fn name(self) -> Option<&'static str> {
         unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).as_ref() }
-            .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
+            .map(|r| unsafe { CStr::from_ptr(r as *const _ as _) }.to_str().ok())
             .flatten()
     }
 
@@ -484,7 +484,7 @@ impl Unit {
     #[doc(alias = "phydat_unit_to_str_verbose")]
     pub fn name_verbose(self) -> Option<&'static str> {
         unsafe { riot_sys::phydat_unit_to_str_verbose(Self::to_c(Some(self))).as_ref() }
-            .map(|r| unsafe { CStr::from_ptr(r) }.to_str().ok())
+            .map(|r| unsafe { CStr::from_ptr(r as *const _ as _) }.to_str().ok())
             .flatten()
     }
 }

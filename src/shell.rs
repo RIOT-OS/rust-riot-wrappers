@@ -13,7 +13,7 @@
 //!   methods.
 
 use crate::{mutex, stdio};
-use cstr_core::CStr;
+use core::ffi::CStr;
 use riot_sys::libc;
 use riot_sys::{shell_command_t, shell_run_forever, shell_run_once};
 
@@ -28,7 +28,7 @@ use riot_sys::{shell_command_t, shell_run_forever, shell_run_once};
 pub struct Args<'a>(&'a [*mut libc::c_char]);
 
 unsafe fn argconvert<'a>(data: *mut libc::c_char) -> &'a str {
-    let cstr = CStr::from_ptr(data);
+    let cstr = CStr::from_ptr(data as _);
     core::str::from_utf8(cstr.to_bytes()).unwrap_or("�")
 }
 
@@ -317,8 +317,8 @@ where
     fn build_shell_command<Root: CommandListInternals>(&self) -> Self::Built {
         BuiltCommand {
             car: shell_command_t {
-                name: self.name.as_ptr(),
-                desc: self.desc.as_ptr(),
+                name: self.name.as_ptr() as _,
+                desc: self.desc.as_ptr() as _,
                 handler: Some(Self::handle::<Root>),
             },
             cdr: self.next.build_shell_command::<Root>(),
@@ -429,7 +429,6 @@ pub fn new() -> impl CommandList {
 /// # 0
 /// # }
 /// ```
-#[cfg(feature = "cstr_nightly")]
 #[macro_export]
 macro_rules! static_command {
     ( $modname:ident, $name:literal, $descr:literal, $fun:ident ) => {
@@ -449,8 +448,8 @@ macro_rules! static_command {
             unsafe impl Sync for StaticCommand {}
 
             static THE_STRUCT: StaticCommand = StaticCommand($crate::riot_sys::shell_command_t {
-                name: $crate::cstr::cstr!($name).as_ptr(),
-                desc: $crate::cstr::cstr!($descr).as_ptr(),
+                name: $crate::cstr::cstr!($name).as_ptr() as _,
+                desc: $crate::cstr::cstr!($descr).as_ptr() as _,
                 handler: Some(the_function),
             });
             #[link_section = ".roxfa.shell_commands_xfa.5"]
