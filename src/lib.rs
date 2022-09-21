@@ -117,9 +117,6 @@ pub mod spi;
 #[cfg(riot_module_periph_adc)]
 pub mod adc;
 
-// Depends a lot on the XTimer internals, to the point where it breaks in combination with ZTimer.
-#[cfg(all(riot_module_xtimer, not(riot_module_ztimer)))]
-pub mod delay;
 #[cfg(riot_module_ztimer)]
 pub mod ztimer;
 
