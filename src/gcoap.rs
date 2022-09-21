@@ -190,29 +190,6 @@ use riot_sys::{
     gcoap_register_listener,
     gcoap_resp_init,
 };
-#[deprecated(note = "Use direct riot_sys method codes instead")]
-pub const GET: u32 = riot_sys::COAP_GET;
-
-#[deprecated(note = "Use the coap_message abstractions")]
-pub struct PayloadWriter<'a> {
-    data: &'a mut [u8],
-    cursor: usize,
-}
-
-#[allow(deprecated)] // still have to implement it while it's around
-impl<'a> ::core::fmt::Write for PayloadWriter<'a> {
-    fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
-        let mut s = s.as_bytes();
-        let mut result = Ok(());
-        if self.cursor + s.len() > self.data.len() {
-            s = &s[..self.data.len() - self.cursor];
-            result = Err(::core::fmt::Error);
-        }
-        self.data[self.cursor..self.cursor + s.len()].clone_from_slice(s);
-        self.cursor += s.len();
-        result
-    }
-}
 
 /// A representation of the incoming or outgoing data on the server side of a request. This
 /// includes the coap_pkt_t pre-parsed header and option pointers as well as the memory area
