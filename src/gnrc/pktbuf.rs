@@ -16,9 +16,6 @@ use riot_sys::{
 };
 
 /// Error type for pktsnip operations that need free buffer space
-///
-/// This is not used consistently yet; some methods still return Option<P> rather than Result<P,
-/// NotEnoughSpace> because they can not easily be transitioned without a breaking change.
 #[derive(Debug)]
 pub struct NotEnoughSpace;
 
@@ -136,13 +133,18 @@ impl<M: Mode> Pktsnip<M> {
     /// Build a UDP header around the Pktsnip
     #[cfg(riot_module_udp)]
     #[doc(alias = "gnrc_udp_hdr_build")]
-    pub fn udp_hdr_build(self, src: u16, dst: u16) -> Option<Pktsnip<Writable>> {
-        let snip = unsafe { gnrc_udp_hdr_build(self.ptr, src, dst) };
+    pub fn udp_hdr_build(
+        self,
+        src: core::num::NonZeroU16,
+        dst: core::num::NonZeroU16,
+    ) -> Result<Pktsnip<Writable>, NotEnoughSpace> {
+        let snip = unsafe { gnrc_udp_hdr_build(self.ptr, src.into(), dst.into()) };
         if snip == 0 as *mut _ {
-            None
+            // All other errors are caught by the signature
+            Err(NotEnoughSpace)
         } else {
             forget(self);
-            Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
+            Ok(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
         }
     }
 
@@ -152,7 +154,7 @@ impl<M: Mode> Pktsnip<M> {
         self,
         src: Option<&[u8]>,
         dst: Option<&[u8]>,
-    ) -> Option<Pktsnip<Writable>> {
+    ) -> Result<Pktsnip<Writable>, NotEnoughSpace> {
         let (src, src_len) = src
             .map(|s| (s.as_ptr(), s.len()))
             .unwrap_or((0 as *const _, 0));
@@ -164,18 +166,22 @@ impl<M: Mode> Pktsnip<M> {
             gnrc_netif_hdr_build(src as *mut _, src_len as u8, dst as *mut _, dst_len as u8)
         };
         if snip == 0 as *mut _ {
-            None
+            Err(NotEnoughSpace)
         } else {
             unsafe {
                 (*snip).next = self.to_ptr();
-                Some(Pktsnip::<Writable>::from_ptr(snip))
+                Ok(Pktsnip::<Writable>::from_ptr(snip))
             }
         }
     }
 
     /// Allocate and prepend an uninitialized snip of given size and type to self, returning a new
     /// (writable) snip.
-    pub fn add(self, size: usize, nettype: gnrc_nettype_t) -> Option<Pktsnip<Writable>> {
+    pub fn add(
+        self,
+        size: usize,
+        nettype: gnrc_nettype_t,
+    ) -> Result<Pktsnip<Writable>, NotEnoughSpace> {
         Pktsnip::<Writable>::_add(Some(self), 0 as *const _, size, nettype)
     }
 }
@@ -227,13 +233,13 @@ impl<'a> Pktsnip<Writable> {
     /// expressed in Rust as the author thinks it's harmless (any u8 is a valid u8, and the
     /// compiler can't know that we're receiving uninitialized memory here so it can't take any
     /// shortcuts if someone ever read from it).
-    pub fn allocate(size: usize, nettype: gnrc_nettype_t) -> Option<Self> {
+    pub fn allocate(size: usize, nettype: gnrc_nettype_t) -> Result<Self, NotEnoughSpace> {
         let next: Option<Self> = None;
         Self::_add(next, 0 as *const _, size, nettype)
     }
 
     /// Allocate a pktsnip and copy the slice into it.
-    pub fn allocate_from(data: &[u8], nettype: gnrc_nettype_t) -> Option<Self> {
+    pub fn allocate_from(data: &[u8], nettype: gnrc_nettype_t) -> Result<Self, NotEnoughSpace> {
         let next: Option<Self> = None;
         Self::_add(next, data.as_ptr(), data.len(), nettype)
     }
@@ -246,15 +252,15 @@ impl<'a> Pktsnip<Writable> {
         data: *const u8,
         size: usize,
         nettype: gnrc_nettype_t,
-    ) -> Option<Self> {
+    ) -> Result<Self, NotEnoughSpace> {
         let next = next.map(|s| s.ptr).unwrap_or(0 as *mut _);
         let snip =
             unsafe { gnrc_pktbuf_add(next, data as *const _, size.try_into().unwrap(), nettype) };
         if snip == 0 as *mut _ {
-            return None;
+            return Err(NotEnoughSpace);
         }
         forget(next);
-        Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
+        Ok(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
     }
 
     pub fn data_mut(&'a mut self) -> &'a mut [u8] {
@@ -266,13 +272,12 @@ impl<'a> Pktsnip<Writable> {
         }
     }
 
-    pub fn realloc_data(&mut self, size: usize) -> Result<(), ()> {
+    pub fn realloc_data(&mut self, size: usize) -> Result<(), NotEnoughSpace> {
         let result = unsafe { gnrc_pktbuf_realloc_data(self.ptr, size.try_into().unwrap()) };
         if result == 0 {
             Ok(())
         } else {
-            // Actually only on ENOMEM
-            Err(())
+            Err(NotEnoughSpace)
         }
     }
 }

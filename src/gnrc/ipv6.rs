@@ -4,7 +4,7 @@ use core::mem::MaybeUninit;
 
 use riot_sys::{ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
 
-use super::pktbuf::{Mode, Pktsnip, Writable};
+use super::pktbuf::{Mode, NotEnoughSpace, Pktsnip, Writable};
 use crate::error::{NegativeErrorExt, NumericError};
 
 impl super::Netif {
@@ -230,15 +230,15 @@ impl<M: Mode> Pktsnip<M> {
         self,
         src: Option<&Address>,
         dst: Option<&Address>,
-    ) -> Option<Pktsnip<Writable>> {
+    ) -> Result<Pktsnip<Writable>, NotEnoughSpace> {
         let src = src.map(|s| unsafe { s.as_ptr() }).unwrap_or(0 as *mut _);
         let dst = dst.map(|d| unsafe { d.as_ptr() }).unwrap_or(0 as *mut _);
         let snip = unsafe { riot_sys::gnrc_ipv6_hdr_build(self.ptr, src, dst) };
         if snip == 0 as *mut _ {
-            None
+            Err(NotEnoughSpace)
         } else {
             core::mem::forget(self);
-            Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
+            Ok(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
         }
     }
 }

@@ -6,7 +6,7 @@
 
 #[cfg(riot_module_ipv6)]
 use crate::gnrc::ipv6;
-use crate::gnrc::pktbuf::{Pktsnip, Shared};
+use crate::gnrc::pktbuf::{NotEnoughSpace, Pktsnip, Shared};
 use crate::thread::KernelPID;
 
 #[cfg(riot_module_gnrc_udp)]
@@ -24,9 +24,13 @@ use riot_sys::{
 /// This trait, in future, might also participate in the re-use of snips that are not dropped and
 /// re-allocated but turned into responses in-place, but whether that makes sense here remains to
 /// be seen.
-pub trait RoundtripData {
-    fn from_incoming(incoming: &Pktsnip<Shared>) -> Self;
-    fn wrap(self, payload: Pktsnip<Shared>) -> Option<Pktsnip<Shared>>;
+pub trait RoundtripData: Sized {
+    /// Read round trip data from an incoming packet.
+    ///
+    /// This returns something if the packet can fundamentally be responded to, which is usually
+    /// the case.
+    fn from_incoming(incoming: &Pktsnip<Shared>) -> Option<Self>;
+    fn wrap(self, payload: Pktsnip<Shared>) -> Result<Pktsnip<Shared>, NotEnoughSpace>;
 }
 
 #[derive(Debug)]
@@ -36,25 +40,25 @@ pub struct NetifRoundtripData {
 }
 
 impl RoundtripData for NetifRoundtripData {
-    fn from_incoming(incoming: &Pktsnip<Shared>) -> Self {
-        Self {
+    fn from_incoming(incoming: &Pktsnip<Shared>) -> Option<Self> {
+        Some(Self {
             pid: incoming.search_type(GNRC_NETTYPE_NETIF).map(|s| {
                 let netif_hdr: &gnrc_netif_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
                 KernelPID::new(netif_hdr.if_pid).unwrap()
             }),
-        }
+        })
     }
 
-    fn wrap(self, payload: Pktsnip<Shared>) -> Option<Pktsnip<Shared>> {
+    fn wrap(self, payload: Pktsnip<Shared>) -> Result<Pktsnip<Shared>, NotEnoughSpace> {
         match self.pid {
-            None => Some(payload),
+            None => Ok(payload),
             Some(pid) => unsafe {
                 let mut netif = payload.netif_hdr_build(None, None)?;
 
                 let data: &mut gnrc_netif_hdr_t = ::core::mem::transmute(netif.data_mut().as_ptr());
                 data.if_pid = pid.into();
 
-                Some(netif.into())
+                Ok(netif.into())
             },
         }
     }
@@ -73,17 +77,17 @@ pub struct IPv6RoundtripDataFull<N: RoundtripData> {
 
 #[cfg(riot_module_ipv6)]
 impl<N: RoundtripData> RoundtripData for IPv6RoundtripDataFull<N> {
-    fn from_incoming(incoming: &Pktsnip<Shared>) -> Self {
+    fn from_incoming(incoming: &Pktsnip<Shared>) -> Option<Self> {
         let ip = incoming.ipv6_get_header().unwrap();
 
-        Self {
+        Some(Self {
             remote: *ip.src(),
             local: *ip.dst(),
-            next: N::from_incoming(incoming),
-        }
+            next: N::from_incoming(incoming)?,
+        })
     }
 
-    fn wrap(self, payload: Pktsnip<Shared>) -> Option<Pktsnip<Shared>> {
+    fn wrap(self, payload: Pktsnip<Shared>) -> Result<Pktsnip<Shared>, NotEnoughSpace> {
         self.next.wrap(
             payload
                 .ipv6_hdr_build(Some(&self.local), Some(&self.remote))?
@@ -97,14 +101,14 @@ impl<N: RoundtripData> RoundtripData for IPv6RoundtripDataFull<N> {
 #[cfg(riot_module_gnrc_udp)]
 #[derive(Debug)]
 pub struct UDPRoundtripDataFull<N: RoundtripData> {
-    remote: u16,
-    local: u16,
+    remote: core::num::NonZeroU16,
+    local: core::num::NonZeroU16,
     next: N,
 }
 
 #[cfg(riot_module_gnrc_udp)]
 impl<N: RoundtripData> RoundtripData for UDPRoundtripDataFull<N> {
-    fn from_incoming(incoming: &Pktsnip<Shared>) -> Self {
+    fn from_incoming(incoming: &Pktsnip<Shared>) -> Option<Self> {
         let (src, dst) = incoming
             .search_type(GNRC_NETTYPE_UDP)
             .map(|s| {
@@ -116,14 +120,17 @@ impl<N: RoundtripData> RoundtripData for UDPRoundtripDataFull<N> {
             })
             .unwrap();
 
-        Self {
-            remote: src,
-            local: dst,
-            next: N::from_incoming(incoming),
-        }
+        Some(Self {
+            // Taking RFC 768 literally, the remote port can easily be 0 if no responses are
+            // expected. (Treating the local port the same for practical reasons; it won't be zero
+            // at least if the data is from listening on a concrete UDP port).
+            remote: src.try_into().ok()?,
+            local: dst.try_into().ok()?,
+            next: N::from_incoming(incoming)?,
+        })
     }
 
-    fn wrap(self, payload: Pktsnip<Shared>) -> Option<Pktsnip<Shared>> {
+    fn wrap(self, payload: Pktsnip<Shared>) -> Result<Pktsnip<Shared>, NotEnoughSpace> {
         self.next
             .wrap(payload.udp_hdr_build(self.local, self.remote)?.into())
     }
