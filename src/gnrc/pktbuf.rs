@@ -117,11 +117,6 @@ impl<M: Mode> Pktsnip<M> {
         self.iter_snips().filter(|x| x.type_ == type_).next()
     }
 
-    #[deprecated(note = "use .data() instead")]
-    pub fn get_data(&self) -> &[u8] {
-        self.data()
-    }
-
     /// Return the data of only the first snip of self.
     pub fn data(&self) -> &[u8] {
         self.iter_snips().next().unwrap().data
@@ -260,11 +255,6 @@ impl<'a> Pktsnip<Writable> {
         }
         forget(next);
         Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
-    }
-
-    #[deprecated(note = "use data_mut")]
-    pub fn get_data_mut(&'a mut self) -> &'a mut [u8] {
-        self.data_mut()
     }
 
     pub fn data_mut(&'a mut self) -> &'a mut [u8] {
