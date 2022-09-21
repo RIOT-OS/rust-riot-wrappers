@@ -429,6 +429,7 @@ pub fn new() -> impl CommandList {
 /// # 0
 /// # }
 /// ```
+#[cfg(feature = "cstr_nightly")]
 #[macro_export]
 macro_rules! static_command {
     ( $modname:ident, $name:literal, $descr:literal, $fun:ident ) => {
@@ -469,4 +470,5 @@ macro_rules! static_command {
         }
     };
 }
+#[cfg(feature = "cstr_nightly")]
 pub use static_command;
