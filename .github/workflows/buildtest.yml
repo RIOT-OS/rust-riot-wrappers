@@ -48,7 +48,7 @@ jobs:
           echo "::group::Building ${D}"
           cargo update -p riot-sys -p riot-wrappers
           cargo tree
-          make buildtest
+          make buildtest BUILDTEST_MAKE_REDIRECT=''
           cd ../..
           echo "::endgroup::"
         done
