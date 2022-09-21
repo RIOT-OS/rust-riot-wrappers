@@ -3,6 +3,8 @@
 use core::intrinsics::transmute;
 use riot_sys::{stdio_read, stdio_write};
 
+use crate::error::NegativeErrorExt;
+
 /// Handle for RIOT's stdio
 ///
 /// This unit struct can be instanciated anywhere, is serviced without any guaranteed
@@ -33,13 +35,13 @@ impl ::core::fmt::Write for Stdio {
 }
 
 impl Stdio {
-    pub fn read_raw<'a>(&mut self, buffer: &'a mut [u8]) -> Result<&'a mut [u8], ()> {
-        let bytes_read = unsafe { stdio_read(transmute(buffer.as_mut_ptr()), buffer.len() as _) };
-        if bytes_read >= 0 {
-            Ok(&mut buffer[..bytes_read as usize])
-        } else {
-            Err(())
-        }
+    pub fn read_raw<'a>(
+        &mut self,
+        buffer: &'a mut [u8],
+    ) -> Result<&'a mut [u8], crate::error::NumericError> {
+        unsafe { stdio_read(transmute(buffer.as_mut_ptr()), buffer.len() as _) }
+            .negative_to_error()
+            .map(|bytes_read| &mut buffer[..bytes_read as usize])
     }
 }
 
