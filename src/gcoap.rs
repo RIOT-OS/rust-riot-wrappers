@@ -225,7 +225,7 @@ impl PacketBuffer {
     /// As it is used and wrapped here, this makes GCOAP_RESP_OPTIONS_BUF bytes unusable, but
     /// working around that would mean duplicating code. Just set GCOAP_RESP_OPTIONS_BUF to zero to
     /// keep the overhead low.
-    pub fn resp_init(&mut self, code: u8) -> Result<(), ()> {
+    pub fn resp_init(&mut self, code: u8) -> Result<(), crate::error::NumericError> {
         unsafe {
             gcoap_resp_init(
                 self.pkt,
@@ -235,8 +235,7 @@ impl PacketBuffer {
             )
         }
         .negative_to_error()
-        .map_err(|_| ())?;
-        Ok(())
+        .map(|_| ())
     }
 
     pub fn set_code_raw(&mut self, code: u8) {
@@ -276,15 +275,22 @@ impl PacketBuffer {
     }
 
     /// Add an integer value as an option
-    pub fn opt_add_uint(&mut self, optnum: u16, value: u32) -> Result<(), ()> {
+    pub fn opt_add_uint(
+        &mut self,
+        optnum: u16,
+        value: u32,
+    ) -> Result<(), crate::error::NumericError> {
         unsafe { coap_opt_add_uint(self.pkt, optnum, value) }
             .negative_to_error()
-            .map_err(|_| ())?;
-        Ok(())
+            .map(|_| ())
     }
 
     /// Add a binary value as an option
-    pub fn opt_add_opaque(&mut self, optnum: u16, data: &[u8]) -> Result<(), ()> {
+    pub fn opt_add_opaque(
+        &mut self,
+        optnum: u16,
+        data: &[u8],
+    ) -> Result<(), crate::error::NumericError> {
         unsafe {
             coap_opt_add_opaque(
                 self.pkt,
@@ -294,8 +300,7 @@ impl PacketBuffer {
             )
         }
         .negative_to_error()
-        .map_err(|_| ())?;
-        Ok(())
+        .map(|_| ())
     }
 
     pub fn opt_iter<'a>(&'a self) -> PacketBufferOptIter<'a> {
