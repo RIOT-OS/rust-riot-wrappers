@@ -25,9 +25,6 @@ const NANOS_PER_SEC: u32 = 1_000_000_000;
 #[derive(Copy, Clone)]
 pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 
-#[deprecated(note = "Use the new name 'Clock' instead")]
-pub type ZTimer<const HZ: u32> = Clock<HZ>;
-
 /// A duration on a clock of fixed speed
 ///
 /// In memory, these are numbers of ticks. Semantically, these are durations of `self.0 / HZ`
@@ -165,16 +162,6 @@ impl<const HZ: u32> Clock<HZ> {
         }
 
         result
-    }
-
-    #[deprecated(note = "Pass ticks as [Ticks] to [set_during] instead")]
-    pub fn set_ticks_during<I: FnOnce() + Send, M: FnOnce() -> R, R>(
-        &self,
-        callback: I,
-        ticks: u32,
-        in_thread: M,
-    ) -> R {
-        self.set_during(callback, Ticks(ticks), in_thread)
     }
 }
 impl Clock<1> {
