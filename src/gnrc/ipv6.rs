@@ -35,13 +35,6 @@ pub struct AddrList<const MAX: usize> {
     len: usize,
 }
 
-impl<const MAX: usize> AddrList<MAX> {
-    #[deprecated(note = "&AddrList now implements IntoIterator")]
-    pub fn addresses(&self) -> &[Address] {
-        self
-    }
-}
-
 impl<const MAX: usize> core::ops::Deref for AddrList<MAX> {
     type Target = [Address];
 
@@ -228,20 +221,6 @@ impl<M: Mode> Pktsnip<M> {
             // unsafe: Header is a transparent wrapper around the actual ipv6_hdr_t, and the
             // ipv6_hdr_t itself is valid as per Pktsnip reqirements
             Some(unsafe { &*(ptr as *const Header) })
-        }
-    }
-
-    // Duplication because I didn't look at what's implementedc
-    #[deprecated(note = "Use ipv6_get_header instead (which is safely usable)")]
-    #[doc(alias = "gnrc_ipv6_get_header")]
-    pub fn get_ipv6_hdr(&self) -> Option<&riot_sys::ipv6_hdr_t> {
-        let hdr = unsafe { riot_sys::gnrc_ipv6_get_header(self.ptr) };
-        if hdr == 0 as *mut _ {
-            None
-        } else {
-            // It's OK to hand out a reference: self.ptr is immutable in its data areas, and hdr
-            // should point somewhere in there
-            Some(unsafe { &*hdr })
         }
     }
 
