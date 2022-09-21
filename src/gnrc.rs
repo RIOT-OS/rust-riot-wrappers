@@ -29,16 +29,6 @@ impl Iterator for NetifIter {
     }
 }
 
-/// Raw equivalent for gnrc_netif_iter; see [Netif::all] for a version that produces safely
-/// usable objects.
-#[doc(alias = "gnrc_netif_iter")]
-#[deprecated(note = "Helper-only function, use Netif::all instead")]
-pub fn netif_iter() -> impl Iterator<Item = *const gnrc_netif_t> {
-    NetifIter {
-        current: 0 as *const gnrc_netif_t,
-    }
-}
-
 /// A registered netif
 ///
 /// (In particular, that means that the implementation can access its fields without any further
@@ -48,8 +38,10 @@ pub struct Netif(*const gnrc_netif_t);
 impl Netif {
     #[doc(alias = "gnrc_netif_iter")]
     pub fn all() -> impl Iterator<Item = Netif> {
-        #[allow(deprecated)]
-        netif_iter().map(Netif)
+        (NetifIter {
+            current: 0 as *const gnrc_netif_t,
+        })
+        .map(Netif)
     }
 
     #[doc(alias = "gnrc_netif_get_by_pid")]
@@ -72,14 +64,3 @@ impl Netif {
         unsafe { &(*self.0).l2addr[..(*self.0).l2addr_len as usize] }
     }
 }
-
-#[cfg(riot_module_ipv6)]
-#[deprecated(note = "Use through the ipv6 module")]
-pub use ipv6::*;
-#[cfg(riot_module_ipv6)]
-#[deprecated(note = "Use through the new names in ipv6")]
-pub use ipv6::{
-    split_address as split_ipv6_address,
-    AddrList as IPv6AddrList,
-    Address as IPv6Addr,
-};

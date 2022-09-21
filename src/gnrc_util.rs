@@ -4,9 +4,9 @@
 //! least for the purpose of the author's experiments. It may turn out that they'd make nice
 //! additions to the RIOT API, or are completely misguided.
 
-use crate::gnrc::pktbuf::{Pktsnip, Shared};
 #[cfg(riot_module_ipv6)]
-use crate::gnrc::IPv6Addr;
+use crate::gnrc::ipv6;
+use crate::gnrc::pktbuf::{Pktsnip, Shared};
 use crate::thread::KernelPID;
 
 #[cfg(riot_module_gnrc_udp)]
@@ -63,8 +63,8 @@ impl RoundtripData for NetifRoundtripData {
 #[cfg(riot_module_ipv6)]
 #[derive(Debug)]
 pub struct IPv6RoundtripDataFull<N: RoundtripData> {
-    remote: IPv6Addr,
-    local: IPv6Addr,
+    remote: ipv6::Address,
+    local: ipv6::Address,
     // We "only" need the NetifRoundtripData if our destination address has a %interface part in it
     // -- which fortunately is a typical case during development, for otherwise that step might
     // easily be forgotten and IPv6RoundtripDataFull might be missing its next.
