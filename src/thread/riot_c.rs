@@ -1,8 +1,8 @@
 //! RIOT (C) thread implementation
-use core::ffi::CStr;
 use riot_sys as raw;
 
 use super::{StackStats, StackStatsError};
+use crate::helpers::PointerToCStr;
 
 /// Offloaded tools for creation
 mod creation;
@@ -115,15 +115,12 @@ impl KernelPID {
 
     pub fn get_name(&self) -> Option<&str> {
         let ptr = unsafe { raw::thread_getname(self.0) };
-        if ptr.is_null() {
-            return None;
-        }
+
         // If the thread stops, the name might be not valid any more, but then again the getname
         // function might already have returned anything, and thread names are generally strings in
         // .text. Unwrapping because by the time non-ASCII text shows up in there, something
         // probably already went terribly wrong.
-        let name: &str = unsafe { CStr::from_ptr(ptr as _) }.to_str().unwrap();
-        Some(name)
+        unsafe { ptr.to_lifetimed_cstr()? }.to_str().ok()
     }
 
     /// Get the current status of the thread of that number, if one currently exists

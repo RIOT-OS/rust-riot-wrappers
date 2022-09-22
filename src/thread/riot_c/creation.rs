@@ -1,5 +1,6 @@
-use super::{CStr, KernelPID, Status};
+use super::{KernelPID, Status};
 
+use core::ffi::CStr;
 use core::intrinsics::transmute;
 use core::marker::PhantomData;
 use riot_sys as raw;

@@ -17,11 +17,11 @@
 //!
 //! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
 
-use core::ffi::CStr;
 use riot_sys as raw;
 use riot_sys::libc;
 
 use crate::error;
+use crate::helpers::PointerToCStr;
 use crate::Never;
 use error::NegativeErrorExt;
 
@@ -57,14 +57,7 @@ impl RegistryEntry {
 
     pub fn name(&self) -> Option<&'static str> {
         // unsafe: Registrations are stable, and point to null-terminated strings or are NULL.
-        unsafe {
-            Some(
-                (*self.0)
-                    .name
-                    .as_ref()
-                    .map(|s| CStr::from_ptr(s as *const _ as _).to_str().ok())??,
-            )
-        }
+        unsafe { Some((*self.0).name.to_lifetimed_cstr()?.to_str().ok()?) }
     }
 
     /// Read a value from the SAUL device
@@ -298,9 +291,9 @@ impl Class {
 
     /// Human-readable name of the class
     pub fn name(self) -> Option<&'static str> {
-        unsafe { riot_sys::saul_class_to_str(self.to_c()).as_ref() }
-            .map(|r| unsafe { CStr::from_ptr(r as *const _ as _) }.to_str().ok())
-            .flatten()
+        unsafe { riot_sys::saul_class_to_str(self.to_c()).to_lifetimed_cstr()? }
+            .to_str()
+            .ok()
     }
 }
 
@@ -475,16 +468,16 @@ impl Unit {
     /// String representation of a given unit (e.g. `V` or `m`)
     #[doc(alias = "phydat_unit_to_str")]
     pub fn name(self) -> Option<&'static str> {
-        unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).as_ref() }
-            .map(|r| unsafe { CStr::from_ptr(r as *const _ as _) }.to_str().ok())
-            .flatten()
+        unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).to_lifetimed_cstr()? }
+            .to_str()
+            .ok()
     }
 
     /// Like [`.name()`](Unit::name), but with additional names like "none" or "time".
     #[doc(alias = "phydat_unit_to_str_verbose")]
     pub fn name_verbose(self) -> Option<&'static str> {
-        unsafe { riot_sys::phydat_unit_to_str_verbose(Self::to_c(Some(self))).as_ref() }
-            .map(|r| unsafe { CStr::from_ptr(r as *const _ as _) }.to_str().ok())
-            .flatten()
+        unsafe { riot_sys::phydat_unit_to_str_verbose(Self::to_c(Some(self))).to_lifetimed_cstr()? }
+            .to_str()
+            .ok()
     }
 }
