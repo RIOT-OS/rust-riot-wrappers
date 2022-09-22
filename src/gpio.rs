@@ -94,18 +94,6 @@ impl GPIO {
     //         GPIO(((port << 5) | pin).into())
     //     }
 
-    #[deprecated(note = "Use configure_as_output")]
-    pub unsafe fn as_output(self) -> OutputGPIO {
-        // FIXME should we configure here? it's probably even safe
-        OutputGPIO(self)
-    }
-
-    #[deprecated(note = "Use configure_as_input")]
-    pub unsafe fn as_input(self) -> InputGPIO {
-        // FIXME should we configure here? it's probably even safe
-        InputGPIO(self)
-    }
-
     pub fn configure_as_output(
         self,
         mode: OutputMode,

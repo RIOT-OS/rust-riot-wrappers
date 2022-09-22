@@ -1,8 +1,8 @@
 //! RIOT (C) thread implementation
-use cstr_core::CStr;
 use riot_sys as raw;
 
 use super::{StackStats, StackStatsError};
+use crate::helpers::PointerToCStr;
 
 /// Offloaded tools for creation
 mod creation;
@@ -76,20 +76,6 @@ pub enum Status {
 }
 
 impl Status {
-    #[deprecated(
-        note = "Not used by any known code, and if kept should be a wrapper around thread_is_active by mechanism and name"
-    )]
-    pub fn is_on_runqueue(&self) -> bool {
-        // FIXME: While we do get STATUS_ON_RUNQUEUE, the information about whether an Other is on
-        // the runqueue or not is lost. Maybe split Other up to OtherOnRunqueue and
-        // OtherNotOnRunqueue?
-        match self {
-            Status::Pending => true,
-            Status::Running => true,
-            _ => false,
-        }
-    }
-
     fn from_int(status: i32) -> Self {
         match status {
             status_converted::STATUS_STOPPED => Status::Stopped,
@@ -129,15 +115,12 @@ impl KernelPID {
 
     pub fn get_name(&self) -> Option<&str> {
         let ptr = unsafe { raw::thread_getname(self.0) };
-        if ptr.is_null() {
-            return None;
-        }
+
         // If the thread stops, the name might be not valid any more, but then again the getname
         // function might already have returned anything, and thread names are generally strings in
         // .text. Unwrapping because by the time non-ASCII text shows up in there, something
         // probably already went terribly wrong.
-        let name: &str = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap();
-        Some(name)
+        unsafe { ptr.to_lifetimed_cstr()? }.to_str().ok()
     }
 
     /// Get the current status of the thread of that number, if one currently exists
@@ -150,12 +133,6 @@ impl KernelPID {
         } else {
             Ok(Status::from_int(status))
         }
-    }
-
-    #[deprecated(note = "Use status() instead")]
-    pub fn get_status(&self) -> Status {
-        let status = unsafe { raw::thread_getstatus(self.0) };
-        Status::from_int(status as _)
     }
 
     #[doc(alias = "thread_wakeup")]

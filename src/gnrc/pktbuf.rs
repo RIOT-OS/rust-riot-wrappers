@@ -80,20 +80,6 @@ pub struct Pktsnip<M: Mode> {
 /// obtained a COW copy using start_write.
 unsafe impl Send for Pktsnip<Shared> {}
 
-/// Deprecated: Use from_ptr instead (which is unsafe)
-///
-/// Unfortunately, this deprecation can not use the usual annotations due to
-/// <https://github.com/rust-lang/rust/issues/39935>
-impl<M: Mode> From<*mut gnrc_pktsnip_t> for Pktsnip<M> {
-    /// Accept this pointer as the refcounting wrapper's responsibility
-    fn from(input: *mut gnrc_pktsnip_t) -> Self {
-        Pktsnip {
-            ptr: input,
-            _phantom: PhantomData,
-        }
-    }
-}
-
 impl Clone for Pktsnip<Shared> {
     fn clone(&self) -> Pktsnip<Shared> {
         unsafe { gnrc_pktbuf_hold(self.ptr, 1) };
@@ -129,11 +115,6 @@ impl<M: Mode> Pktsnip<M> {
     // is, wrapping it to correct lifetimes would be more verbose than just re-implementing it.
     pub fn search_type(&self, type_: gnrc_nettype_t) -> Option<PktsnipPart> {
         self.iter_snips().filter(|x| x.type_ == type_).next()
-    }
-
-    #[deprecated(note = "use .data() instead")]
-    pub fn get_data(&self) -> &[u8] {
-        self.data()
     }
 
     /// Return the data of only the first snip of self.
@@ -274,11 +255,6 @@ impl<'a> Pktsnip<Writable> {
         }
         forget(next);
         Some(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
-    }
-
-    #[deprecated(note = "use data_mut")]
-    pub fn get_data_mut(&'a mut self) -> &'a mut [u8] {
-        self.data_mut()
     }
 
     pub fn data_mut(&'a mut self) -> &'a mut [u8] {

@@ -44,18 +44,18 @@ Supported RIOT & Rust versions
 Currently, this crate targets the latest development version of RIOT.
 Support for the latest release is maintained on a best-effort basis.
 
-For most parts of this library, this crate requires a nightly version of Rust;
-more precisely, it is tested with the version that is shipped with the [riotbuild] images.
-If no parts are used that necessitate nightly, no features are set.
-There is no MSRV for the whole library;
-currently, the most basic parts work with 1.59,
-on the native port it needs 1.60,
-and if shell or SAUL are active it needs 1.61.
+This crate works on stable Rust 1.64,
+unless particular features are enabled.
 
 When a released version of RIOT is used with anything but the riot-sys / riot-wrappers / nightly-compiler combination it was released with,
 it is likely that all these must be upgraded together.
 
-[riotbuild]: https://github.com/RIOT-OS/riotdocker/tree/master/riotbuild
+In terms of public API,
+riot-wrappers aims to uphold SemVer guarantees
+(with little exceptions explicitly documented with the relevant items,
+such as reserving the right to replace a type with a `pub use` from the standard library once a feature is stabilized).
+Unlike that of riot-sys,
+this API is stable across releases of RIOT.
 
 On item presence and modules
 ----------------------------

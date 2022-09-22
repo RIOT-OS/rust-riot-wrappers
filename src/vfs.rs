@@ -18,6 +18,7 @@ use core::mem::MaybeUninit;
 use riot_sys::libc;
 
 use crate::error::{NegativeErrorExt, NumericError};
+use crate::helpers::{PointerToCStr, SliceToCStr};
 
 /// A file handle
 #[derive(Debug)]
@@ -162,9 +163,12 @@ impl Dirent {
     ///
     /// This will panic if the file name is not encoded in UTF-8.
     pub fn name(&self) -> &str {
-        // unsafe: File systems need to provide null termination, buffer is sized accordingly.
-        // cast: Some platforms have i8 chars, but that can be converted.
-        let mut name = unsafe { cstr_core::CStr::from_ptr((&self.0.d_name).as_ptr()) }
+        let mut name = self
+            .0
+            .d_name
+            .to_cstr()
+            // *We* could continue, but it's way more likely to be an error
+            .expect("File name does not have a trailing null character")
             .to_str()
             .expect("File name not UTF-8 encoded");
 
@@ -256,7 +260,8 @@ impl<'a> Mount<'a> {
 
     pub fn mount_point(&self) -> &'a str {
         // FIXME: Docs say to treat as opaque
-        unsafe { cstr_core::CStr::from_ptr((*self.0.mp).mount_point) }
+        unsafe { (*self.0.mp).mount_point.to_lifetimed_cstr() }
+            .expect("Mount point is NULL")
             .to_str()
             .expect("Mount point not UTF-8 encoded")
     }

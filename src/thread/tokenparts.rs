@@ -79,7 +79,6 @@ impl<const MQ: bool, const FS: bool> TokenParts<true, MQ, FS> {
     /// }
     /// ```
     #[cfg(feature = "with_msg_v2")]
-    #[allow(deprecated)] // The deprecation note on NoConfiguredMessages::new only pertains to it being pub
     pub fn take_msg_semantics(
         self,
     ) -> (

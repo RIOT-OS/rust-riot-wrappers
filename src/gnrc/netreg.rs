@@ -4,30 +4,6 @@ use riot_sys::{gnrc_netreg_entry_t, gnrc_netreg_register, gnrc_netreg_unregister
 
 use crate::error::NegativeErrorExt;
 
-#[deprecated(
-    note = "Unsound for lack of pinning and general message handling; use the [`register_for_messages()`] function instead"
-)]
-pub struct Registration<'a> {
-    nettype: gnrc_nettype_t,
-    entry: &'a mut gnrc_netreg_entry_t,
-}
-
-#[allow(deprecated)]
-impl<'a> Registration<'a> {
-    pub fn new(nettype: gnrc_nettype_t, entry: &'a mut gnrc_netreg_entry_t) -> Self {
-        let result = unsafe { gnrc_netreg_register(nettype, entry) };
-        assert!(result == 0);
-        Self { nettype, entry }
-    }
-}
-
-#[allow(deprecated)]
-impl<'a> Drop for Registration<'a> {
-    fn drop(&mut self) {
-        unsafe { gnrc_netreg_unregister(self.nettype, self.entry) };
-    }
-}
-
 // Transmuting the pointer into a Pktsnip does the right thing by treating it as a smart
 // pointer; dropping it decrements the refcount. (Otherwise we'd leak packets).
 // What we drop here is what the netreg registration should consume: An owned (or lifetimed, if

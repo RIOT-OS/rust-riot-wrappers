@@ -1,5 +1,6 @@
-use super::{CStr, KernelPID, Status};
+use super::{KernelPID, Status};
 
+use core::ffi::CStr;
 use core::intrinsics::transmute;
 use core::marker::PhantomData;
 use riot_sys as raw;
@@ -40,7 +41,7 @@ where
         flags,
         Some(run::<R>),
         closure as *mut R as *mut _,
-        name.as_ptr(),
+        name.as_ptr() as _,
     );
 
     let tcb = riot_sys::thread_get(pid);
@@ -191,16 +192,6 @@ impl<'id> CountedThread<'id> {
     pub fn status(&self) -> Status {
         self.thread.status()
     }
-
-    #[deprecated(note = "Use .pid() instead")]
-    pub fn get_pid(&self) -> KernelPID {
-        self.pid()
-    }
-
-    #[deprecated(note = "Use .status() instead")]
-    pub fn get_status(&self) -> Status {
-        self.status()
-    }
 }
 
 /// Create a thread with a statically allocated stack
@@ -261,15 +252,5 @@ impl TrackedThread {
             // Thread not in task list, so it's obviousy stopped
             Status::Stopped
         }
-    }
-
-    #[deprecated(note = "Use .pid() instead")]
-    pub fn get_pid(&self) -> KernelPID {
-        self.pid()
-    }
-
-    #[deprecated(note = "Use .status() instead")]
-    pub fn get_status(&self) -> Status {
-        self.status()
     }
 }

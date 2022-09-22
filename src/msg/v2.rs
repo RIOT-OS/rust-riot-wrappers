@@ -175,7 +175,6 @@ pub trait MessageSemantics: Sized {
     /// # #[start]
     /// # fn main(_argc: isize, _argv: *const *const u8) -> isize {
     /// # use riot_wrappers::msg::v2::*;
-    /// # #[allow(deprecated)]
     /// # let message_semantics = unsafe { NoConfiguredMessages::new() };
     /// type NumberReceived = ReceivePort<u32, 1>;
     /// type BoolReceived = ReceivePort<bool, 2>;
@@ -301,26 +300,8 @@ impl NoConfiguredMessages {
     ///
     /// TBD: Add a version of the thread spawner that comes with all kinds of once-per-thread
     /// gadgets.
-    #[deprecated(note = "Use thread token instead")]
-    pub unsafe fn new() -> Self {
+    pub(crate) unsafe fn new() -> Self {
         Self
-    }
-
-    /// Create a new MessageSemantics object to split into [ReceivePort]s in a scope.
-    ///
-    /// This is somewhat safer to use than [NoConfiguredMessages::new()] because by taking the NoConfiguredMessages
-    /// object back (which currently can only be done by not splitting off anything, and later by
-    /// returning everything that was split off); an easy way to do that is to just never return.
-    ///
-    /// **Conditions**, violating which is a safety violation:
-    ///
-    /// * The thread must currently not allow sending any messages to it, or even created an
-    ///   otherwise unused NoConfiguredMessages
-    #[deprecated(note = "Use thread token instead")]
-    pub unsafe fn new_scoped(f: impl FnOnce(Self) -> Self) {
-        f(Self);
-        // FIXME: ensure that the queue is flushed (eg. by sending a terminal message, or by
-        // asserting that the queue is empty)
     }
 }
 

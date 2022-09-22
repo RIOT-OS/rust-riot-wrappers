@@ -9,7 +9,7 @@
 //! dispatch by being generic over the [Drivable] and exposing untyped function pointers. (In a
 //! sense, SAUL ships its own version of Rust's `dyn`, and Driver manages that).
 
-use cstr_core::CStr;
+use core::ffi::CStr;
 use riot_sys::libc;
 
 use super::{Class, Phydat};
@@ -197,7 +197,7 @@ where
             reg: riot_sys::saul_reg_t {
                 next: 0 as _,
                 dev: device as *const _ as *mut _,
-                name: name.map(|n| n.as_ptr()).unwrap_or(0 as _),
+                name: name.map(|n| n.as_ptr() as _).unwrap_or(core::ptr::null()),
                 driver: &driver.driver as *const _,
             },
             _phantom: core::marker::PhantomData,
