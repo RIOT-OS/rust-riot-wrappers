@@ -1,7 +1,7 @@
 //! RIOT (C) thread implementation
 use riot_sys as raw;
 
-use super::{StackStats, StackStatsError};
+use super::{NoSuchThread, StackStats, StackStatsError};
 use crate::helpers::PointerToCStr;
 
 /// Offloaded tools for creation
@@ -125,42 +125,41 @@ impl KernelPID {
 
     /// Get the current status of the thread of that number, if one currently exists
     #[doc(alias = "thread_getstatus")]
-    pub fn status(&self) -> Result<Status, ()> {
+    pub fn status(&self) -> Result<Status, NoSuchThread> {
         // unsafe: Side effect free, always-callable C function
         let status = unsafe { raw::thread_getstatus(self.0) } as _;
         if status == status_converted::STATUS_NOT_FOUND {
-            Err(())
+            Err(NoSuchThread)
         } else {
             Ok(Status::from_int(status))
         }
     }
 
     #[doc(alias = "thread_wakeup")]
-    pub fn wakeup(&self) -> Result<(), ()> {
+    pub fn wakeup(&self) -> Result<(), NoSuchThread> {
         let success = unsafe { raw::thread_wakeup(self.0) };
         match success {
             1 => Ok(()),
-            // Actuall STATUS_NOT_FOUND, but all the others are then all error cases.
-            _ => Err(()),
+            _ => Err(NoSuchThread),
         }
     }
 
-    /// Pick the thread_t out of sched_threads for the PID, with NULL mapped to None.
+    /// Pick the thread_t out of sched_threads for the PID
     #[doc(alias = "thread_get")]
-    fn thread(&self) -> Option<*const riot_sys::thread_t> {
+    fn thread(&self) -> Result<*const riot_sys::thread_t, NoSuchThread> {
         // unsafe: C function's "checked" precondition met by type constraint on PID validity
         let t = unsafe { riot_sys::thread_get_unchecked(self.0) };
         // .as_ref() would have the null check built in, but we can't build a shared refernce out
         // of this, only ever access its fields with volatility.
         if t == 0 as *mut _ {
-            None
+            Err(NoSuchThread)
         } else {
-            Some(crate::inline_cast(t))
+            Ok(crate::inline_cast(t))
         }
     }
 
-    pub fn priority(&self) -> Result<u8, ()> {
-        let thread = self.thread().ok_or(())?;
+    pub fn priority(&self) -> Result<u8, NoSuchThread> {
+        let thread = self.thread()?;
         Ok(unsafe { (*thread).priority })
     }
 
@@ -173,7 +172,7 @@ impl KernelPID {
     /// This is not backed by C functions (as most of the rest of this crate is), but rather a
     /// practical way to access struct members that may or may not be present in a build.
     pub fn stack_stats(&self) -> Result<StackStats, StackStatsError> {
-        let thread = self.thread().ok_or(StackStatsError::NoSuchThread)?;
+        let thread = self.thread()?;
         #[cfg(riot_develhelp)]
         return Ok(StackStats {
             // This cast is relevant because different platforms (eg. native and arm) disagree on

@@ -242,7 +242,7 @@ impl TrackedThread {
     pub fn status(&self) -> Status {
         let status = self.pid.status();
         let tcb = self.pid.thread();
-        if let (Ok(status), Some(tcb), Some(startup_tcb)) = (status, tcb, self.tcb) {
+        if let (Ok(status), Ok(tcb), Some(startup_tcb)) = (status, tcb, self.tcb) {
             if crate::inline_cast(tcb) == startup_tcb {
                 status
             } else {
