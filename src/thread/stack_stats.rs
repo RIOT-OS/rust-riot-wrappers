@@ -41,3 +41,9 @@ pub enum StackStatsError {
     /// Details on the stack are unavailable because develhelp is disabled
     InformationUnavailable,
 }
+
+impl From<super::NoSuchThread> for StackStatsError {
+    fn from(_: super::NoSuchThread) -> Self {
+        StackStatsError::NoSuchThread
+    }
+}

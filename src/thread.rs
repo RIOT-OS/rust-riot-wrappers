@@ -27,3 +27,7 @@ pub use tokenparts::{StartToken, TerminationToken};
 
 mod stack_stats;
 pub use stack_stats::{StackStats, StackStatsError};
+
+/// Error returned by PID methods when no thread with that PID exists
+#[derive(Debug)]
+pub struct NoSuchThread;
