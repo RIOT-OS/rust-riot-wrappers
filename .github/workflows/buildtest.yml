@@ -46,7 +46,7 @@ jobs:
         for D in ${DIRS}; do
           cd ${D}
           echo "::group::Building ${D}"
-          cargo update -p riot-sys -p riot-wrappers
+          cargo update -p riot-sys -p riot-wrappers --aggressive
           cargo tree
           make buildtest BUILDTEST_MAKE_REDIRECT=''
           cd ../..
