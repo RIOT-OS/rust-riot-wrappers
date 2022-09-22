@@ -18,7 +18,6 @@
     ),
     feature(lang_items)
 )]
-#![cfg_attr(feature = "with_coap_message", feature(generic_associated_types))]
 // Primarily for documentation, see feature docs
 #![cfg_attr(feature = "actual_never_type", feature(never_type))]
 
