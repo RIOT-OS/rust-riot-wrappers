@@ -31,6 +31,16 @@ pub mod registration;
 /// A discovered SAUL registry entry
 pub struct RegistryEntry(*mut riot_sys::saul_reg);
 
+/// Public result type of [`RegistryEntry::all()`].
+///
+/// Do not rely on the precise type here -- this is meant only to be used as a means to explicitly
+/// give associated types derived from this. The only reliable properties of this are that it is
+/// `impl Iterator<Item = RegistryEntry>`, and that it is the return type of `all()`.
+pub type AllRegistryEntries = core::iter::MapWhile<
+    core::iter::Map<core::ops::RangeFrom<usize>, fn(usize) -> Option<RegistryEntry>>,
+    fn(Option<RegistryEntry>) -> Option<RegistryEntry>,
+>;
+
 impl RegistryEntry {
     /// Find a registry entry by its index
     ///
@@ -41,12 +51,16 @@ impl RegistryEntry {
         (unsafe { riot_sys::saul_reg_find_nth(pos as _).as_mut() }).map(|r| RegistryEntry(r))
     }
 
-    pub fn all() -> impl Iterator<Item = Self> {
+    /// All registered entries.
+    ///
+    /// Do not expect more from its return type than being `impl Iterator<Item = Self>`; this will
+    /// change back to that once `type_alias_impl_trait` is stable.
+    pub fn all() -> AllRegistryEntries {
         // Could alternatively be implemented by hopping through the list's next pointer -- more
         // efficient, but relies on internals that are not part of the API
         //
         // (The shell command in sc_saul_reg also jumps through next, but that's in-tree.)
-        (0..).map(|n| Self::nth(n)).map_while(|p| p)
+        (0..).map(Self::nth as _).map_while(|p| p)
     }
 
     pub fn type_(&self) -> Option<Class> {
