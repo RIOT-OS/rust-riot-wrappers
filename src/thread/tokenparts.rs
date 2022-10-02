@@ -1,4 +1,5 @@
-//! Zero-sized types with which code in threads can safely document doing things the first time.
+//! Zero-sized types for threads to document that something is done (often, done the first time)
+//! inside the thread.
 
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
@@ -32,14 +33,8 @@ pub struct TerminationToken {
 /// * `FLAG_SEMANTICS`: If this is true, the thread has not assigned semantics to flags yet.
 ///
 /// (FLAG_SEMANTICS are not used yet, but are already prepared for a wrapper similar to `msg::v2`).
-pub struct TokenParts<
-    const MSG_SEMANTICS: bool,
-    const MSG_QUEUE: bool,
-    const FLAG_SEMANTICS: bool,
-    // Do we need something for "we're in a thread" factory? (Probably also doesn't need tracking
-    // b/c it can be Clone -- and everything in RIOT alerady does a cheap irq_is_in check rather
-    // than taking a ZST)
-> {
+pub struct TokenParts<const MSG_SEMANTICS: bool, const MSG_QUEUE: bool, const FLAG_SEMANTICS: bool>
+{
     pub(super) _not_send: PhantomData<*const ()>,
 }
 
@@ -52,6 +47,15 @@ impl TokenParts<true, true, true> {
         TokenParts {
             _not_send: PhantomData,
         }
+    }
+}
+
+impl<const MS: bool, const MQ: bool, const FS: bool> TokenParts<MS, MQ, FS> {
+    /// Extract a token that states that code that has access to it is running in a thread (and not
+    /// in an interrupt).
+    pub fn in_thread(&self) -> InThread {
+        // unsafe: TokenParts is not Send, so we can be sure to be in a thread
+        unsafe { InThread::new_unchecked() }
     }
 }
 
@@ -176,6 +180,53 @@ impl<const MQ: bool> TokenParts<true, MQ, true> {
     pub fn termination(self) -> TerminationToken {
         TerminationToken {
             _not_send: PhantomData,
+        }
+    }
+}
+
+/// Zero-size statement that the current code is not running in an interrupt
+#[derive(Copy, Clone)]
+pub struct InThread {
+    _not_send: PhantomData<*const ()>,
+}
+
+/// Zero-size statement that the current code is running in an interrupt
+#[derive(Copy, Clone)]
+pub struct InIrq {
+    _not_send: PhantomData<*const ()>,
+}
+
+impl InThread {
+    unsafe fn new_unchecked() -> Self {
+        InThread {
+            _not_send: PhantomData,
+        }
+    }
+
+    /// Check that the code is running in thread mode
+    ///
+    /// Note that this is actually running code; to avoid that, call [`TokenParts::in_thread()`],
+    /// which is a purely type-level procedure.
+    pub fn new() -> Result<Self, InIrq> {
+        match crate::interrupt::irq_is_in() {
+            true => Err(unsafe { InIrq::new_unchecked() }),
+            false => Ok(unsafe { InThread::new_unchecked() }),
+        }
+    }
+}
+
+impl InIrq {
+    unsafe fn new_unchecked() -> Self {
+        InIrq {
+            _not_send: PhantomData,
+        }
+    }
+
+    /// Check that the code is running in IRQ mode
+    pub fn new() -> Result<Self, InThread> {
+        match InThread::new() {
+            Ok(i) => Err(i),
+            Err(i) => Ok(i),
         }
     }
 }
