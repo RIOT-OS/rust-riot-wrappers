@@ -449,5 +449,3 @@ macro_rules! static_command {
         }
     };
 }
-#[cfg(feature = "cstr_nightly")]
-pub use static_command;
