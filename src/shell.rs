@@ -182,7 +182,7 @@ pub trait CommandList<const BUFSIZE: usize = { riot_sys::SHELL_DEFAULT_BUFSIZE a
     /// the function.
     fn and<'a, H, T>(self, name: &'a CStr, desc: &'a CStr, handler: H) -> Command<'a, Self, H, T>
     where
-        H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+        H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
         T: crate::main::Termination,
     {
         Command {
@@ -235,7 +235,7 @@ pub struct BuiltCommand<NextBuilt> {
 pub struct Command<'a, Next, H, T = i32>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
     T: crate::main::Termination,
 {
     name: &'a CStr,
@@ -247,7 +247,7 @@ where
 impl<'a, Next, H, T> Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
     T: crate::main::Termination,
 {
     /// This is building a trampoline. As it's static and thus can't have the instance, we pass on
@@ -280,7 +280,7 @@ where
 unsafe impl<'a, Next, H, T> CommandListInternals for Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
     T: crate::main::Termination,
 {
     type Built = BuiltCommand<Next::Built>;
@@ -323,7 +323,7 @@ where
 impl<'a, Next, H, T, const BUFSIZE: usize> CommandList<BUFSIZE> for Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
     T: crate::main::Termination,
 {
     fn with_buffer_size<const NEWSIZE: usize>(self) -> Self::WithBufferSizeResult<NEWSIZE> {
