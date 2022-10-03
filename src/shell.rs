@@ -339,8 +339,8 @@ unsafe impl CommandListInternals for CommandListEnd {
 
     fn build_shell_command<Root: CommandListInternals>(&self) -> Self::Built {
         shell_command_t {
-            name: 0 as *const libc::c_char,
-            desc: 0 as *const libc::c_char,
+            name: core::ptr::null(),
+            desc: core::ptr::null(),
             handler: None,
         }
     }
