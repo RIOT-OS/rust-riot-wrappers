@@ -108,17 +108,41 @@ pub unsafe trait CommandListInternals: Sized {
 }
 
 /// A list of commands that can be presented as a shell prompt
-pub trait CommandList: CommandListInternals {
-    /// Run the shell prompt on stdio until EOF is reached
-    ///
-    /// See [shell_run_once] for details.
-    ///
-    /// [shell_run_once]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
-    fn run_once(&mut self, linebuffer: &mut [u8]) {
+///
+/// The BUFSIZE is carried around in the trait because it can have a default there (a trait method
+/// can't have a default value for its generic argument), which necessitates that implementers use
+/// `with_buffer_size` to change it and carry that size on. (Having a `.run_forever()` /
+/// `.run_forever<BUFSIZE = 60>()` would be ideal, but that's currently not possible).
+pub trait CommandList<const BUFSIZE: usize = { riot_sys::SHELL_DEFAULT_BUFSIZE as _ }>:
+    CommandListInternals
+{
+    fn run_once_with_buf(&mut self, linebuffer: &mut [u8]) {
         // unsafe: See unsafe in run_any where it's called
         self.run_any(linebuffer, |built, buf, len| unsafe {
             shell_run_once(built, buf, len)
         })
+    }
+
+    #[deprecated(
+        note = "Use run_once_with_buf, or just run_once_providing_buf, which will take over this name in the next breaking release"
+    )]
+    fn run_once(&mut self, linebuffer: &mut [u8]) {
+        self.run_once_with_buf(linebuffer)
+    }
+
+    fn run_forever_with_buf(&mut self, linebuffer: &mut [u8]) -> ! {
+        // unsafe: See unsafe in run_any where it's called
+        self.run_any(linebuffer, |built, buf, len| unsafe {
+            shell_run_forever(built as _, buf, len);
+            unreachable!()
+        })
+    }
+
+    #[deprecated(
+        note = "Use run_forever_with_buf, or just run_forever_providing_buf, which will take over this name in the next breaking release"
+    )]
+    fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
+        self.run_forever_with_buf(linebuffer)
     }
 
     /// Run the shell prompt on stdio
@@ -126,12 +150,29 @@ pub trait CommandList: CommandListInternals {
     /// See [shell_run_forever] for details.
     ///
     /// [shell_run_forever]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
-    fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
-        // unsafe: See unsafe in run_any where it's called
-        self.run_any(linebuffer, |built, buf, len| unsafe {
-            shell_run_forever(built as _, buf, len);
-            unreachable!()
-        })
+    ///
+    /// The line buffer is allocated inside this function with the size configured as part of the
+    /// trait type; use `.with_buffer_size::<>()` to alter that. The method will be renamed to
+    /// `run_forever` once that name is free.
+    #[doc(alias = "shell_run_forever")]
+    fn run_forever_providing_buf(&mut self) -> ! {
+        let mut linebuffer = [0; BUFSIZE];
+        self.run_forever_with_buf(&mut linebuffer)
+    }
+
+    /// Run the shell prompt on stdio until EOF is reached
+    ///
+    /// See [shell_run_once] for details.
+    ///
+    /// [shell_run_once]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
+    ///
+    /// The line buffer is allocated inside this function with the size configured as part of the
+    /// trait type; use `.with_buffer_size::<>()` to alter that. The method will be renamed to
+    /// `run_once` once that name is free.
+    #[doc(alias = "shell_run_once")]
+    fn run_once_providing_buf(&mut self) {
+        let mut linebuffer = [0; BUFSIZE];
+        self.run_once_with_buf(&mut linebuffer)
     }
 
     /// Extend the list of commands by an additional one.
@@ -151,6 +192,13 @@ pub trait CommandList: CommandListInternals {
             next: self,
         }
     }
+
+    /// Change the buffer size used for `.run_forever_providing_buf()`.
+    ///
+    /// Note that no buffer of that size is carried around -- it is merely transported in the trait
+    /// to provide a (defaultable) number for that method.
+    fn with_buffer_size<const NEWSIZE: usize>(self) -> Self::WithBufferSizeResult<NEWSIZE>;
+    type WithBufferSizeResult<const NEWSIZE: usize>: CommandList<NEWSIZE>;
 }
 
 // For a bit more safety -- not that anything but someone stealing the module-private
@@ -272,12 +320,16 @@ where
     }
 }
 
-impl<'a, Next, H, T> CommandList for Command<'a, Next, H, T>
+impl<'a, Next, H, T, const BUFSIZE: usize> CommandList<BUFSIZE> for Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
     H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
     T: crate::main::Termination,
 {
+    fn with_buffer_size<const NEWSIZE: usize>(self) -> Self::WithBufferSizeResult<NEWSIZE> {
+        Command { ..self }
+    }
+    type WithBufferSizeResult<const NEWSIZE: usize> = Command<'a, Next, H, T>;
 }
 
 struct CommandListEnd;
@@ -304,7 +356,12 @@ unsafe impl CommandListInternals for CommandListEnd {
     }
 }
 
-impl CommandList for CommandListEnd {}
+impl<const BUFSIZE: usize> CommandList<BUFSIZE> for CommandListEnd {
+    fn with_buffer_size<const NEWSIZE: usize>(self) -> Self::WithBufferSizeResult<NEWSIZE> {
+        CommandListEnd
+    }
+    type WithBufferSizeResult<const NEWSIZE: usize> = CommandListEnd;
+}
 
 /// Start a blank list of commands
 ///
