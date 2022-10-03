@@ -11,6 +11,17 @@
 //! * Use [new] to start building a [CommandList]. This can have full closures as commands, but
 //!   these are available only when the shell is then started throught the CommandList's run
 //!   methods.
+//!
+//! ## Note on complexity of this module
+//!
+//! Quite a bit of complexity in this module is due to building the array of commands, and
+//! moreover, creating trampoline functions that go through a global mutex to get a hold of the
+//! command list -- an exercise necessary due to the RIOT commands' lack of a `*void data`
+//! argument. This does allow the Rust wrappers to "just so" use a closure as a command handler,
+//! but also needs a lot of code.
+//!
+//! That complexity is not pulled in when only using [static_command] and running on an otherwise
+//! empty command list.
 
 use crate::{mutex, stdio};
 use core::ffi::CStr;
