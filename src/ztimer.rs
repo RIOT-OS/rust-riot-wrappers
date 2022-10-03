@@ -231,7 +231,7 @@ impl<const HZ: u32> Ticks<HZ> {
     /// This will be deprecated when TryFrom / TryInto can be optionally const (see
     /// <https://github.com/rust-lang/rust/issues/67792> for efforts).
     /*
-    pub fn from_duration(duration: core::time::Duration) -> Result<Self, Overflow> {
+    pub const fn from_duration(duration: core::time::Duration) -> Result<Self, Overflow> {
         // Manual div_ceil while that's unstable, see
         // <https://github.com/rust-lang/rust/issues/88581>
         let subsec_ticks = match duration.subsec_nanos() {
