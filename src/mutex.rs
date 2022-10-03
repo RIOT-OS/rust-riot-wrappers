@@ -42,14 +42,10 @@ impl<T> Mutex<T> {
     /// Get an accessor to the mutex when the mutex is available
     #[doc(alias = "mutex_lock")]
     pub fn lock(&self) -> MutexGuard<T> {
-        assert!(
-            crate::interrupt::irq_is_in() == false,
-            "Mutex::lock may only be called outside of interrupt contexts.",
-        );
-        // unsafe: All preconditions of the C function are met (not-NULL through taking a &self,
-        // being initialized through RAII guarantees, thread context was checked before).
-        unsafe { riot_sys::mutex_lock(crate::inline_cast_mut(self.mutex.get())) };
-        MutexGuard { mutex: &self }
+        crate::thread::InThread::new()
+            .expect("Mutex::lock may only be called outside of interrupt contexts")
+            .promote(&self)
+            .lock()
     }
 
     /// Get an accessor to the mutex if the mutex is available
@@ -90,6 +86,20 @@ impl<T> Mutex<T> {
         let guard = self.try_lock()?;
         core::mem::forget(guard);
         Some(unsafe { &mut *self.data.get() })
+    }
+}
+
+impl<T> crate::thread::ValueInThread<&Mutex<T>> {
+    /// Get an accessor to the mutex when the mutex is available
+    ///
+    /// Through the [crate::thread::ValueInThread], this is already guaranteed to run in a thread
+    /// context, so no additional check is performed.
+    #[doc(alias = "mutex_lock")]
+    pub fn lock(&self) -> MutexGuard<T> {
+        // unsafe: All preconditions of the C function are met (not-NULL through taking a &self,
+        // being initialized through RAII guarantees, thread context is in the InThread).
+        unsafe { riot_sys::mutex_lock(crate::inline_cast_mut(self.mutex.get())) };
+        MutexGuard { mutex: &self }
     }
 }
 

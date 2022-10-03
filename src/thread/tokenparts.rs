@@ -185,13 +185,13 @@ impl<const MQ: bool> TokenParts<true, MQ, true> {
 }
 
 /// Zero-size statement that the current code is not running in an interrupt
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct InThread {
     _not_send: PhantomData<*const ()>,
 }
 
 /// Zero-size statement that the current code is running in an interrupt
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct InIrq {
     _not_send: PhantomData<*const ()>,
 }
@@ -213,6 +213,15 @@ impl InThread {
             false => Ok(unsafe { InThread::new_unchecked() }),
         }
     }
+
+    /// Wrap a `value` in a [`ValueInThread`]. This makes it non-Send, but may make additional
+    /// (safe) methods on it, using the knowledge that it is still being used inside a thread.
+    pub fn promote<T>(self, value: T) -> ValueInThread<T> {
+        ValueInThread {
+            value,
+            in_thread: self,
+        }
+    }
 }
 
 impl InIrq {
@@ -228,5 +237,38 @@ impl InIrq {
             Ok(i) => Err(i),
             Err(i) => Ok(i),
         }
+    }
+}
+
+/// A value combined with an [InThread](crate::thread::InThread) marker
+///
+/// This does barely implement anything on its own, but the module implementing `T` might provide
+/// extra methods.
+pub struct ValueInThread<T> {
+    value: T,
+    in_thread: InThread,
+}
+
+impl<T> ValueInThread<T> {
+    /// Extract the wrapped value
+    ///
+    /// This does not produce the original `in_thread` value; these are easy enough to re-obtain or
+    /// to keep a copy of around.
+    pub fn into_inner(self) -> T {
+        self.value
+    }
+}
+
+impl<T> core::ops::Deref for ValueInThread<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T> core::ops::DerefMut for ValueInThread<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 }
