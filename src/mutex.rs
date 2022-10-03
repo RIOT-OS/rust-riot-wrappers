@@ -42,6 +42,12 @@ impl<T> Mutex<T> {
     /// Get an accessor to the mutex when the mutex is available
     #[doc(alias = "mutex_lock")]
     pub fn lock(&self) -> MutexGuard<T> {
+        assert!(
+            crate::interrupt::irq_is_in() == false,
+            "Mutex::lock may only be called outside of interrupt contexts.",
+        );
+        // unsafe: All preconditions of the C function are met (not-NULL through taking a &self,
+        // being initialized through RAII guarantees, thread context was checked before).
         unsafe { riot_sys::mutex_lock(crate::inline_cast_mut(self.mutex.get())) };
         MutexGuard { mutex: &self }
     }
