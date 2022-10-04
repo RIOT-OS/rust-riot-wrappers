@@ -12,6 +12,8 @@ use core::ops::{Deref, DerefMut};
 // the inner data into a &mut).
 use core::cell::UnsafeCell;
 
+use crate::thread::InThread;
+
 /// A mutual exclusion primitive useful for protecting shared data
 ///
 /// Unlike the [std::sync::Mutex], this has no concept of poisoning, so waiting for mutexes in
@@ -25,6 +27,13 @@ use core::cell::UnsafeCell;
 pub struct Mutex<T> {
     mutex: UnsafeCell<riot_sys::inline::mutex_t>,
     data: UnsafeCell<T>,
+}
+
+/// A `&'a `[`Mutex`]`<T>` annotated with an extra context `C`, typically an [`InThread`] token,
+/// and created through [`Mutex::with_context()`]
+pub struct MutexWithContext<'a, T, C> {
+    reference: &'a Mutex<T>,
+    context: C,
 }
 
 impl<T> Mutex<T> {
@@ -42,10 +51,10 @@ impl<T> Mutex<T> {
     /// Get an accessor to the mutex when the mutex is available
     #[doc(alias = "mutex_lock")]
     pub fn lock(&self) -> MutexGuard<T> {
-        crate::thread::InThread::new()
-            .expect("Mutex::lock may only be called outside of interrupt contexts")
-            .promote(&self)
-            .lock()
+        self.with_context(
+            InThread::new().expect("Mutex::lock may only be called outside of interrupt contexts"),
+        )
+        .lock()
     }
 
     /// Get an accessor to the mutex if the mutex is available
@@ -87,19 +96,28 @@ impl<T> Mutex<T> {
         core::mem::forget(guard);
         Some(unsafe { &mut *self.data.get() })
     }
+
+    pub fn with_context<C>(&self, context: C) -> MutexWithContext<'_, T, C> {
+        MutexWithContext {
+            reference: self,
+            context,
+        }
+    }
 }
 
-impl<T> crate::thread::ValueInThread<&Mutex<T>> {
+impl<'a, T> MutexWithContext<'a, T, InThread> {
     /// Get an accessor to the mutex when the mutex is available
     ///
-    /// Through the [crate::thread::ValueInThread], this is already guaranteed to run in a thread
+    /// Through the [InThread] token, this is already guaranteed to run in a thread
     /// context, so no additional check is performed.
     #[doc(alias = "mutex_lock")]
-    pub fn lock(&self) -> MutexGuard<T> {
+    pub fn lock(&self) -> MutexGuard<'a, T> {
         // unsafe: All preconditions of the C function are met (not-NULL through taking a &self,
         // being initialized through RAII guarantees, thread context is in the InThread).
-        unsafe { riot_sys::mutex_lock(crate::inline_cast_mut(self.mutex.get())) };
-        MutexGuard { mutex: &self }
+        unsafe { riot_sys::mutex_lock(crate::inline_cast_mut(self.reference.mutex.get())) };
+        MutexGuard {
+            mutex: &self.reference,
+        }
     }
 }
 
