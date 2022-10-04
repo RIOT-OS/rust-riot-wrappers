@@ -40,6 +40,14 @@ impl<T> Mutex<T> {
     }
 
     /// Get an accessor to the mutex when the mutex is available
+    ///
+    /// ## Panics
+    ///
+    /// This function checks at runtime whether it is called in a thread context, and panics
+    /// otherwise. Consider promoting a reference with an [`InThread`](crate::thread::InThread)
+    /// token's [`.promote(&my_mutex)`](crate::thread::InThread::promote) to gain access to a
+    /// better [`.lock()`](crate::thread::ValueInThread<&Mutex<T>>::lock) method, which suffers
+    /// neither the panic condition nor the runtime overhead.
     #[doc(alias = "mutex_lock")]
     pub fn lock(&self) -> MutexGuard<T> {
         crate::thread::InThread::new()
@@ -80,7 +88,7 @@ impl<T> Mutex<T> {
     /// be dropped (or even leaked-and-pushed-off-the-stack) even in a locked state. (A possibility
     /// that is fine -- we sure don't want to limit mutex usage to require a Pin reference.)
     ///
-    /// The function could be generalized to some generic lifetime, but there doesn't seem to b a
+    /// The function could be generalized to some generic lifetime, but there doesn't seem to be a
     /// point to it.
     pub fn try_leak(&'static self) -> Option<&'static mut T> {
         let guard = self.try_lock()?;
