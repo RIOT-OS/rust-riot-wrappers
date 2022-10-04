@@ -244,6 +244,8 @@ impl InIrq {
 ///
 /// This does barely implement anything on its own, but the module implementing `T` might provide
 /// extra methods.
+// Making the type fundamental results in ValueInThread<&Mutex<T>> being shown at Mutex's page.
+#[cfg_attr(feature = "nightly_docs", fundamental)]
 pub struct ValueInThread<T> {
     value: T,
     in_thread: InThread,
