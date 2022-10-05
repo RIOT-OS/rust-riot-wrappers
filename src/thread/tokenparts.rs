@@ -208,6 +208,7 @@ impl InThread {
     /// Note that this is actually running code; to avoid that, call [`TokenParts::in_thread()`],
     /// which is a purely type-level procedure.
     pub fn new() -> Result<Self, InIsr> {
+        #[allow(deprecated)] // It's deprecatedly pub
         match crate::interrupt::irq_is_in() {
             true => Err(unsafe { InIsr::new_unchecked() }),
             false => Ok(unsafe { InThread::new_unchecked() }),

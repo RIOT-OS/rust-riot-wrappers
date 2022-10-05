@@ -2,7 +2,14 @@
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     use crate::thread;
 
-    if crate::interrupt::irq_is_in() || !crate::interrupt::irq_is_enabled() {
+    let os_can_continue = crate::thread::InThread::new()
+        // Panics with IRQs off are fatal because we can't safely re-enable them
+        .map(|i| i.irq_is_enabled())
+        // Panics in ISRs are always fatal because continuing in threads would signal to the
+        // remaining system that the ISR terminated
+        .unwrap_or(false);
+
+    if !os_can_continue {
         // We can't abort on stable -- but even if we could: Set a breakpoint and wait for the
         // fault handler to reboot us of no debugger is attached? Spin endlessly? core_panic should
         // already answer all these questions.
