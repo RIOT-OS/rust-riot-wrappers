@@ -192,7 +192,7 @@ pub struct InThread {
 
 /// Zero-size statement that the current code is running in an interrupt
 #[derive(Copy, Clone, Debug)]
-pub struct InIrq {
+pub struct InIsr {
     _not_send: PhantomData<*const ()>,
 }
 
@@ -207,9 +207,9 @@ impl InThread {
     ///
     /// Note that this is actually running code; to avoid that, call [`TokenParts::in_thread()`],
     /// which is a purely type-level procedure.
-    pub fn new() -> Result<Self, InIrq> {
+    pub fn new() -> Result<Self, InIsr> {
         match crate::interrupt::irq_is_in() {
-            true => Err(unsafe { InIrq::new_unchecked() }),
+            true => Err(unsafe { InIsr::new_unchecked() }),
             false => Ok(unsafe { InThread::new_unchecked() }),
         }
     }
@@ -224,9 +224,9 @@ impl InThread {
     }
 }
 
-impl InIrq {
+impl InIsr {
     unsafe fn new_unchecked() -> Self {
-        InIrq {
+        InIsr {
             _not_send: PhantomData,
         }
     }

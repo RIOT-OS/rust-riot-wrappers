@@ -71,7 +71,7 @@ pub fn free<R, F: FnOnce(&CriticalSection) -> R>(f: F) -> R {
 ///
 /// This is Cortex-M specific.
 #[deprecated(
-    note = "See module documentation: This needs to be done manually per platform; it is incomplete as riot-wrappers provides no method of enabling platform specific interrupts, and provides no other access to configure the peripheral through registers. If it is re-introduced, it will likely carry an `InIrq` token into the function."
+    note = "See module documentation: This needs to be done manually per platform; it is incomplete as riot-wrappers provides no method of enabling platform specific interrupts, and provides no other access to configure the peripheral through registers. If it is re-introduced, it will likely carry an `InIsr` token into the function."
 )]
 #[macro_export]
 macro_rules! interrupt {
