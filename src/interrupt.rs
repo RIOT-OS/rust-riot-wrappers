@@ -28,9 +28,7 @@
 ///
 /// Returns true when called from an interrupt service routine
 pub fn irq_is_in() -> bool {
-    // "as u32" cast: Necessary for versions before https://github.com/RIOT-OS/RIOT/pull/17359
-    // (2022.01)
-    (unsafe { riot_sys::irq_is_in() }) as u32 != 0
+    unsafe { riot_sys::irq_is_in() }
 }
 
 /// Trivial safe wrapper for
@@ -40,9 +38,7 @@ pub fn irq_is_in() -> bool {
 ///
 /// Note that this only returns reliable values when called from a thread context.
 pub fn irq_is_enabled() -> bool {
-    // "as u32" cast: Necessary for versions before https://github.com/RIOT-OS/RIOT/pull/17359
-    // (2022.01)
-    (unsafe { riot_sys::irq_is_enabled() }) as u32 != 0
+    unsafe { riot_sys::irq_is_enabled() }
 }
 
 /// Proof of running inside a critical section. Reexported from the [bare_metal] crate.
