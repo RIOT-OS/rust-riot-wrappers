@@ -18,7 +18,10 @@
 //!
 //! Rust code intended for use within interrupts does not generally need special precautions -- but
 //! several functions (generally, anything that blocks) are discouraged (as they may fail or stall
-//! the system) outside of a thread context.
+//! the system) outside of a thread context, or even "forbidden" (because they reliably lock up the
+//! system, such as [crate::mutex::Mutex::lock()]). These functions often have preferred
+//! alternatives that can be statically known to be executed in a thread context by keeping a copy
+//! of [`crate::thread::InThread`].
 
 /// Trivial safe wrapper for
 /// [`irq_is_in`](https://doc.riot-os.org/group__core__irq.html#ga83decbeef665d955290f730125ef0e3f)
