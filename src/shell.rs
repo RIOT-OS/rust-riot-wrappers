@@ -11,98 +11,28 @@
 //! * Use [new] to start building a [CommandList]. This can have full closures as commands, but
 //!   these are available only when the shell is then started throught the CommandList's run
 //!   methods.
+//!
+//! ## Note on complexity of this module
+//!
+//! Quite a bit of complexity in this module is due to building the array of commands, and
+//! moreover, creating trampoline functions that go through a global mutex to get a hold of the
+//! command list -- an exercise necessary due to the RIOT commands' lack of a `*void data`
+//! argument. This does allow the Rust wrappers to "just so" use a closure as a command handler,
+//! but also needs a lot of code.
+//!
+//! That complexity is not pulled in when only using [static_command] and running on an otherwise
+//! empty command list.
 
 use crate::{mutex, stdio};
 use core::ffi::CStr;
 use riot_sys::libc;
 use riot_sys::{shell_command_t, shell_run_forever, shell_run_once};
 
-use crate::helpers::PointerToCStr;
+mod args;
 
-/// Newtype around an (argc, argv) C style string array that presents itself as much as an `&'a
-/// [&'a str]` as possible. (Slicing is not implemented for reasons of laziness).
-///
-/// As this is used with the command line parser, it presents the individual strings as &str
-/// infallibly. If non-UTF8 input is received, a variation of from_utf8_lossy is applied: The
-/// complete string (rather than just the bad characters) is reported as "�", but should have the
-/// same effect: Be visible as an encoding error without needlessly complicated error handling for
-/// niche cases.
-pub struct Args<'a>(&'a [*mut libc::c_char]);
-
-unsafe fn argconvert<'a>(data: *mut libc::c_char) -> &'a str {
-    data.to_lifetimed_cstr()
-        .expect("Command-line arguments are non-null")
-        .to_str()
-        .unwrap_or("�")
-}
-
-impl<'a> Args<'a> {
-    /// Create the slice from its parts.
-    ///
-    /// ## Unsafe
-    ///
-    /// argv must be a valid pointer, and its first argc items must be valid pointers. The
-    /// underlying char strings do not need to be valid UTF-8, but must be null terminated.
-    pub unsafe fn new(
-        argc: libc::c_int,
-        argv: *const *const libc::c_char,
-        _lifetime_marker: &'a (),
-    ) -> Self {
-        Args(core::slice::from_raw_parts(argv as _, argc as usize))
-    }
-
-    /// Returns an iterator over the arguments.
-    pub fn iter(&self) -> ArgsIterator<'a> {
-        ArgsIterator(self.0.iter())
-    }
-
-    /// Returns the argument in the given position.
-    pub fn get(&self, index: usize) -> Option<&str> {
-        if index < self.0.len() {
-            Some(unsafe { argconvert(self.0[index]) })
-        } else {
-            None
-        }
-    }
-
-    /// Length of the arguments list
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-/// Iterator of [Args], created using [Args::iter()]
-pub struct ArgsIterator<'a>(core::slice::Iter<'a, *mut libc::c_char>);
-
-impl<'a> core::iter::Iterator for ArgsIterator<'a> {
-    type Item = &'a str;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let data = self.0.next()?;
-
-        Some(unsafe { argconvert(*data) })
-    }
-}
-
-impl<'a> ExactSizeIterator for ArgsIterator<'a> {}
-
-impl<'a> IntoIterator for Args<'a> {
-    type Item = &'a str;
-    type IntoIter = ArgsIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-impl<'a> core::ops::Index<usize> for Args<'a> {
-    type Output = str;
-
-    fn index(&self, i: usize) -> &str {
-        unsafe { argconvert(self.0[i]) }
-    }
-}
-
+pub use args::Args;
+// re-exported only as long as users can't just make a TAIT out of the Args return type.
+pub use args::ArgsIterator;
 
 /// Something that can build a suitable command array for itself and its next commands using
 /// `shell_run_once` etc.
@@ -189,17 +119,41 @@ pub unsafe trait CommandListInternals: Sized {
 }
 
 /// A list of commands that can be presented as a shell prompt
-pub trait CommandList: CommandListInternals {
-    /// Run the shell prompt on stdio until EOF is reached
-    ///
-    /// See [shell_run_once] for details.
-    ///
-    /// [shell_run_once]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
-    fn run_once(&mut self, linebuffer: &mut [u8]) {
+///
+/// The BUFSIZE is carried around in the trait because it can have a default there (a trait method
+/// can't have a default value for its generic argument), which necessitates that implementers use
+/// `with_buffer_size` to change it and carry that size on. (Having a `.run_forever()` /
+/// `.run_forever<BUFSIZE = 60>()` would be ideal, but that's currently not possible).
+pub trait CommandList<const BUFSIZE: usize = { riot_sys::SHELL_DEFAULT_BUFSIZE as _ }>:
+    CommandListInternals
+{
+    fn run_once_with_buf(&mut self, linebuffer: &mut [u8]) {
         // unsafe: See unsafe in run_any where it's called
         self.run_any(linebuffer, |built, buf, len| unsafe {
             shell_run_once(built, buf, len)
         })
+    }
+
+    #[deprecated(
+        note = "Use run_once_with_buf, or just run_once_providing_buf, which will take over this name in the next breaking release"
+    )]
+    fn run_once(&mut self, linebuffer: &mut [u8]) {
+        self.run_once_with_buf(linebuffer)
+    }
+
+    fn run_forever_with_buf(&mut self, linebuffer: &mut [u8]) -> ! {
+        // unsafe: See unsafe in run_any where it's called
+        self.run_any(linebuffer, |built, buf, len| unsafe {
+            shell_run_forever(built as _, buf, len);
+            unreachable!()
+        })
+    }
+
+    #[deprecated(
+        note = "Use run_forever_with_buf, or just run_forever_providing_buf, which will take over this name in the next breaking release"
+    )]
+    fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
+        self.run_forever_with_buf(linebuffer)
     }
 
     /// Run the shell prompt on stdio
@@ -207,12 +161,29 @@ pub trait CommandList: CommandListInternals {
     /// See [shell_run_forever] for details.
     ///
     /// [shell_run_forever]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
-    fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
-        // unsafe: See unsafe in run_any where it's called
-        self.run_any(linebuffer, |built, buf, len| unsafe {
-            shell_run_forever(built as _, buf, len);
-            unreachable!()
-        })
+    ///
+    /// The line buffer is allocated inside this function with the size configured as part of the
+    /// trait type; use `.with_buffer_size::<>()` to alter that. The method will be renamed to
+    /// `run_forever` once that name is free.
+    #[doc(alias = "shell_run_forever")]
+    fn run_forever_providing_buf(&mut self) -> ! {
+        let mut linebuffer = [0; BUFSIZE];
+        self.run_forever_with_buf(&mut linebuffer)
+    }
+
+    /// Run the shell prompt on stdio until EOF is reached
+    ///
+    /// See [shell_run_once] for details.
+    ///
+    /// [shell_run_once]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
+    ///
+    /// The line buffer is allocated inside this function with the size configured as part of the
+    /// trait type; use `.with_buffer_size::<>()` to alter that. The method will be renamed to
+    /// `run_once` once that name is free.
+    #[doc(alias = "shell_run_once")]
+    fn run_once_providing_buf(&mut self) {
+        let mut linebuffer = [0; BUFSIZE];
+        self.run_once_with_buf(&mut linebuffer)
     }
 
     /// Extend the list of commands by an additional one.
@@ -222,7 +193,7 @@ pub trait CommandList: CommandListInternals {
     /// the function.
     fn and<'a, H, T>(self, name: &'a CStr, desc: &'a CStr, handler: H) -> Command<'a, Self, H, T>
     where
-        H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+        H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
         T: crate::main::Termination,
     {
         Command {
@@ -232,6 +203,13 @@ pub trait CommandList: CommandListInternals {
             next: self,
         }
     }
+
+    /// Change the buffer size used for `.run_forever_providing_buf()`.
+    ///
+    /// Note that no buffer of that size is carried around -- it is merely transported in the trait
+    /// to provide a (defaultable) number for that method.
+    fn with_buffer_size<const NEWSIZE: usize>(self) -> Self::WithBufferSizeResult<NEWSIZE>;
+    type WithBufferSizeResult<const NEWSIZE: usize>: CommandList<NEWSIZE>;
 }
 
 // For a bit more safety -- not that anything but someone stealing the module-private
@@ -268,7 +246,7 @@ pub struct BuiltCommand<NextBuilt> {
 pub struct Command<'a, Next, H, T = i32>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
     T: crate::main::Termination,
 {
     name: &'a CStr,
@@ -280,7 +258,7 @@ where
 impl<'a, Next, H, T> Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
     T: crate::main::Termination,
 {
     /// This is building a trampoline. As it's static and thus can't have the instance, we pass on
@@ -313,7 +291,7 @@ where
 unsafe impl<'a, Next, H, T> CommandListInternals for Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
     T: crate::main::Termination,
 {
     type Built = BuiltCommand<Next::Built>;
@@ -353,12 +331,16 @@ where
     }
 }
 
-impl<'a, Next, H, T> CommandList for Command<'a, Next, H, T>
+impl<'a, Next, H, T, const BUFSIZE: usize> CommandList<BUFSIZE> for Command<'a, Next, H, T>
 where
     Next: CommandListInternals,
-    H: for<'b> FnMut(&mut stdio::Stdio, Args<'b>) -> T,
+    H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
     T: crate::main::Termination,
 {
+    fn with_buffer_size<const NEWSIZE: usize>(self) -> Self::WithBufferSizeResult<NEWSIZE> {
+        Command { ..self }
+    }
+    type WithBufferSizeResult<const NEWSIZE: usize> = Command<'a, Next, H, T>;
 }
 
 struct CommandListEnd;
@@ -368,8 +350,8 @@ unsafe impl CommandListInternals for CommandListEnd {
 
     fn build_shell_command<Root: CommandListInternals>(&self) -> Self::Built {
         shell_command_t {
-            name: 0 as *const libc::c_char,
-            desc: 0 as *const libc::c_char,
+            name: core::ptr::null(),
+            desc: core::ptr::null(),
             handler: None,
         }
     }
@@ -385,7 +367,12 @@ unsafe impl CommandListInternals for CommandListEnd {
     }
 }
 
-impl CommandList for CommandListEnd {}
+impl<const BUFSIZE: usize> CommandList<BUFSIZE> for CommandListEnd {
+    fn with_buffer_size<const NEWSIZE: usize>(self) -> Self::WithBufferSizeResult<NEWSIZE> {
+        CommandListEnd
+    }
+    type WithBufferSizeResult<const NEWSIZE: usize> = CommandListEnd;
+}
 
 /// Start a blank list of commands
 ///
@@ -473,5 +460,3 @@ macro_rules! static_command {
         }
     };
 }
-#[cfg(feature = "cstr_nightly")]
-pub use static_command;
