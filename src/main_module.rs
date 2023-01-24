@@ -67,13 +67,10 @@ impl<F: Fn(crate::thread::StartToken) -> crate::never::Never> UsableAsMain<[u8; 
     }
 }
 
-impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::TerminationToken)> Sealed<[u8; 3]>
-    for F
-{
-}
+impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::EndToken)> Sealed<[u8; 3]> for F {}
 
-impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::TerminationToken)>
-    UsableAsMain<[u8; 3]> for F
+impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::EndToken)> UsableAsMain<[u8; 3]>
+    for F
 {
     unsafe fn call_main(&self) -> i32 {
         // unsafe: By construction of the C main function this only happens at startup time
@@ -108,10 +105,10 @@ impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::TerminationToken)>
 /// * `fn main()` -- useful for very simple programs
 /// * `fn main() -> impl Termination` -- prints the error message according to the [Termination]
 ///   implementation (in particular, [Result] types with a [Debug] error are useful here)
-/// * `fn main(tokens: StartToken) -> (impl Termination, TerminationToken)` -- this ensures that
+/// * `fn main(tokens: StartToken) -> (impl Termination, EndToken)` -- this ensures that
 ///   the program has full control over the main thread. As a [StartToken] allows doing things that
-///   require undoing before the thread may terminate (eg. subscribing it to messages), a
-///   [TerminationToken] needs to be produced before the thread can terminate with a message as
+///   require undoing before the thread may terminate (eg. subscribing it to messages), an
+///   [EndToken] needs to be produced before the thread can terminate with a message as
 ///   above.
 /// * `fn main(tokens: StartToken) -> !` -- a frequently useful variation thereof for main loops
 ///   that are loops anyway.
