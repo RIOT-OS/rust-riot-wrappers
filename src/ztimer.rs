@@ -16,6 +16,8 @@ use core::convert::TryInto;
 
 use riot_sys::ztimer_clock_t;
 
+use crate::thread::ValueInThread;
+
 // Useful for working with durations
 const NANOS_PER_SEC: u32 = 1_000_000_000;
 
@@ -33,7 +35,7 @@ pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 pub struct Ticks<const HZ: u32>(pub u32);
 
 
-impl<const HZ: u32> Clock<HZ> {
+impl<const HZ: u32> ValueInThread<Clock<HZ>> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
     ///
     /// Wraps [ztimer_sleep](https://doc.riot-os.org/group__sys__ztimer.html#gade98636e198f2d571c8acd861d29d360)
@@ -49,6 +51,10 @@ impl<const HZ: u32> Clock<HZ> {
     /// *very* short delays.".
     ///
     /// Wraps [ztimer_spin](https://doc.riot-os.org/group__sys__ztimer.html#ga9de3d9e3290746b856bb23eb2dccaa7c)
+    ///
+    /// Note that this would not technically require the self to be a [ValueInThread] (as spinning
+    /// is doable in an ISR), but it's so discouraged that the Rust wrapper takes the position that
+    /// it's best done using a [ValueInThread].
     #[doc(alias = "ztimer_spin")]
     pub fn spin_ticks(&self, duration: u32) {
         unsafe { riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration) };
@@ -197,13 +203,13 @@ impl Clock<1000000> {
     }
 }
 
-impl embedded_hal::blocking::delay::DelayMs<u32> for Clock<1000> {
+impl embedded_hal::blocking::delay::DelayMs<u32> for ValueInThread<Clock<1000>> {
     fn delay_ms(&mut self, ms: u32) {
         self.sleep_ticks(ms.into());
     }
 }
 
-impl embedded_hal::blocking::delay::DelayUs<u32> for Clock<1000000> {
+impl embedded_hal::blocking::delay::DelayUs<u32> for ValueInThread<Clock<1000000>> {
     fn delay_us(&mut self, us: u32) {
         self.sleep_ticks(us);
     }
