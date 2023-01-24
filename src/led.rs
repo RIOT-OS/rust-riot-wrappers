@@ -4,17 +4,40 @@ use crate::Never;
 
 /// The Ith LED (calling the `LED<I>_{ON,OFF,TOGGLE}` macros).
 ///
-/// LEDs are wrapped into GPIOs because it's convenient: they're available on native, semantics of
-/// differently wired LEDs are abstracted away, and they're accessible safely. LEDs not implemented
-/// on a board are silently ignored.
+/// The preferred interface for turning a LED on and off is [switch_hal::OutputSwitch].
 ///
-/// GPIO is implemented such that "high" is having the LED on, and "low" is off.
+/// LEDs are accessible safely; any not implemented on a board are silently ignored.
+///
+/// LEDs are wrapped into GPIOs for compatibility reasons; GPIO is interpreted such that "high" is
+/// having the LED on, and "low" is off.
 pub struct LED<const I: u8>(());
 
 impl<const I: u8> LED<I> {
     pub const fn new() -> Self {
         assert!(I < 8, "RIOT only defines LED0..7");
         Self(())
+    }
+}
+
+impl<const I: u8> switch_hal::OutputSwitch for LED<I> {
+    type Error = Never;
+
+    fn on(&mut self) -> Result<(), Self::Error> {
+        use embedded_hal::digital::v2::OutputPin;
+        self.set_high()
+    }
+
+    fn off(&mut self) -> Result<(), Self::Error> {
+        use embedded_hal::digital::v2::OutputPin;
+        self.set_low()
+    }
+}
+
+impl<const I: u8> switch_hal::ToggleableOutputSwitch for LED<I> {
+    type Error = Never;
+
+    fn toggle(&mut self) -> Result<(), Self::Error> {
+        <Self as embedded_hal::digital::v2::ToggleableOutputPin>::toggle(self)
     }
 }
 
