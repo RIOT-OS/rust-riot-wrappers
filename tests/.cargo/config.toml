@@ -1,0 +1,2 @@
+[patch.crates-io]
+riot-wrappers = { path = ".." }
