@@ -52,3 +52,21 @@ jobs:
           cd ../..
           echo "::endgroup::"
         done
+        cd ..
+        echo "::echo ::off"
+    - name: Build tests
+      run: |
+        export BOARDS='native sltb001a samr21-xpro'
+        DIRS=$(echo tests/*/)
+        export RIOTBASE=$(pwd)/RIOT
+        # It appears that there has to be output before :: commands really catch on
+        echo "Building ${DIRS} on ${BOARDS}"
+        echo "::echo ::on"
+        for D in ${DIRS}; do
+          cd ${D}
+          echo "::group::Building ${D}"
+          make buildtest BUILDTEST_MAKE_REDIRECT=''
+          cd ../..
+          echo "::endgroup::"
+        done
+        echo "::echo ::off"
