@@ -10,12 +10,15 @@ pub type StartToken = TokenParts<true, true, true>;
 
 /// Data necessary to return from a thread that has received the [StartToken] permissions.
 ///
-/// This is created from the initials using [TokenParts::termination()] to erase any left-over
+/// This is created from the initials using [TokenParts::can_end()] to erase any left-over
 /// information, and certifies that no actions have been taken that forbid the thread from ever
 /// terminating (or if they have been taken, they have been undone).
-pub struct TerminationToken {
+pub struct EndToken {
     _not_send: PhantomData<*const ()>,
 }
+
+#[deprecated(note = "Renamed to EndToken")]
+pub type TerminationToken = EndToken;
 
 /// A [StartToken] that has possibly already lost some of its properties.
 ///
@@ -67,7 +70,7 @@ impl<const MQ: bool, const FS: bool> TokenParts<true, MQ, FS> {
     /// # #[start]
     /// # fn main(_argc: isize, _argv: *const *const u8) -> isize { panic!("Doc tests are not supposed to be run") }
     /// # use riot_wrappers::thread::*;
-    /// fn thread(tok: StartToken) -> TerminationToken {
+    /// fn thread(tok: StartToken) -> EndToken {
     ///     let (tok, semantics) = tok.take_msg_semantics();
     ///     // keep working with semantics and start receiving messages
     ///     //
@@ -75,7 +78,7 @@ impl<const MQ: bool, const FS: bool> TokenParts<true, MQ, FS> {
     ///     //
     ///     // recover semantics when everyone has returned the license to send messages
     ///     let tok = tok.return_msg_semantics(semantics);
-    ///     tok.termination()
+    ///     tok.can_end()
     /// }
     /// ```
     #[cfg(feature = "with_msg_v2")]
@@ -90,8 +93,8 @@ impl<const MQ: bool, const FS: bool> TokenParts<true, MQ, FS> {
                 _not_send: PhantomData,
             },
             // unsafe: This is the only safe way, and by construction running only once per thread.
-            // The thread can't terminate because if it takes TokenParts it has to return a
-            // termination token
+            // The thread can't terminate because if it takes TokenParts it has to return an
+            // end token
             unsafe { crate::msg::v2::NoConfiguredMessages::new() },
         )
     }
@@ -128,7 +131,7 @@ impl<const MS: bool, const FS: bool> TokenParts<MS, true, FS> {
     /// # #[start]
     /// # fn fake_start(_argc: isize, _argv: *const *const u8) -> isize { panic!("Doc tests are not supposed to be run") }
     /// # use riot_wrappers::thread::*;
-    /// fn thread(tok: StartToken) -> TerminationToken {
+    /// fn thread(tok: StartToken) -> EndToken {
     ///     tok.with_message_queue::<4, _>(|tok| {
     ///         loop {
     ///             // ...
@@ -173,9 +176,14 @@ impl<const MQ: bool> TokenParts<true, MQ, true> {
     /// nothing can safely send messages any more), even if there is a queue somewhere on the
     /// stack, it wouldn't be touched by others any more. (Of course, that's moot with the current
     /// mechanism of [TokenParts::with_message_queue()] as that diverges anyway).
-    pub fn termination(self) -> TerminationToken {
-        TerminationToken {
+    pub fn can_end(self) -> EndToken {
+        EndToken {
             _not_send: PhantomData,
         }
+    }
+
+    #[deprecated(note = "Renamed to can_end")]
+    pub fn termination(self) -> EndToken {
+        self.can_end()
     }
 }
