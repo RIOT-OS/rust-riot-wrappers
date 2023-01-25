@@ -8,7 +8,7 @@
 //! some operations doable only once per thread (eg. setting up a message queue) have not yet
 //! happed.
 //!
-//! When threads are created that way, they need to return a [TerminationToken] which ensures that
+//! When threads are created that way, they need to return an [EndToken] which ensures that
 //! no operations that preclude the termination of a thread have happened.
 //!
 //! This has multiple implementations:
@@ -23,7 +23,7 @@ pub use riot_c::*;
 mod tokenparts;
 #[cfg(doc)]
 pub use tokenparts::TokenParts;
-pub use tokenparts::{InIsr, InThread, StartToken, TerminationToken, ValueInThread};
+pub use tokenparts::{EndToken, InIsr, InThread, StartToken, TerminationToken, ValueInThread};
 
 mod stack_stats;
 pub use stack_stats::{StackStats, StackStatsError};

@@ -28,6 +28,62 @@ use crate::stdio::println;
 
 use core::fmt;
 
+mod sealed {
+    pub trait Sealed<Variant> {}
+}
+
+use sealed::Sealed;
+
+// The Variant argument is really just taking different types to allow "conflicting"
+// implementations that are not conflicting but just ambiguous as long as nobody forces the Variant
+// argument. Conveniently, that ambiguity is accepted.
+//
+// Thanks to Charles from #rust:matrix.org for pointing out this neat trick.
+#[doc(hidden)]
+pub trait UsableAsMain<Variant>: Sealed<Variant> {
+    unsafe fn call_main(&self) -> i32;
+}
+
+// Beware that the following are *not* checked for being conflicting (because they are not), but if
+// there were any situation of ambiguity, the main macro would break.
+
+impl<F: Fn() -> T, T: Termination> Sealed<[u8; 1]> for F {}
+
+impl<F: Fn() -> T, T: Termination> UsableAsMain<[u8; 1]> for F {
+    unsafe fn call_main(&self) -> i32 {
+        (self)().report()
+    }
+}
+
+impl<F: Fn(crate::thread::StartToken) -> crate::never::Never> Sealed<[u8; 2]> for F {}
+
+impl<F: Fn(crate::thread::StartToken) -> crate::never::Never> UsableAsMain<[u8; 2]> for F {
+    unsafe fn call_main(&self) -> i32 {
+        // unsafe: By construction of the C main function this only happens at startup time
+        // with a thread that hasn't done anything relevant before.
+        let unique = crate::thread::StartToken::new();
+
+        (self)(unique)
+    }
+}
+
+impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::EndToken)> Sealed<[u8; 3]> for F {}
+
+impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::EndToken)> UsableAsMain<[u8; 3]>
+    for F
+{
+    unsafe fn call_main(&self) -> i32 {
+        // unsafe: By construction of the C main function this only happens at startup time
+        // with a thread that hasn't done anything relevant before.
+        let unique = crate::thread::StartToken::new();
+
+        // We're not really consuming the token, just require that the function can provide it and
+        // doesn't just return without having invalidated all users of its PID
+        let (termination, _token) = (self)(unique);
+        termination.report()
+    }
+}
+
 /// To have a nice Rust main function, run the `riot_main!` macro with the name of your main
 /// function an item (ie. top level in a module) in your crate. The function identified by it must
 /// return something that implements the Termination trait.
@@ -43,29 +99,36 @@ use core::fmt;
 ///     unimplemented!()
 /// }
 /// ```
+///
+/// Functions with multiple signatures are accepted:
+///
+/// * `fn main()` -- useful for very simple programs
+/// * `fn main() -> impl Termination` -- prints the error message according to the [Termination]
+///   implementation (in particular, [Result] types with a [Debug] error are useful here)
+/// * `fn main(tokens: StartToken) -> (impl Termination, EndToken)` -- this ensures that
+///   the program has full control over the main thread. As a [StartToken] allows doing things that
+///   require undoing before the thread may terminate (eg. subscribing it to messages), an
+///   [EndToken] needs to be produced before the thread can terminate with a message as
+///   above.
+/// * `fn main(tokens: StartToken) -> !` -- a frequently useful variation thereof for main loops
+///   that are loops anyway.
 #[macro_export]
 macro_rules! riot_main {
     ($main:ident) => {
         #[export_name = "main"]
         pub extern "C" fn c_main() -> i32 {
-            use riot_wrappers::main::Termination;
-            $main().report()
+            unsafe { <_ as $crate::main::UsableAsMain<_>>::call_main(&$main) }
         }
     };
 }
 
+#[deprecated(note = "Use `riot_main` instead, which takes multiple signatures")]
 #[macro_export]
 macro_rules! riot_main_with_tokens {
     ($main:ident) => {
         #[export_name = "main"]
         pub extern "C" fn c_main() -> i32 {
-            // unsafe: By construction of the C main function this only happens at startup time
-            // with a thread that hasn't done anything relevant before.
-            let unique = unsafe { riot_wrappers::thread::StartToken::new() };
-
-            let (result, token): (_, riot_wrappers::thread::TerminationToken) = $main(unique);
-            use riot_wrappers::main::Termination;
-            result.report()
+            unsafe { <_ as $crate::main::UsableAsMain<_>>::call_main(&$main) }
         }
     };
 }
