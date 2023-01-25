@@ -1,4 +1,5 @@
-//! Zero-sized types with which code in threads can safely document doing things the first time.
+//! Zero-sized types for threads to document that something is done (often, done the first time)
+//! inside the thread.
 
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
@@ -35,14 +36,8 @@ pub type TerminationToken = EndToken;
 /// * `FLAG_SEMANTICS`: If this is true, the thread has not assigned semantics to flags yet.
 ///
 /// (FLAG_SEMANTICS are not used yet, but are already prepared for a wrapper similar to `msg::v2`).
-pub struct TokenParts<
-    const MSG_SEMANTICS: bool,
-    const MSG_QUEUE: bool,
-    const FLAG_SEMANTICS: bool,
-    // Do we need something for "we're in a thread" factory? (Probably also doesn't need tracking
-    // b/c it can be Clone -- and everything in RIOT alerady does a cheap irq_is_in check rather
-    // than taking a ZST)
-> {
+pub struct TokenParts<const MSG_SEMANTICS: bool, const MSG_QUEUE: bool, const FLAG_SEMANTICS: bool>
+{
     pub(super) _not_send: PhantomData<*const ()>,
 }
 
@@ -55,6 +50,15 @@ impl TokenParts<true, true, true> {
         TokenParts {
             _not_send: PhantomData,
         }
+    }
+}
+
+impl<const MS: bool, const MQ: bool, const FS: bool> TokenParts<MS, MQ, FS> {
+    /// Extract a token that states that code that has access to it is running in a thread (and not
+    /// in an interrupt).
+    pub fn in_thread(&self) -> InThread {
+        // unsafe: TokenParts is not Send, so we can be sure to be in a thread
+        unsafe { InThread::new_unchecked() }
     }
 }
 
@@ -185,5 +189,97 @@ impl<const MQ: bool> TokenParts<true, MQ, true> {
     #[deprecated(note = "Renamed to can_end")]
     pub fn termination(self) -> EndToken {
         self.can_end()
+    }
+}
+
+/// Zero-size statement that the current code is not running in an interrupt
+#[derive(Copy, Clone, Debug)]
+pub struct InThread {
+    _not_send: PhantomData<*const ()>,
+}
+
+/// Zero-size statement that the current code is running in an interrupt
+#[derive(Copy, Clone, Debug)]
+pub struct InIsr {
+    _not_send: PhantomData<*const ()>,
+}
+
+impl InThread {
+    unsafe fn new_unchecked() -> Self {
+        InThread {
+            _not_send: PhantomData,
+        }
+    }
+
+    /// Check that the code is running in thread mode
+    ///
+    /// Note that this is actually running code; to avoid that, call [`TokenParts::in_thread()`],
+    /// which is a purely type-level procedure.
+    pub fn new() -> Result<Self, InIsr> {
+        #[allow(deprecated)] // It's deprecatedly pub
+        match crate::interrupt::irq_is_in() {
+            true => Err(unsafe { InIsr::new_unchecked() }),
+            false => Ok(unsafe { InThread::new_unchecked() }),
+        }
+    }
+
+    /// Wrap a `value` in a [`ValueInThread`]. This makes it non-Send, but may make additional
+    /// (safe) methods on it, using the knowledge that it is still being used inside a thread.
+    pub fn promote<T>(self, value: T) -> ValueInThread<T> {
+        ValueInThread {
+            value,
+            in_thread: self,
+        }
+    }
+}
+
+impl InIsr {
+    unsafe fn new_unchecked() -> Self {
+        InIsr {
+            _not_send: PhantomData,
+        }
+    }
+
+    /// Check that the code is running in IRQ mode
+    pub fn new() -> Result<Self, InThread> {
+        match InThread::new() {
+            Ok(i) => Err(i),
+            Err(i) => Ok(i),
+        }
+    }
+}
+
+/// A value combined with an [InThread](crate::thread::InThread) marker
+///
+/// This does barely implement anything on its own, but the module implementing `T` might provide
+/// extra methods.
+// Making the type fundamental results in ValueInThread<&Mutex<T>> being shown at Mutex's page.
+#[cfg_attr(feature = "nightly_docs", fundamental)]
+pub struct ValueInThread<T> {
+    value: T,
+    in_thread: InThread,
+}
+
+impl<T> ValueInThread<T> {
+    /// Extract the wrapped value
+    ///
+    /// This does not produce the original `in_thread` value; these are easy enough to re-obtain or
+    /// to keep a copy of around.
+    pub fn into_inner(self) -> T {
+        self.value
+    }
+}
+
+impl<T> core::ops::Deref for ValueInThread<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T> core::ops::DerefMut for ValueInThread<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 }

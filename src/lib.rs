@@ -20,6 +20,7 @@
 )]
 // Primarily for documentation, see feature docs
 #![cfg_attr(feature = "actual_never_type", feature(never_type))]
+#![cfg_attr(feature = "nightly_docs", feature(fundamental))]
 
 /// riot-sys is re-exported here as it is necessary in some places when using it to get values (eg.
 /// in [error::NumericError::from_constant]). It is also used in macros such as [static_command!].

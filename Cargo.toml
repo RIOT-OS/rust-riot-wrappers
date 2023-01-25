@@ -84,3 +84,9 @@ with_msg_v2 = []
 # This is primarily for documentation building; enabling it may also help users
 # of nightly when they see a mess of types.
 actual_never_type = []
+
+# Enable documentation enhancements that depend on nightly
+#
+# This has some effects of its own (making ValueInThread fundamental), and also
+# enables actual_never_type.
+nightly_docs = [ "actual_never_type" ]

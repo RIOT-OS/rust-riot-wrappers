@@ -1,6 +1,6 @@
 //! Interaction with interrupts
 //!
-//! The RIOT wrappers offer three ways to interact with interrupts:
+//! The RIOT wrappers offer two ways to interact with interrupts:
 //!
 //! * Utility functions can disable interrupts (creating critical sections), check whether
 //!   interrupts are enabled or to determine whether code is executed in a thread or an ISR.
@@ -10,27 +10,26 @@
 //!
 //!   These are typechecked to be Send, as they are moved from the thread to the interrupt context.
 //!
-//! * Writing interrupt handlers (using the [`interrupt!`] macro).
-//!
-//!   Writing interrupt handlers is something that obviously needs some care; when using this module,
-//!   you must understand the implications of not doing so within the CPU implementation. (Note: The
-//!   author does not).
-//!
-//!   This is intended to be used for implementing special interfaces that have no generalization in
-//!   RIOT (eg. setting actions at particular points in a PWM cycle).
+//! Not provided by riot-wrappers are methods of implementing interrupts that are directly called
+//! by the CPU's interrupt mechanism. These are `extern "C"` functions (often with a `() -> ()`
+//! signature) exported under a particular name using `#[no_mangle]`. Any platform specifics (such
+//! as the [`riot_sys::inline::cortexm_isr_end()`] function) need to be managed by the
+//! implementer, just as when implementing a C interrupt.
 //!
 //! Rust code intended for use within interrupts does not generally need special precautions -- but
 //! several functions (generally, anything that blocks) are discouraged (as they may fail or stall
-//! the system) outside of a thread context.
+//! the system) outside of a thread context, or even "forbidden" (because they reliably lock up the
+//! system, such as [crate::mutex::Mutex::lock()]). These functions often have preferred
+//! alternatives that can be statically known to be executed in a thread context by keeping a copy
+//! of [`crate::thread::InThread`].
 
 /// Trivial safe wrapper for
 /// [`irq_is_in`](https://doc.riot-os.org/group__core__irq.html#ga83decbeef665d955290f730125ef0e3f)
 ///
 /// Returns true when called from an interrupt service routine
+#[deprecated(note = "Use crate::thread::InThread::new() instead")]
 pub fn irq_is_in() -> bool {
-    // "as u32" cast: Necessary for versions before https://github.com/RIOT-OS/RIOT/pull/17359
-    // (2022.01)
-    (unsafe { riot_sys::irq_is_in() }) as u32 != 0
+    unsafe { riot_sys::irq_is_in() }
 }
 
 /// Trivial safe wrapper for
@@ -39,10 +38,22 @@ pub fn irq_is_in() -> bool {
 /// Returns true if interrupts are currently enabled
 ///
 /// Note that this only returns reliable values when called from a thread context.
+#[deprecated(note = "use crate::thread::InThread::irq_is_enabled() instead")]
 pub fn irq_is_enabled() -> bool {
-    // "as u32" cast: Necessary for versions before https://github.com/RIOT-OS/RIOT/pull/17359
-    // (2022.01)
-    (unsafe { riot_sys::irq_is_enabled() }) as u32 != 0
+    unsafe { riot_sys::irq_is_enabled() }
+}
+
+impl crate::thread::InThread {
+    /// Trivial safe wrapper for
+    /// [`irq_is_enabled`](https://doc.riot-os.org/group__core__irq.html#ga7fa965063ff2f4f4cea34f1c2a8fac25)
+    ///
+    /// Returns true if interrupts are currently enabled
+    ///
+    /// Using this on an `InThread` token is preferred over the global function, as the function
+    /// only returns reliable values when called from a thread context.
+    pub fn irq_is_enabled(self) -> bool {
+        unsafe { riot_sys::irq_is_enabled() }
+    }
 }
 
 /// Proof of running inside a critical section. Reexported from the [bare_metal] crate.
@@ -69,9 +80,14 @@ pub fn free<R, F: FnOnce(&CriticalSection) -> R>(f: F) -> R {
 
 /// Wrap a Rust interrupt handler in an extern "C" wrapper that does the post-return cleaups.
 ///
-/// This is probably Coretex-M specific.
+/// As with all code executed in interrupt contexts, the wrapped function should not panic.
 ///
-/// The wrapped function should not panic; FIXME: Explore the use of rustig to ensure this.
+/// ## Caveats
+///
+/// This is Cortex-M specific.
+#[deprecated(
+    note = "See module documentation: This needs to be done manually per platform; it is incomplete as riot-wrappers provides no method of enabling platform specific interrupts, and provides no other access to configure the peripheral through registers. If it is re-introduced, it will likely carry an `InIsr` token into the function."
+)]
 #[macro_export]
 macro_rules! interrupt {
     ($isr_name:ident, $rust_handler:expr) => {
@@ -79,10 +95,7 @@ macro_rules! interrupt {
         pub extern "C" fn $isr_name() -> () {
             $rust_handler();
 
-            // EXPANDED cpu/cortexm_common/include/cpu.h:189 (cortexm_isr_end)
-            if unsafe { core::ptr::read_volatile(&riot_sys::sched_context_switch_request) } != 0 {
-                unsafe { riot_sys::thread_yield_higher() };
-            }
+            unsafe { riot_sys::inline::cortexm_isr_end() };
         }
     };
 }
