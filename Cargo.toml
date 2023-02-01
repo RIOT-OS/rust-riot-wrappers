@@ -1,6 +1,6 @@
 [package]
 name = "riot-wrappers"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Christian Amsüss <chrysn@fsfe.org>"]
 edition = "2021"
 rust-version = "1.65"
