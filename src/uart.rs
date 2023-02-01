@@ -71,7 +71,7 @@ impl UartDevice {
             match UartDeviceStatus::from_c_int(uart_init(
                 dev,
                 baud,
-                Some(Self::callback::<F>), // Here we pass in our callback
+                Some(Self::new_data_callback::<F>), // Here we pass in our callback
                 user_callback as *mut _ as *mut c_void, // Here we erase the type of the closure by casting it's reference into a void*
             )) {
                 UartDeviceStatus::Success => Ok(Self { dev }),
@@ -253,7 +253,7 @@ impl UartDevice {
         unsafe {
             uart_rxstart_irq_configure(
                 dev,
-                Self::callback::<F>,
+                Self::rxstart_callback::<F>,
                 user_fxopt as *mut _ as *mut c_void,
             )
         };
@@ -289,11 +289,18 @@ impl UartDevice {
     /// # Arguments
     /// * `user_callback` - The address pointing to the user defined callback
     /// * `data` - The newly received data from the `UART`  
-    unsafe extern "C" fn callback<F>(user_callback: *mut c_void, data: u8)
+    unsafe extern "C" fn new_data_callback<F>(user_callback: *mut c_void, data: u8)
     where
         F: FnMut(u8),
     {
         (*(user_callback as *mut F))(data); //We cast the void* back to the closure and call it
+    }
+
+    unsafe extern "C" fn rxstart_callback<F>(user_callback: *mut c_void)
+    where
+        F: FnMut(u8),
+    {
+        (*(user_callback as *mut F))();
     }
 }
 
