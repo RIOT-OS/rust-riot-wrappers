@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use core::ptr;
+use core::{mem, ptr};
 use riot_sys::libc::{c_int, c_uint, c_void};
 use riot_sys::*;
 
@@ -70,7 +70,7 @@ impl Parity {
             Self::None => uart_parity_t_UART_PARITY_NONE,
             Self::Even => uart_parity_t_UART_PARITY_EVEN,
             Self::Odd => uart_parity_t_UART_PARITY_ODD,
-            Self::Mark => uart_parity_t_UART_PARITY_ODD,
+            Self::Mark => uart_parity_t_UART_PARITY_MARK,
             Self::Space => uart_parity_t_UART_PARITY_SPACE,
         }
     }
@@ -229,13 +229,17 @@ impl UartDevice {
         unsafe { uart_collision_detected(self.dev) }
     }
 
-    /// Change the pins of the given UART back to plain GPIO functionality.
+    /// Change the pins of the given UART back to plain GPIO functionality. It also consumes the `UART`, so it cannot
+    /// be used afterwards
     #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn deinit_pins(&mut self) {
+    pub fn deinit_pins(self) {
         unsafe { uart_deinit_pins(self.dev) };
     }
 
-    /// Init the pins of the `UART`. In normal cases, this function will not be used.
+    /// After calling uart_init, the pins must be initialized (i.e. uart_init is calling this function internally).
+    /// In normal cases, this function will not be used. But there are some devices, that use UART bus lines also
+    /// for other purposes and need the option to dynamically re-configure one or more of the used pins. So
+    /// they can take control over certain pins and return control back to the UART driver using this function.
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub fn init_pins(&mut self) {
         unsafe { uart_init_pins(self.dev) };
@@ -243,14 +247,14 @@ impl UartDevice {
 
     /// Get the RX pin of the given UART device
     #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn get_pin_rx(&mut self) {
-        unsafe { uart_pin_rx(self.dev) };
+    pub fn get_pin_rx(&mut self) -> gpio_t {
+        unsafe { uart_pin_rx(self.dev) }
     }
 
     /// Get the TX pin of the given UART device
     #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn get_pin_tx(&mut self) {
-        unsafe { uart_pin_tx(self.dev) };
+    pub fn get_pin_tx(&mut self) -> gpio_t {
+        unsafe { uart_pin_tx(self.dev) }
     }
 
     /// Configure the function that will be called when a start condition is detected
@@ -279,7 +283,6 @@ impl UartDevice {
     }
 
     /// Disable the RX start interrupt
-    /// In this case it's safe because we pass no parameters to the function
     #[cfg(riot_module_riot_module_periph_uart_rxstart_irq)]
     pub fn rxstart_irq_disable(&mut self) {
         unsafe { uart_rxstart_irq_disable(self.dev) };
