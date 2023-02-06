@@ -235,6 +235,12 @@ impl UartDevice {
         unsafe { uart_deinit_pins(self.dev) };
     }
 
+    /// Init the pins of the `UART`. In normal cases, this function will not be used.
+    #[cfg(riot_module_periph_uart_reconfigure)]
+    pub fn init_pins(&mut self) {
+        unsafe { uart_init_pins(self.dev) };
+    }
+
     /// Get the RX pin of the given UART device
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub fn get_pin_rx(&mut self) {
