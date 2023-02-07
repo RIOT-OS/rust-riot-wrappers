@@ -6,6 +6,7 @@ pub struct DACLine {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum DACError {
     /// The given dac_t line did not exist
     NoLine,
@@ -44,17 +45,17 @@ impl DACLine {
     /// The `value` is internally scaled to the underlying
     /// dac device so that the maximum voltage output
     /// is always equivalent to [`u16::MAX`]
-    pub fn set(&self, value: u16) {
+    pub fn set(&mut self, value: u16) {
         unsafe { riot_sys::dac_set(self.line, value) }
     }
 
     /// Turns the [`DACLine`] on after `DACLine::power_off`
-    pub fn power_on(&self) {
+    pub fn power_on(&mut self) {
         unsafe { riot_sys::dac_poweron(self.line) }
     }
 
     /// Turns the [`DACLine`] off
-    pub fn power_off(&self) {
+    pub fn power_off(&mut self) {
         unsafe { riot_sys::dac_poweroff(self.line) }
     }
 }
