@@ -238,8 +238,7 @@ impl UartDevice {
         uart_init_pins(self.dev);
     }
 
-    /// Change the pins of the given UART back to plain GPIO functionality. It also consumes the `UART`, so it cannot
-    /// be used afterwards
+    /// Change the pins of the given UART back to plain GPIO functionality
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub unsafe fn deinit_pins(&mut self) {
         uart_deinit_pins(self.dev);
