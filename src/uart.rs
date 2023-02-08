@@ -260,12 +260,11 @@ impl UartDevice {
     /// Configure the function that will be called when a start condition is detected
     ///
     /// # Arguments
-    /// * `dev` - The uart_t handle to the hardware device
     /// * `user_fxopt` - The user defined callback function called when a start condition is detected
     #[cfg(riot_module_periph_uart_rxstart_irq)]
     pub fn rxstart_irq_configure<F>(&mut self, user_fxopt: &mut F)
     where
-        F: FnMut(u8),
+        F: FnMut(),
     {
         unsafe {
             uart_rxstart_irq_configure(
