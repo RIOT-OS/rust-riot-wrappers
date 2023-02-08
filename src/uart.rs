@@ -229,20 +229,20 @@ impl UartDevice {
         unsafe { uart_collision_detected(self.dev) }
     }
 
-    /// Change the pins of the given UART back to plain GPIO functionality. It also consumes the `UART`, so it cannot
-    /// be used afterwards
-    #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn deinit_pins(self) {
-        unsafe { uart_deinit_pins(self.dev) };
-    }
-
     /// After calling uart_init, the pins must be initialized (i.e. uart_init is calling this function internally).
     /// In normal cases, this function will not be used. But there are some devices, that use UART bus lines also
     /// for other purposes and need the option to dynamically re-configure one or more of the used pins. So
     /// they can take control over certain pins and return control back to the UART driver using this function.
     #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn init_pins(&mut self) {
-        unsafe { uart_init_pins(self.dev) };
+    pub unsafe fn init_pins(&mut self) {
+        uart_init_pins(self.dev);
+    }
+
+    /// Change the pins of the given UART back to plain GPIO functionality. It also consumes the `UART`, so it cannot
+    /// be used afterwards
+    #[cfg(riot_module_periph_uart_reconfigure)]
+    pub unsafe fn deinit_pins(&mut self) {
+        uart_deinit_pins(self.dev);
     }
 
     /// Get the RX pin of the given UART device
