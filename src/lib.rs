@@ -140,6 +140,9 @@ pub mod spi;
 #[cfg(riot_module_periph_adc)]
 pub mod adc;
 
+#[cfg(riot_module_periph_pwm)]
+pub mod pwm;
+
 #[cfg(riot_module_periph_dac)]
 pub mod dac;
 
