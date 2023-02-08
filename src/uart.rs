@@ -311,27 +311,11 @@ impl UartDevice {
 }
 
 impl Drop for UartDevice {
-    /// The `drop` method resets the uart to 9600 baud and removes the user defined callback
-    /// # Safety
-    /// At this moment it is unclear if this implementation is the right way to go. There might
-    /// be a better solution...
-    /// Also if the build is in debug mode and the `UART` is reinitialized unsuccessfully, the code panics which
-    /// is definitely <b>NOT</b> the right behavior at this point!
+    /// The `drop` method resets the `UART` pins back to gpio functionality if possible
     fn drop(&mut self) {
         if cfg!(riot_module_periph_uart_reconfigure) {
             #[cfg(riot_module_periph_uart_reconfigure)]
             deinit_pins(self); //TODO Check if this also removes the irq
-        } else {
-            unsafe {
-                let status =
-                    UartDeviceStatus::from_c(uart_init(self.dev, 9600, None, ptr::null_mut()));
-                debug_assert_eq!(
-                    status,
-                    UartDeviceStatus::Success,
-                    "Error while deinitializing UART: {status:?}"
-                );
-                self.power_off();
-            }
         }
     }
 }
