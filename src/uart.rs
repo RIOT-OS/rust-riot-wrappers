@@ -187,6 +187,7 @@ impl<'a> UartDevice<'a> {
     /// uart.set_mode(DataBits::Eight, Parity::None, StopBits::One)   
     /// .unwrap_or_else(|e| panic!("Error setting UART mode: {e:?}"));
     /// ```
+    #[cfg(feature = "uart_set_mode")]
     pub fn set_mode(
         &mut self,
         data_bits: DataBits,
@@ -243,7 +244,7 @@ impl<'a> UartDevice<'a> {
     }
 
     /// Disables collision detection and returns if a collision occurred during last transfer
-    #[cfg(riot_module_periph_uart_rxstart_irq)]
+    #[cfg(riot_module_periph_uart_collision)]
     pub fn collision_detected(&mut self) -> bool {
         unsafe { uart_collision_detected(self.dev) }
     }
@@ -275,7 +276,7 @@ impl<'a> UartDevice<'a> {
     }
 
     /// Configure the function that will be called when a start condition is detected
-    ///
+    /// This will not enable / disable the generation of the RX start interrupt
     /// # Arguments
     /// * `user_fxopt` - The user defined callback function that gets called when a start condition is detected
     #[cfg(riot_module_periph_uart_rxstart_irq)]
