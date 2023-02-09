@@ -95,7 +95,7 @@ impl StopBits {
 #[derive(Debug)]
 pub struct UartDevice<'a> {
     dev: uart_t,
-    _marker: PhantomData<&'a ()>, /// We use this `PhantomData` here to make sure that the lifetime of the borrowed closure is equal to this struct
+    _marker: PhantomData<&'a ()>, // We use this `PhantomData` here to make sure that the lifetime of the borrowed closure is equal to this struct
 }
 
 impl<'a> UartDevice<'a> {
@@ -286,7 +286,7 @@ impl<'a> UartDevice<'a> {
         unsafe {
             uart_rxstart_irq_configure(
                 dev,
-                Self::rxstart_callback,
+                Self::rxstart_callback::<F>,
                 user_fxopt as *mut _ as *mut c_void,
             )
         };
