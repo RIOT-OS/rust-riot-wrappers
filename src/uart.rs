@@ -1,19 +1,16 @@
+//! Access to [RIOT's UART](https://doc.riot-os.org/group__drivers__periph__uart.html)
+//!
+//! Author: Kilian Barning <barning@uni-bremen.de>
 #![allow(dead_code)]
 
-use core::{mem, ptr};
-use riot_sys::libc::{c_int, c_uint, c_void};
+use core::marker::PhantomData;
+use core::ptr;
+
+use riot_sys::libc::{c_int, c_void};
 use riot_sys::*;
 
-/// This struct contains the `UART` device and handles all operation regarding it
-///
-/// [UART implementation]: https://doc.riot-os.org/group__drivers__periph__uart.html
-#[derive(Debug)]
-pub struct UartDevice {
-    dev: uart_t,
-}
-
 /// This enum representatives the status returned by various `UART`-functions
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum UartDeviceStatus {
     Success,
@@ -36,7 +33,7 @@ impl UartDeviceStatus {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum DataBits {
     Five,
     Six,
@@ -55,7 +52,7 @@ impl DataBits {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum Parity {
     None,
     Even,
@@ -77,7 +74,7 @@ impl Parity {
 }
 
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum StopBits {
     One,
     Two,
@@ -92,8 +89,16 @@ impl StopBits {
     }
 }
 
+/// This struct contains the `UART` device and handles all operation regarding it
+///
+/// [UART implementation]: https://doc.riot-os.org/group__drivers__periph__uart.html
+#[derive(Debug)]
+pub struct UartDevice<'a> {
+    dev: uart_t,
+    _marker: PhantomData<&'a ()>, /// We use this `PhantomData` here to make sure that the lifetime of the borrowed closure is equal to this struct
+}
 
-impl UartDevice {
+impl<'a> UartDevice<'a> {
     /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
     /// `Err<UartDeviceStatus>` containing the error
     ///
@@ -105,14 +110,19 @@ impl UartDevice {
     ///
     /// # Examples
     /// ```
-    /// let mut received_data = 0u8;
-    /// let mut uart = UartDevice::new(uart_type_t_STM32_USART, 115200, &mut |data| {
-    ///     received_data = data;
-    /// })
-    /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
+    /// use riot_wrappers::uart::UartDevice;
+    /// let mut cb = |new_data| {
+    ///     //do something here with the received data
+    /// };
+    /// let mut uart = UartDevice::new(uart_type_t_STM32_USART, 115200, &mut cb)
+    ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART");
     /// ```
-    pub fn new<F>(dev: uart_t, baud: u32, user_callback: &mut F) -> Result<Self, UartDeviceStatus>
+    pub fn new<F>(
+        dev: uart_t,
+        baud: u32,
+        user_callback: &'a mut F,
+    ) -> Result<Self, UartDeviceStatus>
     where
         F: FnMut(u8),
     {
@@ -123,7 +133,10 @@ impl UartDevice {
                 Some(Self::new_data_callback::<F>),
                 user_callback as *mut _ as *mut c_void,
             )) {
-                UartDeviceStatus::Success => Ok(Self { dev }),
+                UartDeviceStatus::Success => Ok(Self {
+                    dev,
+                    _marker: PhantomData,
+                }),
                 status => Err(status),
             }
         }
@@ -139,6 +152,7 @@ impl UartDevice {
     ///
     /// # Examples
     /// ```
+    /// use riot_wrappers::uart::UartDevice;
     /// let mut received_data = 0u8;
     /// let mut uart = UartDevice::new_without_rx(uart_type_t_STM32_USART, 115200)
     /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
@@ -147,7 +161,10 @@ impl UartDevice {
     pub fn new_without_rx(dev: uart_t, baud: u32) -> Result<Self, UartDeviceStatus> {
         unsafe {
             match UartDeviceStatus::from_c(uart_init(dev, baud, None, ptr::null_mut())) {
-                UartDeviceStatus::Success => Ok(Self { dev }),
+                UartDeviceStatus::Success => Ok(Self {
+                    dev,
+                    _marker: PhantomData,
+                }),
                 status => Err(status),
             }
         }
@@ -155,7 +172,7 @@ impl UartDevice {
 
 
     /// Sets the mode according to the given parameters
-    /// Should the parameters be invalid, the function returns a Err<UartDeviceStatus>
+    /// Should the parameters be invalid, the function returns a Err<UartDeviceStatus::UnsupportedConfig>
     /// # Arguments
     /// * `data_bits` - Number of data bits in a UART frame
     /// * `parity` - Parity mode
@@ -163,6 +180,7 @@ impl UartDevice {
     ///
     /// # Examples
     /// ```
+    /// use riot_wrappers::uart::{DataBits, Parity, StopBits, UartDevice};
     /// let mut received_data = 0u8;
     /// let mut uart = UartDevice::new_without_rx(uart_type_t_STM32_USART, 115200)
     /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));   
@@ -192,6 +210,7 @@ impl UartDevice {
     ///
     /// # Examples
     /// ```
+    /// use riot_wrappers::uart::UartDevice;
     /// let mut uart = UartDevice::new_without_rx(uart_type_t_STM32_USART, 115200)
     ///    .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART\n");
@@ -201,56 +220,55 @@ impl UartDevice {
         }
     }
 
-    /// The function turns off the power from the `UART-Device`
-    pub fn power_off(&mut self) {
-        unsafe { uart_poweroff(self.dev) };
-    }
-
-    /// The function turns on the power from the `UART-Device`
+    /// Turns on the power from the `UART-Device`
     pub fn power_on(&mut self) {
         unsafe { uart_poweron(self.dev) };
     }
 
-    /// Disables collision detection check of the given UART device
-    #[cfg(riot_module_periph_uart_collision)]
-    pub fn collision_detect_disable(&mut self) {
-        unsafe { uart_collision_detect_disable(self.dev) };
+    /// Turns off the power from the `UART-Device`
+    pub fn power_off(&mut self) {
+        unsafe { uart_poweroff(self.dev) };
     }
 
-    /// Enables collision detection check of the given UART device
+    /// Enables collision detection check
     #[cfg(riot_module_periph_uart_collision)]
     pub fn collision_detect_enable(&mut self) {
         unsafe { uart_collision_detect_enable(self.dev) };
     }
 
-    /// Disables collision detection of the given UART device and return true if collision occurred during last transfer
+    /// Disables collision detection check
+    #[cfg(riot_module_periph_uart_collision)]
+    pub fn collision_detect_disable(&mut self) {
+        unsafe { uart_collision_detect_disable(self.dev) };
+    }
+
+    /// Disables collision detection and returns if a collision occurred during last transfer
     #[cfg(riot_module_periph_uart_rxstart_irq)]
     pub fn collision_detected(&mut self) -> bool {
         unsafe { uart_collision_detected(self.dev) }
     }
 
-    /// After calling uart_init, the pins must be initialized (i.e. uart_init is calling this function internally).
-    /// In normal cases, this function will not be used. But there are some devices, that use UART bus lines also
-    /// for other purposes and need the option to dynamically re-configure one or more of the used pins. So
-    /// they can take control over certain pins and return control back to the UART driver using this function.
+    /// This function normally does not need to be called. But in some case, the pins on the `UART`
+    /// might be shared with some other functionality (like `GPIO`). In this case, it is necessary
+    /// to give the user the possibility to init the pins again.
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub unsafe fn init_pins(&mut self) {
         uart_init_pins(self.dev);
     }
 
-    /// Change the pins of the given UART back to plain GPIO functionality
+    /// Change the pins back to plain GPIO functionality
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub unsafe fn deinit_pins(&mut self) {
         uart_deinit_pins(self.dev);
     }
 
-    /// Get the RX pin of the given UART device
+    /// Get the RX pin
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub fn get_pin_rx(&mut self) -> gpio_t {
         unsafe { uart_pin_rx(self.dev) }
     }
 
-    /// Get the TX pin of the given UART device
+    /// Get the TX pin
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub fn get_pin_tx(&mut self) -> gpio_t {
         unsafe { uart_pin_tx(self.dev) }
@@ -259,29 +277,29 @@ impl UartDevice {
     /// Configure the function that will be called when a start condition is detected
     ///
     /// # Arguments
-    /// * `user_fxopt` - The user defined callback function called when a start condition is detected
+    /// * `user_fxopt` - The user defined callback function that gets called when a start condition is detected
     #[cfg(riot_module_periph_uart_rxstart_irq)]
-    pub fn rxstart_irq_configure<F>(&mut self, user_fxopt: &mut F)
+    pub fn rxstart_irq_configure<F>(&mut self, user_fxopt: &'a mut F)
     where
         F: FnMut(),
     {
         unsafe {
             uart_rxstart_irq_configure(
                 dev,
-                Self::rxstart_callback::<F>,
+                Self::rxstart_callback,
                 user_fxopt as *mut _ as *mut c_void,
             )
         };
     }
 
     /// Enable the RX start interrupt
-    #[cfg(riot_module_riot_module_periph_uart_rxstart_irq)]
+    #[cfg(riot_module_periph_uart_rxstart_irq)]
     pub fn rxstart_irq_enable(&mut self) {
         unsafe { uart_rxstart_irq_enable(self.dev) };
     }
 
     /// Disable the RX start interrupt
-    #[cfg(riot_module_riot_module_periph_uart_rxstart_irq)]
+    #[cfg(riot_module_periph_uart_rxstart_irq)]
     pub fn rxstart_irq_disable(&mut self) {
         unsafe { uart_rxstart_irq_disable(self.dev) };
     }
@@ -300,22 +318,23 @@ impl UartDevice {
     /// This is the callback that gets called directly from the kernel when a start condition is detected
     /// # Arguments
     /// * `user_callback` - The address pointing to the user defined callback
-    /// * `data` - The newly received data from the `UART`  
     #[cfg(riot_module_periph_uart_rxstart_irq)]
     unsafe extern "C" fn rxstart_callback<F>(user_callback: *mut c_void)
     where
         F: FnMut(),
     {
-        (*(user_callback as *mut F))();
+        (*(user_callback as *mut F))(); //We cast the void* back to the closure and call it
     }
 }
 
-impl Drop for UartDevice {
-    /// The `drop` method resets the `UART` pins back to gpio functionality if possible
+impl<'a> Drop for UartDevice<'a> {
+    /// The `drop` method resets the `UART`, removes the interrupt and tries
+    /// to reset the `GPIO` pins if possible
     fn drop(&mut self) {
-        if cfg!(riot_module_periph_uart_reconfigure) {
+        unsafe {
+            uart_init(self.dev, 9600, None, ptr::null_mut());
             #[cfg(riot_module_periph_uart_reconfigure)]
-            deinit_pins(self); //TODO Check if this also removes the irq
+            self.deinit_pins();
         }
     }
 }
