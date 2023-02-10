@@ -153,7 +153,6 @@ impl<'a> UartDevice<'a> {
     /// # Examples
     /// ```
     /// use riot_wrappers::uart::UartDevice;
-    /// let mut received_data = 0u8;
     /// let mut uart = UartDevice::new_without_rx(uart_type_t_STM32_USART, 115200)
     /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART");
