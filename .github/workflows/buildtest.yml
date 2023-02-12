@@ -54,7 +54,7 @@ jobs:
         done
         cd ..
         echo "::echo ::off"
-    - name: Build tests
+    - name: Build and run tests
       run: |
         export BOARDS='native sltb001a samr21-xpro'
         DIRS=$(echo tests/*/)
@@ -66,7 +66,12 @@ jobs:
           cd ${D}
           echo "::group::Building ${D}"
           make buildtest BUILDTEST_MAKE_REDIRECT=''
-          cd ../..
           echo "::endgroup::"
+          if make test/available BOARD=native; then
+            echo "::group::Testing ${D}"
+            make all test BOARD=native
+            echo "::endgroup::"
+          fi
+          cd ../..
         done
         echo "::echo ::off"
