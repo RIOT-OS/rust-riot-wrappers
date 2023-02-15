@@ -90,6 +90,3 @@ actual_never_type = []
 # This has some effects of its own (making ValueInThread fundamental), and also
 # enables actual_never_type.
 nightly_docs = [ "actual_never_type" ]
-
-# On some plattforms, uart_set_mode isn't implemented yet
-uart_set_mode = []
