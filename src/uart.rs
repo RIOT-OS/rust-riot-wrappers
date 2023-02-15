@@ -3,37 +3,36 @@
 //! Author: Kilian Barning <barning@uni-bremen.de>
 #![allow(dead_code)]
 
-use core::marker::PhantomData;
 use core::ptr;
 
-use riot_sys::libc::{c_int, c_void};
+use crate::error::{NegativeErrorExt, NumericError};
+use riot_sys::libc::c_void;
 use riot_sys::*;
 
 /// This enum representatives the status returned by various `UART`-functions
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum UartDeviceStatus {
-    Success,
+pub enum UartDeviceError {
     InvalidDevice,
     UnsupportedConfig,
-    Other(i32),
+    Other,
 }
 
-impl UartDeviceStatus {
+impl UartDeviceError {
     /// Converts the given `c_int` into the matching Enum representation
-    fn from_c(n: c_int) -> Self {
-        const _ENODEV: c_int = -(ENODEV as c_int);
-        const _ENOTSUP: c_int = -(ENOTSUP as c_int);
-        match n {
-            0 => Self::Success,
+    fn from_c(n: NumericError) -> Self {
+        const _ENODEV: isize = -(ENODEV as isize);
+        const _ENOTSUP: isize = -(ENOTSUP as isize);
+        match n.number {
             _ENODEV => Self::InvalidDevice,
             _ENOTSUP => Self::UnsupportedConfig,
-            other => Self::Other(other),
+            _ => Self::Other,
         }
     }
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum DataBits {
     Five,
     Six,
@@ -53,6 +52,7 @@ impl DataBits {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Parity {
     None,
     Even,
@@ -73,8 +73,8 @@ impl Parity {
     }
 }
 
-
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum StopBits {
     One,
     Two,
@@ -93,12 +93,11 @@ impl StopBits {
 ///
 /// [UART implementation]: https://doc.riot-os.org/group__drivers__periph__uart.html
 #[derive(Debug)]
-pub struct UartDevice<'a> {
+pub struct UartDevice {
     dev: uart_t,
-    _marker: PhantomData<&'a ()>, // We use this `PhantomData` here to make sure that the lifetime of the borrowed closure is equal to this struct
 }
 
-impl<'a> UartDevice<'a> {
+impl UartDevice {
     /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
     /// `Err<UartDeviceStatus>` containing the error
     ///
@@ -121,26 +120,24 @@ impl<'a> UartDevice<'a> {
     pub fn new<F>(
         dev: uart_t,
         baud: u32,
-        user_callback: &'a mut F,
-    ) -> Result<Self, UartDeviceStatus>
+        user_callback: &'static mut F,
+    ) -> Result<Self, UartDeviceError>
     where
-        F: FnMut(u8),
+        F: FnMut(u8) + Sync + 'static,
     {
         unsafe {
-            match UartDeviceStatus::from_c(uart_init(
+            uart_init(
                 dev,
                 baud,
                 Some(Self::new_data_callback::<F>),
                 user_callback as *mut _ as *mut c_void,
-            )) {
-                UartDeviceStatus::Success => Ok(Self {
-                    dev,
-                    _marker: PhantomData,
-                }),
-                status => Err(status),
-            }
+            )
         }
+        .negative_to_error()
+        .map(|_| Self { dev })
+        .map_err(UartDeviceError::from_c)
     }
+
 
     /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
     /// `Err<UartDeviceStatus>` containing the error. As the name implies, the created `UART` device can <b>ONLY</b> send data
@@ -157,18 +154,12 @@ impl<'a> UartDevice<'a> {
     /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART");
     /// ```
-    pub fn new_without_rx(dev: uart_t, baud: u32) -> Result<Self, UartDeviceStatus> {
-        unsafe {
-            match UartDeviceStatus::from_c(uart_init(dev, baud, None, ptr::null_mut())) {
-                UartDeviceStatus::Success => Ok(Self {
-                    dev,
-                    _marker: PhantomData,
-                }),
-                status => Err(status),
-            }
-        }
+    pub fn new_without_rx(dev: uart_t, baud: u32) -> Result<Self, UartDeviceError> {
+        unsafe { uart_init(dev, baud, None, ptr::null_mut()) }
+            .negative_to_error()
+            .map(|_| Self { dev })
+            .map_err(UartDeviceError::from_c)
     }
-
 
     /// Sets the mode according to the given parameters
     /// Should the parameters be invalid, the function returns a Err<UartDeviceStatus::UnsupportedConfig>
@@ -185,21 +176,21 @@ impl<'a> UartDevice<'a> {
     /// uart.set_mode(DataBits::Eight, Parity::None, StopBits::One)   
     /// .unwrap_or_else(|e| panic!("Error setting UART mode: {e:?}"));
     /// ```
-    #[cfg(feature = "uart_set_mode")]
+    #[cfg(riot_module_periph_uart_modecfg)]
     pub fn set_mode(
         &mut self,
         data_bits: DataBits,
         parity: Parity,
         stop_bits: StopBits,
-    ) -> Result<(), UartDeviceStatus> {
+    ) -> Result<(), UartDeviceError> {
         unsafe {
-            match UartDeviceStatus::from_c(uart_mode(
+            match UartDeviceError::from_c(uart_mode(
                 self.dev,
                 data_bits.to_c(),
                 parity.to_c(),
                 stop_bits.to_c(),
             )) {
-                UartDeviceStatus::Success => Ok(()),
+                UartDeviceError::Success => Ok(()),
                 status => Err(status),
             }
         }
@@ -213,6 +204,7 @@ impl<'a> UartDevice<'a> {
     /// let mut uart = UartDevice::new_without_rx(uart_type_t_STM32_USART, 115200)
     ///    .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART\n");
+    /// ```
     pub fn write(&mut self, data: &[u8]) {
         unsafe {
             uart_write(self.dev, data.as_ptr(), data.len() as size_t);
@@ -269,8 +261,8 @@ impl<'a> UartDevice<'a> {
 
     /// Get the TX pin
     #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn get_pin_tx(&mut self) -> gpio_t {
-        unsafe { uart_pin_tx(self.dev) }
+    pub fn get_pin_tx(&mut self) -> GPIO {
+        GPIO::from_c(unsafe { uart_pin_tx(self.dev) }).unwrap() // Is this always safe? Maybe use unwrap_unchecked for better performance
     }
 
     /// Configure the function that will be called when a start condition is detected
@@ -280,7 +272,7 @@ impl<'a> UartDevice<'a> {
     #[cfg(riot_module_periph_uart_rxstart_irq)]
     pub fn rxstart_irq_configure<F>(&mut self, user_fxopt: &'a mut F)
     where
-        F: FnMut(),
+        F: FnMut() + Send + 'static,
     {
         unsafe {
             uart_rxstart_irq_configure(
@@ -309,9 +301,9 @@ impl<'a> UartDevice<'a> {
     /// * `data` - The newly received data from the `UART`  
     unsafe extern "C" fn new_data_callback<F>(user_callback: *mut c_void, data: u8)
     where
-        F: FnMut(u8),
+        F: FnMut(u8) + 'static,
     {
-        (*(user_callback as *mut F))(data); //We cast the void* back to the closure and call it
+        (*(user_callback as *mut F))(data); // We cast the void* back to the closure and call it
     }
 
     /// This is the callback that gets called directly from the kernel when a start condition is detected
@@ -320,13 +312,13 @@ impl<'a> UartDevice<'a> {
     #[cfg(riot_module_periph_uart_rxstart_irq)]
     unsafe extern "C" fn rxstart_callback<F>(user_callback: *mut c_void)
     where
-        F: FnMut(),
+        F: FnMut() + 'static,
     {
-        (*(user_callback as *mut F))(); //We cast the void* back to the closure and call it
+        (*(user_callback as *mut F))(); // We cast the void* back to the closure and call it
     }
 }
 
-impl<'a> Drop for UartDevice<'a> {
+impl Drop for UartDevice {
     /// The `drop` method resets the `UART`, removes the interrupt and tries
     /// to reset the `GPIO` pins if possible
     fn drop(&mut self) {
