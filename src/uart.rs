@@ -6,7 +6,7 @@
 use core::ptr;
 
 use crate::error::{NegativeErrorExt, NumericError};
-use riot_sys::libc::c_void;
+use riot_sys::libc::{c_uint, c_void};
 use riot_sys::*;
 
 /// This enum representatives the status returned by various `UART`-functions
@@ -113,12 +113,12 @@ impl UartDevice {
     /// let mut cb = |new_data| {
     ///     //do something here with the received data
     /// };
-    /// let mut uart = UartDevice::new(uart_type_t_STM32_USART, 115200, &mut cb)
+    /// let mut uart = UartDevice::new(0, 115200, &mut cb)
     ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART");
     /// ```
     pub fn new<F>(
-        dev: uart_t,
+        index: usize,
         baud: u32,
         user_callback: &'static mut F,
     ) -> Result<Self, UartDeviceError>
@@ -126,16 +126,17 @@ impl UartDevice {
         F: FnMut(u8) + Sync + 'static,
     {
         unsafe {
+            let dev = macro_UART_DEV(index as c_uint);
             uart_init(
                 dev,
                 baud,
                 Some(Self::new_data_callback::<F>),
                 user_callback as *mut _ as *mut c_void,
             )
+            .negative_to_error()
+            .map(|_| Self { dev })
+            .map_err(UartDeviceError::from_c)
         }
-        .negative_to_error()
-        .map(|_| Self { dev })
-        .map_err(UartDeviceError::from_c)
     }
 
 
@@ -150,15 +151,18 @@ impl UartDevice {
     /// # Examples
     /// ```
     /// use riot_wrappers::uart::UartDevice;
-    /// let mut uart = UartDevice::new_without_rx(uart_type_t_STM32_USART, 115200)
+    /// let mut uart = UartDevice::new_without_rx(0, 115200)
     /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART");
     /// ```
-    pub fn new_without_rx(dev: uart_t, baud: u32) -> Result<Self, UartDeviceError> {
-        unsafe { uart_init(dev, baud, None, ptr::null_mut()) }
-            .negative_to_error()
-            .map(|_| Self { dev })
-            .map_err(UartDeviceError::from_c)
+    pub fn new_without_rx(index: usize, baud: u32) -> Result<Self, UartDeviceError> {
+        unsafe {
+            let dev = macro_UART_DEV(index as c_uint);
+            uart_init(dev, baud, None, ptr::null_mut())
+                .negative_to_error()
+                .map(|_| Self { dev })
+                .map_err(UartDeviceError::from_c)
+        }
     }
 
     /// Sets the mode according to the given parameters
