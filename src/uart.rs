@@ -175,7 +175,7 @@ impl UartDevice {
     /// # Examples
     /// ```
     /// use riot_wrappers::uart::{DataBits, Parity, StopBits, UartDevice};
-    /// let mut uart = UartDevice::new_without_rx(uart_type_t_STM32_USART, 115200)
+    /// let mut uart = UartDevice::new_without_rx(0, 115200)
     /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));   
     /// uart.set_mode(DataBits::Eight, Parity::None, StopBits::One)   
     /// .unwrap_or_else(|e| panic!("Error setting UART mode: {e:?}"));
@@ -205,7 +205,7 @@ impl UartDevice {
     /// # Examples
     /// ```
     /// use riot_wrappers::uart::UartDevice;
-    /// let mut uart = UartDevice::new_without_rx(uart_type_t_STM32_USART, 115200)
+    /// let mut uart = UartDevice::new_without_rx(0, 115200)
     ///    .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART\n");
     /// ```
