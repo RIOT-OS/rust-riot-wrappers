@@ -33,7 +33,29 @@ where
     ret
 }
 
-// Could we allow users the creation of 'static RegistrationScopes? Like thread::spawn.
+/// Append a Gcoap listener in the global list of listeners, so that incoming requests are compared
+/// to the listener's match functions and, if matching, are run through its handlers.
+///
+/// Obtaining a static listener is relatively hard (in particular because storing it somewhere
+/// static often requires naming its type, and that's both tedious until `type_alias_impl_trait` is
+/// stabilized and hard with how handler generators like to return an impl trait). It is often
+/// easier to construct them in a scoped fashion with [RegistrationScope::register].
+pub fn register<P>(listener: &'static mut P)
+where
+    P: 'static + ListenerProvider,
+{
+    // Creating a scope out of thin air. This is OK because we're using it only on static data.
+    //
+    // RegistrationScope could conceivably have a public constructor for 'static 'static, but we're
+    // not exposing it that way because it'd be weird to create something as a scope that's not
+    // really scoping just to call that one function that we're providing here as a standalone
+    // function anyway.
+    let mut scope: RegistrationScope<'static, 'static> = RegistrationScope {
+        _phantom: PhantomData,
+    };
+    scope.register(listener);
+}
+
 /// Lifetimed helper through which registrations can happen
 ///
 /// For explanations of the `'env`' and `'id` lifetimes, see
