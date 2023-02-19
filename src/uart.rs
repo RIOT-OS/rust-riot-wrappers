@@ -105,7 +105,7 @@ impl<'scope> UartDevice<'scope> {
     ///
     /// # Arguments
     ///
-    /// * `dev` - The uart_t handle to the hardware device
+    /// * `dev` - The index of the hardware device
     /// * `baud` - The used baud rate
     /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
     ///
@@ -144,43 +144,12 @@ impl<'scope> UartDevice<'scope> {
         }
     }
 
-    /// Tries to initialize the given `UART` with a static callback. Returns a Result with rather `Ok<Self>` if the UART
-    /// was initialized successfully or a `Err<UartDeviceStatus>` containing the error
-    ///
-    /// # Arguments
-    ///
-    /// * `dev` - The uart_t handle to the hardware device
-    /// * `baud` - The used baud rate
-    /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
-    ///
-    /// # Examples
-    /// ```
-    /// use riot_wrappers::uart::UartDevice;
-    /// static mut CB: fn(u8) = |new_data| {
-    ///     //do something here with the received data
-    /// };
-    /// let mut uart = UartDevice::new_with_static_cb(0, 115200, unsafe { &mut CB })
-    ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
-    /// uart.write(b"Hello from UART");
-    /// ```
-    pub fn new_with_static_cb<F>(
-        index: usize,
-        baud: u32,
-        user_callback: &'static mut F,
-    ) -> Result<Self, UartDeviceError>
-    where
-        F: FnMut(u8) + Sync + 'static,
-    {
-        Self::new(index, baud, user_callback)
-    }
-
-
     /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
     /// `Err<UartDeviceStatus>` containing the error. As the name implies, the created `UART` device can <b>ONLY</b> send data
     ///
     /// # Arguments
     ///
-    /// * `dev` - The uart_t handle to the hardware device
+    /// * `dev` - The index of the hardware device
     /// * `baud` - The used baud rate
     ///
     /// # Examples
@@ -369,5 +338,37 @@ impl<'scope> Drop for UartDevice<'scope> {
             #[cfg(riot_module_periph_uart_reconfigure)]
             self.deinit_pins();
         }
+    }
+}
+
+impl UartDevice<'static> {
+    /// Tries to initialize the given `UART` with a static callback. Returns a Result with rather `Ok<Self>` if the UART
+    /// was initialized successfully or a `Err<UartDeviceStatus>` containing the error
+    ///
+    /// # Arguments
+    ///
+    /// * `dev` - The index of the hardware device
+    /// * `baud` - The used baud rate
+    /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
+    ///
+    /// # Examples
+    /// ```
+    /// use riot_wrappers::uart::UartDevice;
+    /// static mut CB: fn(u8) = |new_data| {
+    ///     //do something here with the received data
+    /// };
+    /// let mut uart = UartDevice::new_with_static_cb(0, 115200, unsafe { &mut CB })
+    ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
+    /// uart.write(b"Hello from UART");
+    /// ```
+    pub fn new_with_static_cb<F>(
+        index: usize,
+        baud: u32,
+        user_callback: &'static mut F,
+    ) -> Result<Self, UartDeviceError>
+    where
+        F: FnMut(u8) + Sync + 'static,
+    {
+        Self::new(index, baud, user_callback)
     }
 }
