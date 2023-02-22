@@ -22,7 +22,7 @@ jobs:
       run: |
         cd RIOT
         rm -f .cargo/config.toml
-        mkdir -p .cargo # should not be needed any more after https://github.com/RIOT-OS/RIOT/pull/18151
+        mkdir -p .cargo # Keep working if RIOT ever decides it doesn't need overrides any more
         echo '[patch.crates-io]' >> .cargo/config.toml
         echo 'riot-wrappers = { path = "../", version = "*" }' >> .cargo/config.toml
         echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
@@ -65,6 +65,7 @@ jobs:
         for D in ${DIRS}; do
           cd ${D}
           echo "::group::Building ${D}"
+          cargo update -p riot-sys -p riot-wrappers --aggressive
           make buildtest BUILDTEST_MAKE_REDIRECT=''
           echo "::endgroup::"
           if make test/available BOARD=native; then

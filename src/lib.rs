@@ -167,3 +167,6 @@ pub mod interrupt;
 pub mod main;
 
 pub mod led;
+
+#[cfg(riot_module_auto_init)]
+pub mod auto_init;
