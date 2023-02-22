@@ -25,6 +25,49 @@ where
     }
 }
 
+impl<H> crate::gcoap::WithLinkEncoder for GcoapHandler<H>
+where
+    H: coap_handler::Handler + coap_handler::Reporting,
+{
+    fn encode(&self, writer: &mut crate::gcoap::LinkEncoder) {
+        use coap_handler::Record;
+        for record in self.0.report() {
+            writer.write_comma_maybe();
+            writer.write(b"<");
+            for pathelement in record.path() {
+                writer.write(b"/");
+                writer.write(pathelement.as_ref().as_bytes());
+            }
+            writer.write(b">");
+            if let Some(rel) = record.rel() {
+                // Not trying to be smart about whether or not we need the quotes
+                writer.write(b";rel=\"");
+                writer.write(rel.as_bytes());
+                writer.write(b"\"");
+            }
+            for attr in record.attributes() {
+                use coap_handler::Attribute::*;
+                match attr {
+                    Observable => writer.write(b";obs"),
+                    Interface(i) => {
+                        writer.write(b";if=\"");
+                        writer.write(i.as_bytes());
+                        writer.write(b"\"");
+                    }
+                    ResourceType(r) => {
+                        writer.write(b";rt=\"");
+                        writer.write(r.as_bytes());
+                        writer.write(b"\"");
+                    }
+                    // FIXME: deduplicate with what's somewhere in coap-handler-implementations;
+                    // implement remaining items
+                    _ => (),
+                }
+            }
+        }
+    }
+}
+
 /// Blanket implementation for mutex wrapped resources
 ///
 /// This is useful in combination with the defauilt implementation for Option as well.
