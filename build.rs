@@ -41,7 +41,11 @@ fn main() {
         let bindgen_output = std::fs::read_to_string(bindgen_output_file)
             .expect("Failed to read BINDGEN_OUTPUT_FILE");
 
-        if bindgen_output.contains("pub const CONFIG_AUTO_INIT_ENABLE_DEBUG: u32 = 1;") {
+        // Whether or not the extra space is there depends on whether or not rustfmt is installed.
+        // FIXME: Find a better way to extract that information
+        if bindgen_output.contains("pub const CONFIG_AUTO_INIT_ENABLE_DEBUG: u32 = 1;")
+            || bindgen_output.contains("pub const CONFIG_AUTO_INIT_ENABLE_DEBUG : u32 = 1 ;")
+        {
             println!("cargo:rustc-cfg=marker_config_auto_init_enable_debug");
         }
     } else {
