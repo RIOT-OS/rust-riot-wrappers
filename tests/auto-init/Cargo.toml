@@ -1,0 +1,18 @@
+[package]
+name = "riot-wrappers-test-auto-init"
+version = "0.1.0"
+authors = ["Christian Amsüss <chrysn@fsfe.org>"]
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+riot-wrappers = { version = "*", features = [ "set_panic_handler" ] }
+
+[patch.crates-io]
+riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }
