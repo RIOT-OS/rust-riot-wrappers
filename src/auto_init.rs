@@ -25,7 +25,7 @@ impl AutoInitModule {
             result = Self(riot_sys::auto_init_module_t {
                 init: Some(init_function),
                 prio: priority,
-                name: name.as_ptr(),
+                name: name.as_ptr() as _,
             });
         }
         #[cfg(not(marker_config_auto_init_enable_debug))]
