@@ -13,6 +13,3 @@ panic = "abort"
 
 [dependencies]
 riot-wrappers = { version = "*", features = [ "set_panic_handler" ] }
-
-[patch.crates-io]
-riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }

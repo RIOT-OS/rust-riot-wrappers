@@ -65,6 +65,7 @@ jobs:
         for D in ${DIRS}; do
           cd ${D}
           echo "::group::Building ${D}"
+          cargo update -p riot-sys -p riot-wrappers --aggressive
           make buildtest BUILDTEST_MAKE_REDIRECT=''
           echo "::endgroup::"
           if make test/available BOARD=native; then
