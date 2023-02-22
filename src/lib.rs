@@ -151,8 +151,6 @@ pub mod nimble {
     pub mod uuid;
 }
 
-pub mod suit;
-
 #[cfg(riot_module_ws281x)]
 pub mod ws281x;
 
