@@ -370,13 +370,13 @@ pub enum Unit {
     M,
     M2,
     M3,
-    G,
+    GForce,
     Dps,
-    Gr,
+    Gram,
     A,
     V,
     W,
-    Gs,
+    Gauss,
     T,
     Dbm,
     Coulomb,
@@ -399,6 +399,16 @@ pub enum Unit {
 }
 
 impl Unit {
+    // Note that on the C side the code still uses the aliases on the C side -- they're deprecated,
+    // but we'd need to introduce a marker, and given they'll stay deprecated on C for a release,
+    // we can just switch over before they go.
+    #[deprecated(note = "Use the GForce variant instead")]
+    const G: Self = Unit::GForce;
+    #[deprecated(note = "Use the Gram variant instead")]
+    const Gr: Self = Unit::Gram;
+    #[deprecated(note = "Use the Gauss variant instead")]
+    const Gs: Self = Unit::Gauss;
+
     fn from_c(input: u8) -> Option<Self> {
         match input as _ {
             riot_sys::UNIT_NONE => Some(Unit::None),
@@ -409,13 +419,13 @@ impl Unit {
             riot_sys::UNIT_M => Some(Unit::M),
             riot_sys::UNIT_M2 => Some(Unit::M2),
             riot_sys::UNIT_M3 => Some(Unit::M3),
-            riot_sys::UNIT_G => Some(Unit::G),
+            riot_sys::UNIT_G => Some(Unit::GForce),
             riot_sys::UNIT_DPS => Some(Unit::Dps),
-            riot_sys::UNIT_GR => Some(Unit::Gr),
+            riot_sys::UNIT_GR => Some(Unit::Gram),
             riot_sys::UNIT_A => Some(Unit::A),
             riot_sys::UNIT_V => Some(Unit::V),
             riot_sys::UNIT_W => Some(Unit::W),
-            riot_sys::UNIT_GS => Some(Unit::Gs),
+            riot_sys::UNIT_GS => Some(Unit::Gauss),
             riot_sys::UNIT_T => Some(Unit::T),
             riot_sys::UNIT_DBM => Some(Unit::Dbm),
             riot_sys::UNIT_COULOMB => Some(Unit::Coulomb),
@@ -449,13 +459,13 @@ impl Unit {
             Some(Unit::M) => riot_sys::UNIT_M,
             Some(Unit::M2) => riot_sys::UNIT_M2,
             Some(Unit::M3) => riot_sys::UNIT_M3,
-            Some(Unit::G) => riot_sys::UNIT_G,
+            Some(Unit::GForce) => riot_sys::UNIT_G,
             Some(Unit::Dps) => riot_sys::UNIT_DPS,
-            Some(Unit::Gr) => riot_sys::UNIT_GR,
+            Some(Unit::Gram) => riot_sys::UNIT_GR,
             Some(Unit::A) => riot_sys::UNIT_A,
             Some(Unit::V) => riot_sys::UNIT_V,
             Some(Unit::W) => riot_sys::UNIT_W,
-            Some(Unit::Gs) => riot_sys::UNIT_GS,
+            Some(Unit::Gauss) => riot_sys::UNIT_GS,
             Some(Unit::T) => riot_sys::UNIT_T,
             Some(Unit::Dbm) => riot_sys::UNIT_DBM,
             Some(Unit::Coulomb) => riot_sys::UNIT_COULOMB,
