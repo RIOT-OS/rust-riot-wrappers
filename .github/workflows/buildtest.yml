@@ -37,7 +37,7 @@ jobs:
       # update` is much faster the second time (so a parallel execution may
       # still be faster but uses 3x the resources)
       run: |
-        export BOARDS='native sltb001a samr21-xpro'
+        export BOARDS='native sltb001a samr21-xpro stk3700'
         DIRS='examples/rust-hello-world examples/rust-gcoap tests/rust_minimal'
         # It appears that there has to be output before :: commands really catch on
         echo "Building ${DIRS} on ${BOARDS}"
@@ -56,7 +56,7 @@ jobs:
         echo "::echo ::off"
     - name: Build and run tests
       run: |
-        export BOARDS='native sltb001a samr21-xpro'
+        export BOARDS='native sltb001a samr21-xpro stk3700'
         DIRS=$(echo tests/*/)
         export RIOTBASE=$(pwd)/RIOT
         # It appears that there has to be output before :: commands really catch on
