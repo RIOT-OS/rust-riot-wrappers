@@ -15,12 +15,16 @@ pub enum DACError {
 }
 
 impl DACLine {
-    /// Creates and intializes a new [`DACLine`] from the given
-    /// unitialized [`dac_t`].
+    /// Creates and intializes a new [`DACLine`].
+    ///
+    /// The `index` indicates which dac device from the current board should be used.
+    /// For information on how many such devices are available for this board please
+    /// refer to its RIOT documentation.
     ///
     /// Returns an Error if the given line does not exist
     /// on the board.
-    pub fn new(line: dac_t) -> Result<Self, DACError> {
+    pub fn new(index: usize) -> Result<Self, DACError> {
+        let line = unsafe { riot_sys::macro_DAC_LINE(index as u32) };
         let res = unsafe { riot_sys::dac_init(line) } as i32;
 
         const DAC_OK: i32 = riot_sys::DAC_OK as i32;
