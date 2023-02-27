@@ -266,14 +266,14 @@ impl<'scope> UartDevice<'scope> {
 
     /// Get the RX pin
     #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn get_pin_rx(&mut self) -> gpio_t {
-        unsafe { uart_pin_rx(self.dev) }
+    pub fn get_pin_rx(&mut self) -> Option<crate::gpio::GPIO> {
+        crate::gpio::GPIO::from_c(unsafe { uart_pin_rx(self.dev) })
     }
 
     /// Get the TX pin
     #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn get_pin_tx(&mut self) -> GPIO {
-        GPIO::from_c(unsafe { uart_pin_tx(self.dev) }).unwrap() // Is this always safe? Maybe use unwrap_unchecked for better performance
+    pub fn get_pin_tx(&mut self) -> Option<crate::gpio::GPIO> {
+        crate::gpio::GPIO::from_c(unsafe { uart_pin_tx(self.dev) })
     }
 
     /// Configure the function that will be called when a start condition is detected
