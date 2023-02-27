@@ -232,24 +232,6 @@ impl<'scope> UartDevice<'scope> {
         unsafe { uart_poweroff(self.dev) };
     }
 
-    /// Enables collision detection check
-    #[cfg(riot_module_periph_uart_collision)]
-    pub fn collision_detect_enable(&mut self) {
-        unsafe { uart_collision_detect_enable(self.dev) };
-    }
-
-    /// Disables collision detection check
-    #[cfg(riot_module_periph_uart_collision)]
-    pub fn collision_detect_disable(&mut self) {
-        unsafe { uart_collision_detect_disable(self.dev) };
-    }
-
-    /// Disables collision detection and returns if a collision occurred during last transfer
-    #[cfg(riot_module_periph_uart_collision)]
-    pub fn collision_detected(&mut self) -> bool {
-        unsafe { uart_collision_detected(self.dev) }
-    }
-
     /// This function normally does not need to be called. But in some case, the pins on the `UART`
     /// might be shared with some other functionality (like `GPIO`). In this case, it is necessary
     /// to give the user the possibility to init the pins again.
