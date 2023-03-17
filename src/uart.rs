@@ -100,26 +100,7 @@ pub struct UartDevice<'scope> {
 }
 
 impl<'scope> UartDevice<'scope> {
-    /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
-    /// `Err<UartDeviceStatus>` containing the error
-    ///
-    /// # Arguments
-    ///
-    /// * `dev` - The index of the hardware device
-    /// * `baud` - The used baud rate
-    /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
-    ///
-    /// # Examples
-    /// ```
-    /// use riot_wrappers::uart::UartDevice;
-    /// let mut cb = |new_data| {
-    ///     //do something here with the received data
-    /// };
-    /// let mut uart = UartDevice::new(0, 115200, &mut cb)
-    ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
-    /// uart.write(b"Hello from UART");
-    /// ```
-    pub fn new<F>(
+    fn construct_uart<F>(
         index: usize,
         baud: u32,
         user_callback: &'scope mut F,
@@ -142,6 +123,49 @@ impl<'scope> UartDevice<'scope> {
             })
             .map_err(UartDeviceError::from_c)
         }
+    }
+
+
+    /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
+    /// `Err<UartDeviceStatus>` containing the error
+    ///
+    /// This is the scoped version of [`new()`] that can be used if you want to use short-lived callbacks, such as
+    /// closures or anything containing references. The UartDevice is deconfigured when the internal main function
+    /// terminates. A common pattern around this kind of scoped functions is that `main` contains the application's
+    /// main loop, and never terminates (in which case the clean-up code is eliminated during compilation).
+    /// # Arguments
+    ///
+    /// * `dev` - The index of the hardware device
+    /// * `baud` - The used baud rate
+    /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
+    /// * `main` The mainloop that is executed inside the wrapper
+    ///
+    /// # Examples
+    /// ```
+    ///use riot_wrappers::uart::UartDevice;
+    ///let mut cb = |new_data| {
+    ///     //do something here with the received data
+    ///};
+    ///let mut scoped_main = |self_: &mut UartDevice| loop {
+    ///    self_.write(b"Hello from UART")
+    ///};
+    ///let mut uart = UartDevice::new_scoped(0, 115200, &mut cb, scoped_main)
+    ///    .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
+    /// ```
+    pub fn new_scoped<F, Main, RMain>(
+        index: usize,
+        baud: u32,
+        user_callback: &'scope mut F,
+        main: Main,
+    ) -> Result<RMain, UartDeviceError>
+    where
+        F: FnMut(u8) + Sync + 'scope,
+        Main: FnOnce(&mut Self) -> RMain,
+    {
+        let mut self_ = Self::construct_uart(index, baud, user_callback)?;
+        let result = (main)(&mut self_);
+        drop(self_);
+        Ok(result)
     }
 
     /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
@@ -351,6 +375,6 @@ impl UartDevice<'static> {
     where
         F: FnMut(u8) + Sync + 'static,
     {
-        Self::new(index, baud, user_callback)
+        Self::construct_uart(index, baud, user_callback)
     }
 }
