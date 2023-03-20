@@ -32,8 +32,8 @@ pub fn riot_prng() -> Random<32> {
 /// See this modules description regarding quality of the used seeds.
 pub fn rand_prng() -> StdRng {
     let mut buffer = [0u8; 32];
-    unsafe {
-        HWRNG.read(&mut buffer).unwrap_unchecked();
-    }
+
+    HWRNG.read(&mut buffer).unwrap();
+
     StdRng::from_seed(buffer)
 }

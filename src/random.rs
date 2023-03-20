@@ -1,4 +1,4 @@
-use core::{marker::PhantomData, mem::size_of};
+use core::mem::size_of;
 
 use embedded_hal::blocking::rng::Read;
 
@@ -27,7 +27,7 @@ use crate::hwrng::HWRNG;
 #[derive(Debug)]
 pub struct Random<const SEED_LENGTH: usize> {
     // Make sure this gets not manually constructed
-    private: PhantomData<()>,
+    _private: (),
 }
 
 impl<const SEED_LENGTH: usize> RngCore for Random<SEED_LENGTH> {
@@ -92,9 +92,7 @@ impl<const SEED_LENGTH: usize> RandomSeed<SEED_LENGTH> {
     pub fn new_from_hwrng() -> Self {
         let mut seed = RandomSeed::<SEED_LENGTH>::default();
 
-        unsafe {
-            HWRNG.read(&mut seed.buffer()).unwrap_unchecked();
-        }
+        HWRNG.read(seed.buffer()).unwrap();
 
         seed
     }
@@ -129,8 +127,6 @@ impl<const SEED_LENGTH: usize> SeedableRng for Random<SEED_LENGTH> {
                 (seed.seed.len() / size_of::<i32>()) as i32,
             );
         }
-        Random {
-            private: PhantomData,
-        }
+        Random { _private: () }
     }
 }

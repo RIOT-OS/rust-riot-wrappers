@@ -2,15 +2,13 @@ use embedded_hal::blocking::rng::Read;
 
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum HWRNGError {
-    Other,
-}
+pub enum HWRNGError {}
 
 /// Represents RIOTs hwrng module. It can be used via
 /// `embedded_hal`s [`embedded_hal::blocking::rng::Read`] trait.
 ///
 /// The main purpose of this module is to generate seeds for PRNGs like
-/// [`rand::rngs::StdRng`] or [`crate::random::Random`] (see `prng` module).
+/// [`rand::rngs::StdRng`] or [`crate::random::Random`] (see [`crate::prng`] module).
 ///
 /// # Security
 /// As stated in RIOTs hwrng module-description the quality of the generated
