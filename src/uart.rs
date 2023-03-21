@@ -159,7 +159,7 @@ impl<'scope> UartDevice<'scope> {
         main: Main,
     ) -> Result<RMain, UartDeviceError>
     where
-        F: FnMut(u8) + Sync + 'scope,
+        F: FnMut(u8) + Send + 'scope,
         Main: FnOnce(&mut Self) -> RMain,
     {
         // This possibly relies on Rust code in RIOT to not unwind.
