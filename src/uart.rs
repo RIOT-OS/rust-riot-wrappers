@@ -162,6 +162,7 @@ impl<'scope> UartDevice<'scope> {
         F: FnMut(u8) + Sync + 'scope,
         Main: FnOnce(&mut Self) -> RMain,
     {
+        // This possibly relies on Rust code in RIOT to not unwind.
         let mut self_ = Self::construct_uart(index, baud, user_callback)?;
         let result = (main)(&mut self_);
         drop(self_);
