@@ -2,7 +2,6 @@
 //!
 //! Author: Kilian Barning <barning@uni-bremen.de>
 
-use core::marker::PhantomData;
 use core::ptr;
 
 use crate::error::{NegativeErrorExt, NumericError};
@@ -194,6 +193,36 @@ impl UartDevice {
         }
     }
 
+    /// Tries to initialize the given `UART` with a static callback. Returns a Result with rather `Ok<Self>` if the UART
+    /// was initialized successfully or a `Err<UartDeviceStatus>` containing the error
+    ///
+    /// # Arguments
+    ///
+    /// * `dev` - The index of the hardware device
+    /// * `baud` - The used baud rate
+    /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
+    ///
+    /// # Examples
+    /// ```
+    /// use riot_wrappers::uart::UartDevice;
+    /// static mut CB: fn(u8) = |new_data| {
+    ///     //do something here with the received data
+    /// };
+    /// let mut uart = UartDevice::new_with_static_cb(0, 115200, unsafe { &mut CB })
+    ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
+    /// uart.write(b"Hello from UART");
+    /// ```
+    pub fn new_with_static_cb<F>(
+        index: usize,
+        baud: u32,
+        user_callback: &'static mut F,
+    ) -> Result<Self, UartDeviceError>
+    where
+        F: FnMut(u8) + Send + 'static,
+    {
+        unsafe { Self::construct_uart(index, baud, user_callback) }
+    }
+
     /// Sets the mode according to the given parameters
     /// Should the parameters be invalid, the function returns a Err<UartDeviceStatus::UnsupportedConfig>
     /// # Arguments
@@ -330,38 +359,6 @@ impl UartDevice {
         F: FnMut() + 'scope,
     {
         (*(user_callback as *mut F))(); // We cast the void* back to the closure and call it
-    }
-}
-
-impl UartDevice {
-    /// Tries to initialize the given `UART` with a static callback. Returns a Result with rather `Ok<Self>` if the UART
-    /// was initialized successfully or a `Err<UartDeviceStatus>` containing the error
-    ///
-    /// # Arguments
-    ///
-    /// * `dev` - The index of the hardware device
-    /// * `baud` - The used baud rate
-    /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
-    ///
-    /// # Examples
-    /// ```
-    /// use riot_wrappers::uart::UartDevice;
-    /// static mut CB: fn(u8) = |new_data| {
-    ///     //do something here with the received data
-    /// };
-    /// let mut uart = UartDevice::new_with_static_cb(0, 115200, unsafe { &mut CB })
-    ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
-    /// uart.write(b"Hello from UART");
-    /// ```
-    pub fn new_with_static_cb<F>(
-        index: usize,
-        baud: u32,
-        user_callback: &'static mut F,
-    ) -> Result<Self, UartDeviceError>
-    where
-        F: FnMut(u8) + Send + 'static,
-    {
-        unsafe { Self::construct_uart(index, baud, user_callback) }
     }
 }
 
