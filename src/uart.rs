@@ -106,7 +106,7 @@ impl<'scope> UartDevice<'scope> {
         user_callback: &'scope mut F,
     ) -> Result<Self, UartDeviceError>
     where
-        F: FnMut(u8) + Sync + 'scope,
+        F: FnMut(u8) + Send + 'scope,
     {
         unsafe {
             let dev = macro_UART_DEV(index as c_uint);
