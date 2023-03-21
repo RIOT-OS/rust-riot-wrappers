@@ -373,7 +373,7 @@ impl UartDevice<'static> {
         user_callback: &'static mut F,
     ) -> Result<Self, UartDeviceError>
     where
-        F: FnMut(u8) + Sync + 'static,
+        F: FnMut(u8) + Send + 'static,
     {
         Self::construct_uart(index, baud, user_callback)
     }
