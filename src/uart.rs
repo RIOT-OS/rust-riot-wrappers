@@ -333,18 +333,6 @@ impl UartDevice {
     }
 }
 
-impl Drop for UartDevice {
-    /// The `drop` method resets the `UART`, removes the interrupt and tries
-    /// to reset the `GPIO` pins if possible
-    fn drop(&mut self) {
-        unsafe {
-            uart_init(self.dev, 9600, None, ptr::null_mut());
-            #[cfg(riot_module_periph_uart_reconfigure)]
-            self.deinit_pins();
-        }
-    }
-}
-
 impl UartDevice {
     /// Tries to initialize the given `UART` with a static callback. Returns a Result with rather `Ok<Self>` if the UART
     /// was initialized successfully or a `Err<UartDeviceStatus>` containing the error
@@ -374,5 +362,17 @@ impl UartDevice {
         F: FnMut(u8) + Send + 'static,
     {
         unsafe { Self::construct_uart(index, baud, user_callback) }
+    }
+}
+
+impl Drop for UartDevice {
+    /// The `drop` method resets the `UART`, removes the interrupt and tries
+    /// to reset the `GPIO` pins if possible
+    fn drop(&mut self) {
+        unsafe {
+            uart_init(self.dev, 9600, None, ptr::null_mut());
+            #[cfg(riot_module_periph_uart_reconfigure)]
+            self.deinit_pins();
+        }
     }
 }
