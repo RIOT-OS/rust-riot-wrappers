@@ -1,7 +1,6 @@
 //! Access to [RIOT's UART](https://doc.riot-os.org/group__drivers__periph__uart.html)
 //!
 //! Author: Kilian Barning <barning@uni-bremen.de>
-#![allow(dead_code)]
 
 use core::marker::PhantomData;
 use core::ptr;
@@ -106,7 +105,7 @@ impl<'scope> UartDevice<'scope> {
         user_callback: &'scope mut F,
     ) -> Result<Self, UartDeviceError>
     where
-        F: FnMut(u8) + Sync + 'scope,
+        F: FnMut(u8) + Send + 'scope,
     {
         unsafe {
             let dev = macro_UART_DEV(index as c_uint);
@@ -159,9 +158,10 @@ impl<'scope> UartDevice<'scope> {
         main: Main,
     ) -> Result<RMain, UartDeviceError>
     where
-        F: FnMut(u8) + Sync + 'scope,
+        F: FnMut(u8) + Send + 'scope,
         Main: FnOnce(&mut Self) -> RMain,
     {
+        // This possibly relies on Rust code in RIOT to not unwind.
         let mut self_ = Self::construct_uart(index, baud, user_callback)?;
         let result = (main)(&mut self_);
         drop(self_);
@@ -373,7 +373,7 @@ impl UartDevice<'static> {
         user_callback: &'static mut F,
     ) -> Result<Self, UartDeviceError>
     where
-        F: FnMut(u8) + Sync + 'static,
+        F: FnMut(u8) + Send + 'static,
     {
         Self::construct_uart(index, baud, user_callback)
     }
