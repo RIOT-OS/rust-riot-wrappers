@@ -31,6 +31,7 @@ impl UartDeviceError {
     }
 }
 
+#[cfg(riot_module_periph_uart_modecfg)]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DataBits {
@@ -40,6 +41,7 @@ pub enum DataBits {
     Eight,
 }
 
+#[cfg(riot_module_periph_uart_modecfg)]
 impl DataBits {
     fn to_c(self) -> uart_data_bits_t {
         match self {
@@ -51,6 +53,7 @@ impl DataBits {
     }
 }
 
+#[cfg(riot_module_periph_uart_modecfg)]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Parity {
@@ -61,6 +64,7 @@ pub enum Parity {
     Space,
 }
 
+#[cfg(riot_module_periph_uart_modecfg)]
 impl Parity {
     fn to_c(self) -> uart_parity_t {
         match self {
@@ -73,6 +77,7 @@ impl Parity {
     }
 }
 
+#[cfg(riot_module_periph_uart_modecfg)]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum StopBits {
@@ -80,6 +85,7 @@ pub enum StopBits {
     Two,
 }
 
+#[cfg(riot_module_periph_uart_modecfg)]
 impl StopBits {
     fn to_c(self) -> uart_stop_bits_t {
         match self {
@@ -93,14 +99,13 @@ impl StopBits {
 ///
 /// [UART implementation]: https://doc.riot-os.org/group__drivers__periph__uart.html
 #[derive(Debug)]
-pub struct UartDevice<'scope> {
+pub struct UartDevice {
     dev: uart_t,
-    _scope: PhantomData<&'scope ()>,
 }
 
-impl<'scope> UartDevice<'scope> {
+impl UartDevice {
     /// Unsafety: To use this safely, the caller must ensure that the returned Self is destructed before &'scope mut F becomes unavailable.
-    unsafe fn construct_uart<F>(
+    unsafe fn construct_uart<'scope, F>(
         index: usize,
         baud: u32,
         user_callback: &'scope mut F,
@@ -112,14 +117,11 @@ impl<'scope> UartDevice<'scope> {
         uart_init(
             dev,
             baud,
-            Some(Self::new_data_callback::<F>),
+            Some(Self::new_data_callback::<'scope, F>),
             user_callback as *mut _ as *mut c_void,
         )
         .negative_to_error()
-        .map(|_| Self {
-            dev,
-            _scope: PhantomData,
-        })
+        .map(|_| Self { dev })
         .map_err(UartDeviceError::from_c)
     }
 
@@ -150,7 +152,7 @@ impl<'scope> UartDevice<'scope> {
     /// let mut uart = UartDevice::new_scoped(0, 115200, &mut cb, scoped_main)
     ///    .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// ```
-    pub fn new_scoped<F, Main, RMain>(
+    pub fn new_scoped<'scope, F, Main, RMain>(
         index: usize,
         baud: u32,
         user_callback: &'scope mut F,
@@ -187,10 +189,7 @@ impl<'scope> UartDevice<'scope> {
             let dev = macro_UART_DEV(index as c_uint);
             uart_init(dev, baud, None, ptr::null_mut())
                 .negative_to_error()
-                .map(|_| Self {
-                    dev,
-                    _scope: PhantomData,
-                })
+                .map(|_| Self { dev })
                 .map_err(UartDeviceError::from_c)
         }
     }
@@ -315,7 +314,7 @@ impl<'scope> UartDevice<'scope> {
     /// # Arguments
     /// * `user_callback` - The address pointing to the user defined callback
     /// * `data` - The newly received data from the `UART`  
-    unsafe extern "C" fn new_data_callback<F>(user_callback: *mut c_void, data: u8)
+    unsafe extern "C" fn new_data_callback<'scope, F>(user_callback: *mut c_void, data: u8)
     where
         F: FnMut(u8) + 'scope,
     {
@@ -334,7 +333,7 @@ impl<'scope> UartDevice<'scope> {
     }
 }
 
-impl<'scope> Drop for UartDevice<'scope> {
+impl Drop for UartDevice {
     /// The `drop` method resets the `UART`, removes the interrupt and tries
     /// to reset the `GPIO` pins if possible
     fn drop(&mut self) {
@@ -346,7 +345,7 @@ impl<'scope> Drop for UartDevice<'scope> {
     }
 }
 
-impl UartDevice<'static> {
+impl UartDevice {
     /// Tries to initialize the given `UART` with a static callback. Returns a Result with rather `Ok<Self>` if the UART
     /// was initialized successfully or a `Err<UartDeviceStatus>` containing the error
     ///
