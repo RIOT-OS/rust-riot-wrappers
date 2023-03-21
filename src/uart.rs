@@ -1,7 +1,6 @@
 //! Access to [RIOT's UART](https://doc.riot-os.org/group__drivers__periph__uart.html)
 //!
 //! Author: Kilian Barning <barning@uni-bremen.de>
-#![allow(dead_code)]
 
 use core::marker::PhantomData;
 use core::ptr;
