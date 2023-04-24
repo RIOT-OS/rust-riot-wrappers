@@ -403,11 +403,11 @@ impl Unit {
     // but we'd need to introduce a marker, and given they'll stay deprecated on C for a release,
     // we can just switch over before they go.
     #[deprecated(note = "Use the GForce variant instead")]
-    const G: Self = Unit::GForce;
+    pub const G: Self = Unit::GForce;
     #[deprecated(note = "Use the Gram variant instead")]
-    const Gr: Self = Unit::Gram;
+    pub const Gr: Self = Unit::Gram;
     #[deprecated(note = "Use the Gauss variant instead")]
-    const Gs: Self = Unit::Gauss;
+    pub const Gs: Self = Unit::Gauss;
 
     fn from_c(input: u8) -> Option<Self> {
         match input as _ {
