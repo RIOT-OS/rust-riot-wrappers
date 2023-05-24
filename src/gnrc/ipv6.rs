@@ -101,7 +101,7 @@ impl ::core::str::FromStr for Address {
 // When no_std_net / embedded_nal is present, it may be a good idea to run through there.
 impl ::core::fmt::Debug for Address {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        let as_u8 = unsafe { &self.inner.u8_ };
+        let as_u8 = self.raw();
         write!(
             f,
             "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:\
@@ -180,7 +180,7 @@ impl From<embedded_nal::Ipv6Addr> for Address {
 #[cfg(feature = "with_embedded_nal")]
 impl From<Address> for embedded_nal::Ipv6Addr {
     fn from(addr: Address) -> Self {
-        Self::from(unsafe { addr.inner.u8_ })
+        Self::from(self.raw())
     }
 }
 
