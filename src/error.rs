@@ -16,7 +16,7 @@ pub trait NegativeErrorExt {
 /// represent `Result<positive_usize, NumericError>` as just the isize it originally was. For the
 /// time being, this works well enough, and performance evaluation can later be done against a
 /// manually implemented newtype around isize that'd be used to represent the Result.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct NumericError {
     pub number: isize,
 }
