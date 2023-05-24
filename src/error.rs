@@ -49,21 +49,23 @@ impl NumericError {
             name > 0,
             "Error names are expected to be positive for conversion into negative error numbers."
         );
+        #[allow(deprecated)] // it's deprecated *pub*
         NumericError { number: -name }
     }
 
     /// Numeric value of the error
     pub const fn number(&self) -> isize {
+        #[allow(deprecated)] // it's deprecated *pub*
         self.number
     }
 
     /// Convert the error into an [nb::Error] that is [nb::Error::WouldBlock] if the error is
     /// `-EAGAIN`, and an actual error otherwise.
     pub fn again_is_wouldblock(self) -> nb::Error<Self> {
-        match -self.number as u32 {
-            riot_sys::EAGAIN => nb::Error::WouldBlock,
-            _ => nb::Error::Other(self),
+        if self == Self::from_constant(riot_sys::EAGAIN as _) {
+            return nb::Error::WouldBlock;
         }
+        nb::Error::Other(self)
     }
 }
 
@@ -71,7 +73,7 @@ impl NumericError {
 //
 // impl core::fmt::Display for NumericError {
 //     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-//         write!(f, "Error {} ({})", self.number, ...)
+//         write!(f, "Error {} ({})", self.number(), ...)
 //     }
 // }
 
@@ -85,6 +87,7 @@ where
         if self >= Self::zero() {
             Ok(self)
         } else {
+            #[allow(deprecated)] // it's deprecated *pub*
             Err(NumericError {
                 number: self.try_into().unwrap_or(-(riot_sys::EOVERFLOW as isize)),
             })
