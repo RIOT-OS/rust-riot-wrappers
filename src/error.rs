@@ -18,6 +18,7 @@ pub trait NegativeErrorExt {
 /// manually implemented newtype around isize that'd be used to represent the Result.
 #[derive(Debug, PartialEq)]
 pub struct NumericError {
+    #[deprecated(note = "Use the .number() method")]
     pub number: isize,
 }
 
@@ -49,6 +50,11 @@ impl NumericError {
             "Error names are expected to be positive for conversion into negative error numbers."
         );
         NumericError { number: -name }
+    }
+
+    /// Numeric value of the error
+    pub const fn number(&self) -> isize {
+        self.number
     }
 
     /// Convert the error into an [nb::Error] that is [nb::Error::WouldBlock] if the error is
