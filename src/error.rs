@@ -1,4 +1,11 @@
 //! Common error handling components for the RIOT operating system
+//!
+//! ## Constants
+//!
+//! Several commonly used errors are provided as constants rather than requiring the use of
+//! [NumericError::from_constant] for easier use. That list is not created comprehensively but
+//! populated on demand. (Copying the full list would needlessly limit RIOT's ability to slim down
+//! the list).
 
 use core::convert::TryInto;
 
@@ -94,3 +101,15 @@ where
         }
     }
 }
+
+macro_rules! E {
+    ($e:ident) => {
+        #[doc = concat!("The predefined error ", stringify!($e))]
+        pub const $e: NumericError = NumericError::from_constant(riot_sys::$e as _);
+    };
+}
+
+// See module level comment
+E!(EAGAIN);
+E!(ENOMEM);
+E!(EOVERFLOW);
