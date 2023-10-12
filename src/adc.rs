@@ -17,6 +17,14 @@ impl ADCLine {
             e => Err(e),
         }
     }
+
+    /// Initialize an ADC line identified by the line number it is assigned on the board
+    ///
+    /// Safety: See [init]
+    pub unsafe fn from_number(line: u32) -> Result<Self, i32> {
+        let line = riot_sys::macro_ADC_LINE(line);
+        Self::init(line)
+    }
 }
 
 /// A configured representation of the single operating-system level ADC that RIOT exposes via its
