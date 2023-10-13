@@ -254,6 +254,8 @@ impl InIsr {
 ///
 /// This does barely implement anything on its own, but the module implementing `T` might provide
 /// extra methods.
+///
+/// This makes the wrapped value not `Send`.
 // Making the type fundamental results in ValueInThread<&Mutex<T>> being shown at Mutex's page.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "nightly_docs", fundamental)]
