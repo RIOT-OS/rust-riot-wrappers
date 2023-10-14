@@ -254,13 +254,19 @@ impl<'a> Pktsnip<Writable> {
         size: usize,
         nettype: gnrc_nettype_t,
     ) -> Result<Self, NotEnoughSpace> {
-        let next = next.map(|s| s.ptr).unwrap_or(0 as *mut _);
-        let snip =
-            unsafe { gnrc_pktbuf_add(next, data as *const _, size.try_into().unwrap(), nettype) };
+        let next_ptr = next.as_ref().map(|s| s.ptr).unwrap_or(0 as *mut _);
+        forget(next);
+        let snip = unsafe {
+            gnrc_pktbuf_add(
+                next_ptr,
+                data as *const _,
+                size.try_into().unwrap(),
+                nettype,
+            )
+        };
         if snip == 0 as *mut _ {
             return Err(NotEnoughSpace);
         }
-        forget(next);
         Ok(unsafe { Pktsnip::<Writable>::from_ptr(snip) })
     }
 
