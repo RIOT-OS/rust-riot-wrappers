@@ -31,7 +31,7 @@ pub enum Error {
 
 impl From<crate::error::NumericError> for Error {
     fn from(e: crate::error::NumericError) -> Error {
-        match e.number as _ {
+        match e.number() as _ {
             riot_sys::BLUETIL_AD_NOTFOUND => Error::NotFound,
             riot_sys::BLUETIL_AD_NOMEM => Error::NoMem,
             _ => panic!("Invalid bluetil error"),
