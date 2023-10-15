@@ -1,6 +1,6 @@
 //! Tools for providing a RIOT main function
 //!
-//! The main contribution of this module is the [riot_main] macro.
+//! The main contribution of this module is the [`riot_main!`](super::riot_main!) macro.
 //!
 //! The alternative to using that (other than doing it manually) is to have C code along with the
 //! Rust application that occupies the main function.
@@ -10,6 +10,7 @@
 //! C code.
 
 use crate::stdio::println;
+use crate::thread::{EndToken, StartToken};
 
 // General alternative to this module: Build the extern "C" main all the time and request that the
 // application implement a named function. I never got the main function to be carried to the
@@ -55,9 +56,9 @@ impl<F: Fn() -> T, T: Termination> UsableAsMain<[u8; 1]> for F {
     }
 }
 
-impl<F: Fn(crate::thread::StartToken) -> crate::never::Never> Sealed<[u8; 2]> for F {}
+impl<F: Fn(StartToken) -> crate::never::Never> Sealed<[u8; 2]> for F {}
 
-impl<F: Fn(crate::thread::StartToken) -> crate::never::Never> UsableAsMain<[u8; 2]> for F {
+impl<F: Fn(StartToken) -> crate::never::Never> UsableAsMain<[u8; 2]> for F {
     unsafe fn call_main(&self) -> i32 {
         // unsafe: By construction of the C main function this only happens at startup time
         // with a thread that hasn't done anything relevant before.
@@ -67,11 +68,9 @@ impl<F: Fn(crate::thread::StartToken) -> crate::never::Never> UsableAsMain<[u8; 
     }
 }
 
-impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::EndToken)> Sealed<[u8; 3]> for F {}
+impl<F: Fn(StartToken) -> ((), EndToken)> Sealed<[u8; 3]> for F {}
 
-impl<F: Fn(crate::thread::StartToken) -> ((), crate::thread::EndToken)> UsableAsMain<[u8; 3]>
-    for F
-{
+impl<F: Fn(StartToken) -> ((), EndToken)> UsableAsMain<[u8; 3]> for F {
     unsafe fn call_main(&self) -> i32 {
         // unsafe: By construction of the C main function this only happens at startup time
         // with a thread that hasn't done anything relevant before.

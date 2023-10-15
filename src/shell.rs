@@ -2,8 +2,8 @@
 //!
 //! This module can be used in two ways:
 //!
-//! * Declare static commands using [static_command]; these only take a `fn` (not a closure)
-//!   because shell commands don't have an arg pointer.
+//! * Declare static commands using [`static_command!`](crate::static_command!); these only take a
+//!   `fn` (not a closure) because shell commands don't have an arg pointer.
 //!
 //!   This works even in RIOT modules that are included in a C application that starts a shell, and
 //!   show up in shells created through Rust without explicit inclusion.
@@ -20,8 +20,8 @@
 //! argument. This does allow the Rust wrappers to "just so" use a closure as a command handler,
 //! but also needs a lot of code.
 //!
-//! That complexity is not pulled in when only using [static_command] and running on an otherwise
-//! empty command list.
+//! That complexity is not pulled in when only using [`static_command!`](crate::static_command!)
+//! and running on an otherwise empty command list.
 
 use crate::{mutex, stdio};
 use core::ffi::CStr;
