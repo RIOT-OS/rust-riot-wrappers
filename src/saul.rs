@@ -17,12 +17,8 @@
 //!
 //! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
 
-use riot_sys as raw;
-use riot_sys::libc;
-
 use crate::error;
 use crate::helpers::PointerToCStr;
-use crate::Never;
 use error::NegativeErrorExt;
 
 pub mod registration;

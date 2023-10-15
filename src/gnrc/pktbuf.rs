@@ -11,7 +11,6 @@ use riot_sys::{
     gnrc_pktbuf_realloc_data,
     gnrc_pktbuf_release_error,
     gnrc_pktsnip_t,
-    gnrc_udp_hdr_build,
     GNRC_NETERR_SUCCESS,
 };
 
@@ -138,6 +137,8 @@ impl<M: Mode> Pktsnip<M> {
         src: core::num::NonZeroU16,
         dst: core::num::NonZeroU16,
     ) -> Result<Pktsnip<Writable>, NotEnoughSpace> {
+        use riot_sys::gnrc_udp_hdr_build;
+
         let snip = unsafe { gnrc_udp_hdr_build(self.ptr, src.into(), dst.into()) };
         if snip == 0 as *mut _ {
             // All other errors are caught by the signature

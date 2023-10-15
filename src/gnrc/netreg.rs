@@ -1,6 +1,5 @@
+#[cfg(feature = "with_msg_v2")]
 use core::mem::MaybeUninit;
-
-use riot_sys::{gnrc_netreg_entry_t, gnrc_netreg_register, gnrc_netreg_unregister, gnrc_nettype_t};
 
 use crate::error::NegativeErrorExt;
 
