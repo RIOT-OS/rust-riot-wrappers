@@ -1,6 +1,7 @@
 #[cfg(feature = "with_msg_v2")]
 use core::mem::MaybeUninit;
 
+#[cfg(feature = "with_msg_v2")]
 use crate::error::NegativeErrorExt;
 
 // Transmuting the pointer into a Pktsnip does the right thing by treating it as a smart
