@@ -216,7 +216,7 @@ unsafe extern "C" fn link_encoder<H: WithLinkEncoder>(
     let h: &H = unsafe { &*((*resource).context as *const _) };
 
     let buf = buf as *mut u8; // cast away signedness of char
-    let mut buf = if buf.is_null() {
+    let buf = if buf.is_null() {
         None
     } else {
         Some(core::slice::from_raw_parts_mut(buf, buf_len as _))
