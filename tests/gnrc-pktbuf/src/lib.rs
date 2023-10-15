@@ -25,7 +25,7 @@ fn check_empty() {
 fn main() {
     check_empty();
 
-    let snip1 = riot_wrappers::gnrc::pktbuf::Pktsnip::allocate(
+    let snip1 = riot_wrappers::gnrc_pktbuf::Pktsnip::allocate(
         128,
         riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UNDEF,
     )
@@ -34,7 +34,7 @@ fn main() {
 
     check();
 
-    let snip2 = riot_wrappers::gnrc::pktbuf::Pktsnip::allocate_from(
+    let snip2 = riot_wrappers::gnrc_pktbuf::Pktsnip::allocate_from(
         &[1, 2, 3, 4],
         riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UNDEF,
     )
