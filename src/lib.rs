@@ -22,6 +22,9 @@
 #![cfg_attr(feature = "actual_never_type", feature(never_type))]
 #![cfg_attr(feature = "nightly_docs", feature(fundamental))]
 
+// in async_wakers::debugging experiments
+#![feature(maybe_uninit_uninit_array)]
+
 /// riot-sys is re-exported here as it is necessary in some places when using it to get values (eg.
 /// in [error::NumericError::from_constant]). It is also used in macros such as [static_command!].
 ///
@@ -167,3 +170,6 @@ pub mod interrupt;
 pub mod main;
 
 pub mod led;
+
+pub mod async_task;
+mod async_wakers;

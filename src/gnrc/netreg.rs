@@ -1,3 +1,4 @@
+use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 
 use riot_sys::{gnrc_netreg_entry_t, gnrc_netreg_register, gnrc_netreg_unregister, gnrc_nettype_t};
@@ -15,6 +16,8 @@ type PktsnipPort = crate::msg::v2::SendPort<
 >;
 
 /// Set up a netreg for a particular kind of messages
+///
+/// This uses the default (message) type of netregs, GNRC_NETREG_TYPE_DEFAULT.
 ///
 /// ## Roadmap
 ///
