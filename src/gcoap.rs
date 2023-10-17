@@ -2,7 +2,7 @@ use crate::error::NegativeErrorExt;
 use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
-use riot_sys::libc::c_void;
+use riot_sys::libc;
 use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_listener_t};
 
 use riot_sys::coap_resource_t;
@@ -10,7 +10,7 @@ use riot_sys::coap_resource_t;
 #[cfg(marker_coap_request_ctx_t)]
 type HandlerArg4 = riot_sys::coap_request_ctx_t;
 #[cfg(not(marker_coap_request_ctx_t))]
-type HandlerArg4 = c_void;
+type HandlerArg4 = libc::c_void;
 
 /// Give the caller a way of registering Gcoap handlers into the global Gcoap registry inside a
 /// callback. When the callback terminates, the registered handlers are deregistered again,
@@ -33,7 +33,29 @@ where
     ret
 }
 
-// Could we allow users the creation of 'static RegistrationScopes? Like thread::spawn.
+/// Append a Gcoap listener in the global list of listeners, so that incoming requests are compared
+/// to the listener's match functions and, if matching, are run through its handlers.
+///
+/// Obtaining a static listener is relatively hard (in particular because storing it somewhere
+/// static often requires naming its type, and that's both tedious until `type_alias_impl_trait` is
+/// stabilized and hard with how handler generators like to return an impl trait). It is often
+/// easier to construct them in a scoped fashion with [RegistrationScope::register].
+pub fn register<P>(listener: &'static mut P)
+where
+    P: 'static + ListenerProvider,
+{
+    // Creating a scope out of thin air. This is OK because we're using it only on static data.
+    //
+    // RegistrationScope could conceivably have a public constructor for 'static 'static, but we're
+    // not exposing it that way because it'd be weird to create something as a scope that's not
+    // really scoping just to call that one function that we're providing here as a standalone
+    // function anyway.
+    let mut scope: RegistrationScope<'static, 'static> = RegistrationScope {
+        _phantom: PhantomData,
+    };
+    scope.register(listener);
+}
+
 /// Lifetimed helper through which registrations can happen
 ///
 /// For explanations of the `'env`' and `'id` lifetimes, see
@@ -91,6 +113,22 @@ where
 {
     // keeping methods u32 because the sys constants are too
     pub fn new(path: &'a core::ffi::CStr, methods: u32, handler: &'a mut H) -> Self {
+        Self::_new(path, methods, handler, None)
+    }
+
+    fn _new(
+        path: &'a core::ffi::CStr,
+        methods: u32,
+        handler: &'a mut H,
+        encoder: Option<
+            unsafe extern "C" fn(
+                *const riot_sys::coap_resource_t,
+                *mut libc::c_char,
+                riot_sys::size_t,
+                *mut riot_sys::coap_link_encoder_ctx_t,
+            ) -> i32,
+        >,
+    ) -> Self {
         let methods = methods.try_into().unwrap();
 
         SingleHandlerListener {
@@ -99,18 +137,13 @@ where
                 path: path.as_ptr() as _,
                 handler: Some(Self::call_handler),
                 methods: methods,
-                context: handler as *mut _ as *mut c_void,
+                context: handler as *mut _ as *mut libc::c_void,
             },
             listener: gcoap_listener_t {
                 resources: 0 as *const _,
                 resources_len: 0,
                 next: 0 as *mut _,
-                // FIXME expose -- or tell people to write their own .wk/c, leave this NULL or even
-                // no-op (which ain't NULL) and expose the encoding mechanism for extension in an
-                // own .wk/c writer
-                //
-                // Works both for older versions without request_matcher and for current ones
-                link_encoder: None,
+                link_encoder: encoder,
                 ..Default::default()
             },
         }
@@ -163,6 +196,80 @@ where
     }
 }
 
+unsafe extern "C" fn link_encoder<H: WithLinkEncoder>(
+    resource: *const riot_sys::coap_resource_t,
+    buf: *mut libc::c_char,
+    buf_len: riot_sys::size_t,
+    ctx: *mut riot_sys::coap_link_encoder_ctx_t,
+) -> i32 {
+    // We're a SingleHandlerListener, therefore we only have a single resource and can
+    // back-track to Self
+    // (But we don't need this)
+    /*
+    let self_ = unsafe {
+        &*((resource as *const u8)
+            .offset(-(memoffset::offset_of!(SingleHandlerListener<H>, resource) as isize))
+            as *const SingleHandlerListener<H>)
+    };
+    */
+
+    let h: &H = unsafe { &*((*resource).context as *const _) };
+
+    let buf = buf as *mut u8; // cast away signedness of char
+    let mut buf = if buf.is_null() {
+        None
+    } else {
+        Some(core::slice::from_raw_parts_mut(buf, buf_len as _))
+    };
+
+    link_encoder_safe(h, buf, unsafe { &mut *ctx })
+}
+
+fn link_encoder_safe<H: WithLinkEncoder>(
+    h: &H,
+    mut buf: Option<&mut [u8]>,
+    ctx: &mut riot_sys::coap_link_encoder_ctx_t,
+) -> i32 {
+    let mut writer = LinkEncoder::new(buf.as_deref_mut(), ctx);
+    h.encode(&mut writer);
+    let written = writer.written();
+    drop(writer);
+
+    if let Some(buf) = buf.as_ref() {
+        if written > buf.len() {
+            // An odd way to say .rfind(), but there's no such function on slices
+            if let Some((i, _)) = buf.windows(2).enumerate().rfind(|(_, x)| x == b",<") {
+                // Knowing the syntax of the produced data, we find a point at which we can
+                // salvage some records. (The rest is lost for lack of a blockwise-enabled
+                // interface).
+                i as _
+            } else {
+                -1
+            }
+        } else {
+            written as _
+        }
+    } else {
+        written as _
+    }
+}
+
+
+impl<'a, H> SingleHandlerListener<'a, H>
+where
+    H: 'a + Handler + WithLinkEncoder,
+{
+    /// Like [`new()`], but utilizing that the handler is also [WithLinkEncoder] and can thus influence
+    /// what is reported when the default .well-known/core handler is queried.
+    pub fn new_with_link_encoder(
+        path: &'a core::ffi::CStr,
+        methods: u32,
+        handler: &'a mut H,
+    ) -> Self {
+        Self::_new(path, methods, handler, Some(link_encoder::<H>))
+    }
+}
+
 impl<'a, H> ListenerProvider for SingleHandlerListener<'a, H>
 where
     H: 'a + Handler,
@@ -180,6 +287,60 @@ where
 // but preferably using the coap_handler module (behind the with-coap-handler feature).
 pub trait Handler {
     fn handle(&mut self, pkt: &mut PacketBuffer) -> isize;
+}
+
+/// The message buffer of a .well-known/core file in appication/link-format, as it is passed to a
+/// [WithLinkEncoder] handler.
+pub struct LinkEncoder<'a> {
+    cursor: usize,
+    buffer: Option<&'a mut [u8]>,
+    context: &'a mut riot_sys::coap_link_encoder_ctx_t,
+}
+
+impl<'a> LinkEncoder<'a> {
+    fn new(
+        buffer: Option<&'a mut [u8]>,
+        context: &'a mut riot_sys::coap_link_encoder_ctx_t,
+    ) -> Self {
+        Self {
+            cursor: 0,
+            buffer,
+            context,
+        }
+    }
+
+    fn written(&self) -> usize {
+        self.cursor
+    }
+
+    /// Emit a comma, except the first time this is called
+    ///
+    /// (This is the separator of the records of application/link-format; RIOT's )
+    pub fn write_comma_maybe(&mut self) {
+        const COAP_LINK_FLAG_INIT_RESLIST: u16 = riot_sys::COAP_LINK_FLAG_INIT_RESLIST as _;
+        if self.context.flags & COAP_LINK_FLAG_INIT_RESLIST != 0 {
+            self.context.flags = self.context.flags & !COAP_LINK_FLAG_INIT_RESLIST;
+            return;
+        }
+        self.write(b",");
+    }
+
+    /// Emit arbitrary bytes
+    pub fn write(&mut self, data: &[u8]) {
+        if let Some(buffer) = self.buffer.as_mut() {
+            if self.cursor <= buffer.len() {
+                let usable = data.len().min(buffer.len() - self.cursor);
+                buffer[self.cursor..self.cursor + usable].copy_from_slice(&data[..usable]);
+            }
+            self.cursor += data.len();
+        } else {
+            self.cursor += data.len();
+        }
+    }
+}
+
+pub trait WithLinkEncoder {
+    fn encode(&self, buf: &mut LinkEncoder);
 }
 
 use riot_sys::{

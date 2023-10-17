@@ -118,6 +118,9 @@ pub mod spi;
 #[cfg(riot_module_periph_adc)]
 pub mod adc;
 
+#[cfg(riot_module_periph_dac)]
+pub mod dac;
+
 #[cfg(riot_module_ztimer)]
 pub mod ztimer;
 
@@ -151,8 +154,6 @@ pub mod nimble {
     pub mod uuid;
 }
 
-pub mod suit;
-
 #[cfg(riot_module_ws281x)]
 pub mod ws281x;
 
@@ -167,3 +168,6 @@ pub mod interrupt;
 pub mod main;
 
 pub mod led;
+
+#[cfg(riot_module_auto_init)]
+pub mod auto_init;

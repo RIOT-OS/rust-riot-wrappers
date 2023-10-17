@@ -22,7 +22,7 @@ jobs:
       run: |
         cd RIOT
         rm -f .cargo/config.toml
-        mkdir -p .cargo # should not be needed any more after https://github.com/RIOT-OS/RIOT/pull/18151
+        mkdir -p .cargo # Keep working if RIOT ever decides it doesn't need overrides any more
         echo '[patch.crates-io]' >> .cargo/config.toml
         echo 'riot-wrappers = { path = "../", version = "*" }' >> .cargo/config.toml
         echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
@@ -37,7 +37,7 @@ jobs:
       # update` is much faster the second time (so a parallel execution may
       # still be faster but uses 3x the resources)
       run: |
-        export BOARDS='native sltb001a samr21-xpro'
+        export BOARDS='native sltb001a samr21-xpro stk3700'
         DIRS='examples/rust-hello-world examples/rust-gcoap tests/rust_minimal'
         # It appears that there has to be output before :: commands really catch on
         echo "Building ${DIRS} on ${BOARDS}"
@@ -54,9 +54,9 @@ jobs:
         done
         cd ..
         echo "::echo ::off"
-    - name: Build tests
+    - name: Build and run tests
       run: |
-        export BOARDS='native sltb001a samr21-xpro'
+        export BOARDS='native sltb001a samr21-xpro stk3700'
         DIRS=$(echo tests/*/)
         export RIOTBASE=$(pwd)/RIOT
         # It appears that there has to be output before :: commands really catch on
@@ -65,8 +65,14 @@ jobs:
         for D in ${DIRS}; do
           cd ${D}
           echo "::group::Building ${D}"
+          cargo update -p riot-sys -p riot-wrappers --aggressive
           make buildtest BUILDTEST_MAKE_REDIRECT=''
-          cd ../..
           echo "::endgroup::"
+          if make test/available BOARD=native; then
+            echo "::group::Testing ${D}"
+            make all test BOARD=native
+            echo "::endgroup::"
+          fi
+          cd ../..
         done
         echo "::echo ::off"

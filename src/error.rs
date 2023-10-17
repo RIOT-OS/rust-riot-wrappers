@@ -1,4 +1,11 @@
 //! Common error handling components for the RIOT operating system
+//!
+//! ## Constants
+//!
+//! Several commonly used errors are provided as constants rather than requiring the use of
+//! [NumericError::from_constant] for easier use. That list is not created comprehensively but
+//! populated on demand. (Copying the full list would needlessly limit RIOT's ability to slim down
+//! the list).
 
 use core::convert::TryInto;
 
@@ -16,8 +23,9 @@ pub trait NegativeErrorExt {
 /// represent `Result<positive_usize, NumericError>` as just the isize it originally was. For the
 /// time being, this works well enough, and performance evaluation can later be done against a
 /// manually implemented newtype around isize that'd be used to represent the Result.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct NumericError {
+    #[deprecated(note = "Use the .number() method")]
     pub number: isize,
 }
 
@@ -43,21 +51,28 @@ impl NumericError {
     /// ## Panics
     ///
     /// In debug mode, this ensures that the given error is greater than zero.
-    pub fn from_constant(name: isize) -> Self {
+    pub const fn from_constant(name: isize) -> Self {
         debug_assert!(
             name > 0,
             "Error names are expected to be positive for conversion into negative error numbers."
         );
+        #[allow(deprecated)] // it's deprecated *pub*
         NumericError { number: -name }
+    }
+
+    /// Numeric value of the error
+    pub const fn number(&self) -> isize {
+        #[allow(deprecated)] // it's deprecated *pub*
+        self.number
     }
 
     /// Convert the error into an [nb::Error] that is [nb::Error::WouldBlock] if the error is
     /// `-EAGAIN`, and an actual error otherwise.
     pub fn again_is_wouldblock(self) -> nb::Error<Self> {
-        match -self.number as u32 {
-            riot_sys::EAGAIN => nb::Error::WouldBlock,
-            _ => nb::Error::Other(self),
+        if self == Self::from_constant(riot_sys::EAGAIN as _) {
+            return nb::Error::WouldBlock;
         }
+        nb::Error::Other(self)
     }
 }
 
@@ -65,7 +80,7 @@ impl NumericError {
 //
 // impl core::fmt::Display for NumericError {
 //     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-//         write!(f, "Error {} ({})", self.number, ...)
+//         write!(f, "Error {} ({})", self.number(), ...)
 //     }
 // }
 
@@ -79,9 +94,22 @@ where
         if self >= Self::zero() {
             Ok(self)
         } else {
+            #[allow(deprecated)] // it's deprecated *pub*
             Err(NumericError {
                 number: self.try_into().unwrap_or(-(riot_sys::EOVERFLOW as isize)),
             })
         }
     }
 }
+
+macro_rules! E {
+    ($e:ident) => {
+        #[doc = concat!("The predefined error ", stringify!($e))]
+        pub const $e: NumericError = NumericError::from_constant(riot_sys::$e as _);
+    };
+}
+
+// See module level comment
+E!(EAGAIN);
+E!(ENOMEM);
+E!(EOVERFLOW);
