@@ -140,6 +140,8 @@ pub mod coap_message;
 pub mod socket;
 #[cfg(all(riot_module_sock_udp, feature = "with_embedded_nal"))]
 pub mod socket_embedded_nal;
+#[cfg(all(riot_module_sock_udp, feature = "with_embedded_nal_async"))]
+pub mod socket_embedded_nal_async_udp;
 #[cfg(all(riot_module_sock_tcp, feature = "with_embedded_nal"))]
 pub mod socket_embedded_nal_tcp;
 
@@ -171,3 +173,5 @@ pub mod led;
 
 #[cfg(riot_module_auto_init)]
 pub mod auto_init;
+
+mod async_helpers;
