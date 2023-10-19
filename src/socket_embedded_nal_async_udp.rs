@@ -1,3 +1,4 @@
+use crate::async_helpers::{RiotStyleFuture, RiotStylePollStruct};
 use crate::error::{NegativeErrorExt, NumericError, ENOSPC};
 use crate::socket::UdpEp;
 use core::mem::MaybeUninit;
@@ -127,121 +128,6 @@ impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
         Ok(())
     }
     async fn receive_into(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
-        use crate::async_helpers::{RiotStyleFuture, RiotStylePollStruct};
-
-        struct ReceiveIntoArgs<'a> {
-            sock: &'a mut sock_udp_t,
-            buffer: &'a mut [u8],
-        }
-        impl RiotStyleFuture for ReceiveIntoArgs<'_> {
-            type Output = Result<usize, NumericError>;
-            fn poll(
-                &mut self,
-                arg: *mut riot_sys::libc::c_void,
-            ) -> core::task::Poll<Result<usize, NumericError>> {
-                let sock: &mut sock_udp_t = self.sock;
-
-                // Using recv_buf so that we can get the full length, and thus deliver the first
-                // slice without misleading the receiver about the length of the datagram.
-                //
-                // Effectively, this is the sock_udp_recv function (which is internally
-                // sock_udp_recv_buf with consecutive memcpy calls) reimplemented in Rust, but with
-                // the change that it counts up to the full datagram length
-
-                let mut data = core::ptr::null_mut();
-                let mut buf_ctx = core::ptr::null_mut();
-
-                let mut cursor = 0;
-                loop {
-                    match (unsafe {
-                        riot_sys::inline::sock_udp_recv_buf(
-                            crate::inline_cast_mut(sock),
-                            &mut data,
-                            &mut buf_ctx,
-                            // Return immediately
-                            0,
-                            // Not interested: This is a connected socket, it better be coming from the
-                            // address we connected to.
-                            core::ptr::null_mut(),
-                        )
-                    })
-                    .negative_to_error()
-                    {
-                        Err(crate::error::EAGAIN) => {
-                            // We could accommodate that if we kept the cursor in the
-                            // ReceiveIntoArgs, but as it's probably not the async RIOT API's
-                            // intention to ever do this, why waste anything on it.
-                            debug_assert!(
-                                cursor == 0,
-                                "sock_udp_recv_buf indicated availability of
-                                          partial datagram before complete reception"
-                            );
-
-                            // When setting all this up, we got a &mut self, so we can be sure that there
-                            // is no other thread or task simultaneously trying to receive on this, or even
-                            // doing a blocking send on it (which we currently don't do anyway).
-                            //
-                            // (Otherwise, we'd have to worry about overwriting a callback).
-                            unsafe {
-                                riot_sys::sock_udp_set_cb(sock, Some(Self::callback), arg);
-                            }
-
-                            return core::task::Poll::Pending;
-                        }
-                        Err(e) => {
-                            debug_assert!(cursor == 0, "Late error in sock_udp_recv_buf execution");
-                            return core::task::Poll::Ready(Err(e));
-                        }
-                        Ok(0) => {
-                            return core::task::Poll::Ready(Ok(cursor));
-                        }
-                        Ok(n) => {
-                            let n = n as _;
-
-                            if let Some(remaining_bytes) = self.buffer.len().checked_sub(cursor) {
-                                let to_be_copied = core::cmp::min(remaining_bytes, n);
-                                self.buffer[cursor..cursor + to_be_copied].copy_from_slice(
-                                    unsafe {
-                                        core::slice::from_raw_parts(data as *const u8, to_be_copied)
-                                    },
-                                );
-                            }
-
-                            cursor += n;
-                        }
-                    }
-                }
-            }
-        }
-        impl ReceiveIntoArgs<'_> {
-            unsafe extern "C" fn callback(
-                sock: *mut sock_udp_t,
-                flags: riot_sys::sock_async_flags_t,
-                arg: *mut riot_sys::libc::c_void,
-            ) {
-                if flags & riot_sys::inline::SOCK_ASYNC_MSG_RECV == 0 {
-                    // We can get stray _MSG_SENT in here (although I'm not sure those even get
-                    // generated currently). Waking once would do no harm, as the polling function
-                    // would just find that the socket is surprisingly not ready and register the
-                    // callback anew, but let's not kick that off if two instructions can prevent
-                    // it.
-                    return;
-                }
-                RiotStylePollStruct::<Self>::callback(arg);
-            }
-        }
-        impl Drop for ReceiveIntoArgs<'_> {
-            fn drop(&mut self) {
-                let sock: &mut sock_udp_t = self.sock;
-                unsafe {
-                    riot_sys::sock_udp_set_cb(sock, None, core::ptr::null_mut());
-                }
-                // No need to drop our fields individually, they're all just references. But if we
-                // had any, we'd need to drop them only after we know that no callback will fire
-                // any more.
-            }
-        }
-
         RiotStylePollStruct::new(ReceiveIntoArgs {
             sock: self.socket,
             buffer,
@@ -301,5 +187,116 @@ impl embedded_nal_async::UnconnectedUdp for UnconnectedUdpSocket {
         Self::Error,
     > {
         todo!()
+    }
+}
+
+struct ReceiveIntoArgs<'a> {
+    sock: &'a mut sock_udp_t,
+    buffer: &'a mut [u8],
+}
+impl RiotStyleFuture for ReceiveIntoArgs<'_> {
+    type Output = Result<usize, NumericError>;
+    fn poll(
+        &mut self,
+        arg: *mut riot_sys::libc::c_void,
+    ) -> core::task::Poll<Result<usize, NumericError>> {
+        let sock: &mut sock_udp_t = self.sock;
+
+        // Using recv_buf so that we can get the full length, and thus deliver the first
+        // slice without misleading the receiver about the length of the datagram.
+        //
+        // Effectively, this is the sock_udp_recv function (which is internally
+        // sock_udp_recv_buf with consecutive memcpy calls) reimplemented in Rust, but with
+        // the change that it counts up to the full datagram length
+
+        let mut data = core::ptr::null_mut();
+        let mut buf_ctx = core::ptr::null_mut();
+
+        let mut cursor = 0;
+        loop {
+            match (unsafe {
+                riot_sys::inline::sock_udp_recv_buf(
+                    crate::inline_cast_mut(sock),
+                    &mut data,
+                    &mut buf_ctx,
+                    // Return immediately
+                    0,
+                    // Not interested: This is a connected socket, it better be coming from the
+                    // address we connected to.
+                    core::ptr::null_mut(),
+                )
+            })
+            .negative_to_error()
+            {
+                Err(crate::error::EAGAIN) => {
+                    // We could accommodate that if we kept the cursor in the
+                    // ReceiveIntoArgs, but as it's probably not the async RIOT API's
+                    // intention to ever do this, why waste anything on it.
+                    debug_assert!(
+                        cursor == 0,
+                        "sock_udp_recv_buf indicated availability of
+                                          partial datagram before complete reception"
+                    );
+
+                    // When setting all this up, we got a &mut self, so we can be sure that there
+                    // is no other thread or task simultaneously trying to receive on this, or even
+                    // doing a blocking send on it (which we currently don't do anyway).
+                    //
+                    // (Otherwise, we'd have to worry about overwriting a callback).
+                    unsafe {
+                        riot_sys::sock_udp_set_cb(sock, Some(Self::callback), arg);
+                    }
+
+                    return core::task::Poll::Pending;
+                }
+                Err(e) => {
+                    debug_assert!(cursor == 0, "Late error in sock_udp_recv_buf execution");
+                    return core::task::Poll::Ready(Err(e));
+                }
+                Ok(0) => {
+                    return core::task::Poll::Ready(Ok(cursor));
+                }
+                Ok(n) => {
+                    let n = n as _;
+
+                    if let Some(remaining_bytes) = self.buffer.len().checked_sub(cursor) {
+                        let to_be_copied = core::cmp::min(remaining_bytes, n);
+                        self.buffer[cursor..cursor + to_be_copied].copy_from_slice(unsafe {
+                            core::slice::from_raw_parts(data as *const u8, to_be_copied)
+                        });
+                    }
+
+                    cursor += n;
+                }
+            }
+        }
+    }
+}
+impl ReceiveIntoArgs<'_> {
+    unsafe extern "C" fn callback(
+        sock: *mut sock_udp_t,
+        flags: riot_sys::sock_async_flags_t,
+        arg: *mut riot_sys::libc::c_void,
+    ) {
+        if flags & riot_sys::inline::SOCK_ASYNC_MSG_RECV == 0 {
+            // We can get stray _MSG_SENT in here (although I'm not sure those even get
+            // generated currently). Waking once would do no harm, as the polling function
+            // would just find that the socket is surprisingly not ready and register the
+            // callback anew, but let's not kick that off if two instructions can prevent
+            // it.
+            return;
+        }
+        RiotStylePollStruct::<Self>::callback(arg);
+    }
+}
+impl Drop for ReceiveIntoArgs<'_> {
+    fn drop(&mut self) {
+        let sock: &mut sock_udp_t = self.sock;
+        unsafe {
+            riot_sys::sock_udp_set_cb(sock, None, core::ptr::null_mut());
+        }
+        // No need to drop our fields individually, they're all just references. But if we
+        // had any, we'd need to drop them only after we know that no callback will fire
+        // any more.
     }
 }
