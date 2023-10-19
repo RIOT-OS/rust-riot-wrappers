@@ -55,8 +55,9 @@ fn get_local(socket: &mut sock_udp_t) -> Result<UdpEp, NumericError> {
 impl embedded_nal_async::UdpStack for UdpStack {
     type Error = NumericError;
     type Connected = ConnectedUdpSocket;
-    // This could be done possibly more efficiently (by storing the final_local address rather than
-    // getting it in and out of the calls), but right now implementer efficiency is the bottleneck
+    // This could be done more efficiently (in particular, the send of UniquelyBound wouldn't need
+    // to use aux to get the sender address in), but right now implementer efficiency is the
+    // bottleneck.
     type UniquelyBound = UnconnectedUdpSocket;
     type MultiplyBound = UnconnectedUdpSocket;
 
@@ -81,14 +82,20 @@ impl embedded_nal_async::UdpStack for UdpStack {
         &self,
         local: embedded_nal_async::SocketAddr,
     ) -> Result<(embedded_nal_async::SocketAddr, Self::UniquelyBound), Self::Error> {
-        todo!()
+        let mut socket = self.create(Some(local.into()), None, 0)?;
+
+        let final_local = get_local(&mut socket)?;
+
+        Ok((final_local.into(), UnconnectedUdpSocket { socket }))
     }
 
     async fn bind_multiple(
         &self,
         local: embedded_nal_async::SocketAddr,
     ) -> Result<Self::MultiplyBound, Self::Error> {
-        todo!()
+        let mut socket = self.create(Some(local.into()), None, 0)?;
+
+        Ok(UnconnectedUdpSocket { socket })
     }
 }
 
@@ -249,8 +256,9 @@ impl Drop for ConnectedUdpSocket {
     }
 }
 
+#[derive(Debug)]
 pub struct UnconnectedUdpSocket {
-    socket: sock_udp_t,
+    socket: &'static mut sock_udp_t,
 }
 
 impl embedded_nal_async::UnconnectedUdp for UnconnectedUdpSocket {
@@ -262,7 +270,24 @@ impl embedded_nal_async::UnconnectedUdp for UnconnectedUdpSocket {
         remote: embedded_nal_async::SocketAddr,
         data: &[u8],
     ) -> Result<(), Self::Error> {
-        todo!()
+        let remote: UdpEp = remote.into();
+        let local: UdpEp = local.into();
+        let mut aux = riot_sys::sock_udp_aux_tx_t {
+            local: local.0,
+            flags: riot_sys::SOCK_AUX_SET_LOCAL as _,
+            ..Default::default()
+        };
+        unsafe {
+            riot_sys::inline::sock_udp_send_aux(
+                crate::inline_cast_ref_mut(self.socket),
+                data.as_ptr() as _,
+                data.len() as _,
+                remote.as_ref() as *const _,
+                crate::inline_cast_ref_mut(&mut aux),
+            )
+            .negative_to_error()?
+        };
+        Ok(())
     }
     async fn receive_into(
         &mut self,
