@@ -48,11 +48,6 @@ impl embedded_nal_async::UdpStack for UdpStack {
         // passed in
         // (may need additional sock features https://matrix.to/#/!pqHdpanAvkJvlCwUDE:matrix.org/$njHr_rLw0yWUceYytDYgsop1Aiz9p0WSTp4HN6NBtPA?via=matrix.org&via=utwente.io&via=rubdos.be )
         // (first tests indicate that while the UDP port is fixed, the local address is not)
-        crate::println!(
-            "Afer connection, local address went from {:?} to {:?}",
-            local,
-            final_local
-        );
 
         Ok((final_local.into(), ConnectedUdpSocket { socket }))
     }
