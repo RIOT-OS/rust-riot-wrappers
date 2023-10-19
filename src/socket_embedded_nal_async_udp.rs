@@ -107,39 +107,76 @@ impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
                 arg: *mut riot_sys::libc::c_void,
             ) -> core::task::Poll<Result<usize, crate::error::NumericError>> {
                 let sock: &mut riot_sys::sock_udp_t = self.sock;
-                // FIXME: This is not complying with the embedded-nal-async API, because it errs on
-                // overly long received packets, rather than returning the total length while
-                // filling up the buffer. (But let's clean that up once there is less other
-                // refactoring to do around here).
-                let result = (unsafe {
-                    riot_sys::sock_udp_recv(
-                        crate::inline_cast_mut(sock),
-                        self.buffer.as_ptr() as _,
-                        self.buffer.len() as _,
-                        // Return immediately
-                        0,
-                        // Not interested: This is a connected socket, it better be coming from the
-                        // address we connected to.
-                        core::ptr::null_mut(),
-                    )
-                })
-                .negative_to_error();
-                if result
-                    == Err(crate::error::NumericError::from_constant(
-                        riot_sys::EAGAIN as _,
-                    ))
-                {
-                    // When setting all this up, we got a &mut self, so we can be sure that there
-                    // is no other thread or task simultaneously trying to receive on this, or even
-                    // doing a blocking send on it (which we currently don't do anyway).
-                    //
-                    // (Otherwise, we'd have to worry about overwriting a callback).
-                    unsafe {
-                        riot_sys::sock_udp_set_cb(sock, Some(Self::callback), arg);
+
+                // Using recv_buf so that we can get the full length, and thus deliver the first
+                // slice without misleading the receiver about the length of the datagram.
+                //
+                // Effectively, this is the sock_udp_recv function (which is internally
+                // sock_udp_recv_buf with consecutive memcpy calls) reimplemented in Rust, but with
+                // the change that it counts up to the full datagram length
+
+                let mut data = core::ptr::null_mut();
+                let mut buf_ctx = core::ptr::null_mut();
+
+                let mut cursor = 0;
+                loop {
+                    match (unsafe {
+                        riot_sys::inline::sock_udp_recv_buf(
+                            crate::inline_cast_mut(sock),
+                            &mut data,
+                            &mut buf_ctx,
+                            // Return immediately
+                            0,
+                            // Not interested: This is a connected socket, it better be coming from the
+                            // address we connected to.
+                            core::ptr::null_mut(),
+                        )
+                    })
+                    .negative_to_error()
+                    {
+                        Err(crate::error::EAGAIN) => {
+                            // We could accommodate that if we kept the cursor in the
+                            // ReceiveIntoArgs, but as it's probably not the async RIOT API's
+                            // intention to ever do this, why waste anything on it.
+                            debug_assert!(
+                                cursor == 0,
+                                "sock_udp_recv_buf indicated availability of
+                                          partial datagram before complete reception"
+                            );
+
+                            // When setting all this up, we got a &mut self, so we can be sure that there
+                            // is no other thread or task simultaneously trying to receive on this, or even
+                            // doing a blocking send on it (which we currently don't do anyway).
+                            //
+                            // (Otherwise, we'd have to worry about overwriting a callback).
+                            unsafe {
+                                riot_sys::sock_udp_set_cb(sock, Some(Self::callback), arg);
+                            }
+
+                            return core::task::Poll::Pending;
+                        }
+                        Err(e) => {
+                            debug_assert!(cursor == 0, "Late error in sock_udp_recv_buf execution");
+                            return core::task::Poll::Ready(Err(e));
+                        }
+                        Ok(0) => {
+                            return core::task::Poll::Ready(Ok(cursor));
+                        }
+                        Ok(n) => {
+                            let n = n as _;
+
+                            if let Some(remaining_bytes) = self.buffer.len().checked_sub(cursor) {
+                                let to_be_copied = core::cmp::min(remaining_bytes, n);
+                                self.buffer[cursor..cursor + to_be_copied].copy_from_slice(
+                                    unsafe {
+                                        core::slice::from_raw_parts(data as *const u8, to_be_copied)
+                                    },
+                                );
+                            }
+
+                            cursor += n;
+                        }
                     }
-                    core::task::Poll::Pending
-                } else {
-                    core::task::Poll::Ready(result.map(|n| n as _))
                 }
             }
         }
