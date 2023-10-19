@@ -1,23 +1,62 @@
-use crate::error::NegativeErrorExt;
+use crate::error::{NegativeErrorExt, NumericError, ENOSPC};
+use crate::socket::UdpEp;
 use core::mem::MaybeUninit;
+use riot_sys::sock_udp_t;
 
 #[derive(Debug)]
 pub struct UdpStack {
     // It's annoying we need those not to move; just asking the user to help us out here.
-    static_socket_factory: fn() -> Option<&'static mut MaybeUninit<riot_sys::sock_udp_t>>,
+    static_socket_factory: fn() -> Option<&'static mut MaybeUninit<sock_udp_t>>,
 }
 
 impl UdpStack {
-    pub fn new(factory: fn() -> Option<&'static mut MaybeUninit<riot_sys::sock_udp_t>>) -> Self {
+    pub fn new(factory: fn() -> Option<&'static mut MaybeUninit<sock_udp_t>>) -> Self {
         Self {
             static_socket_factory: factory,
         }
     }
+
+    /// Wrpper for sock_udp_create that pulls its immovable item right out of the factory
+    fn create(
+        &self,
+        local: Option<UdpEp>,
+        remote: Option<UdpEp>,
+        flags: u16,
+    ) -> Result<&'static mut sock_udp_t, NumericError> {
+        let mut socket = (self.static_socket_factory)().ok_or(ENOSPC)?;
+        Ok(unsafe {
+            riot_sys::sock_udp_create(
+                socket.as_mut_ptr(),
+                local
+                    .as_ref()
+                    .map(|s| s.as_ref() as *const _)
+                    .unwrap_or(core::ptr::null()),
+                remote
+                    .as_ref()
+                    .map(|s| s.as_ref() as *const _)
+                    .unwrap_or(core::ptr::null()),
+                flags,
+            )
+            .negative_to_error()?;
+            socket.assume_init_mut()
+        })
+    }
+}
+
+fn get_local(socket: &mut sock_udp_t) -> Result<UdpEp, NumericError> {
+    let mut final_local = MaybeUninit::uninit();
+    Ok(unsafe {
+        riot_sys::sock_udp_get_local(socket, final_local.as_mut_ptr()).negative_to_error()?;
+        final_local.assume_init()
+    }
+    .into())
 }
 
 impl embedded_nal_async::UdpStack for UdpStack {
-    type Error = crate::error::NumericError;
+    type Error = NumericError;
     type Connected = ConnectedUdpSocket;
+    // This could be done possibly more efficiently (by storing the final_local address rather than
+    // getting it in and out of the calls), but right now implementer efficiency is the bottleneck
     type UniquelyBound = UnconnectedUdpSocket;
     type MultiplyBound = UnconnectedUdpSocket;
 
@@ -26,23 +65,9 @@ impl embedded_nal_async::UdpStack for UdpStack {
         local: embedded_nal_async::SocketAddr,
         remote: embedded_nal_async::SocketAddr,
     ) -> Result<(embedded_nal_async::SocketAddr, Self::Connected), Self::Error> {
-        let local: crate::socket::UdpEp = local.into();
-        let remote: crate::socket::UdpEp = remote.into();
-        let mut socket = (self.static_socket_factory)().ok_or(
-            crate::error::NumericError::from_constant(riot_sys::ENOSPC as _),
-        )?;
-        let mut socket = unsafe {
-            riot_sys::sock_udp_create(socket.as_mut_ptr(), local.as_ref(), remote.as_ref(), 0)
-                .negative_to_error()?;
-            socket.assume_init_mut()
-        };
+        let mut socket = self.create(Some(local.into()), Some(remote.into()), 0)?;
 
-        let mut final_local = MaybeUninit::uninit();
-        let final_local: crate::socket::UdpEp = unsafe {
-            riot_sys::sock_udp_get_local(socket, final_local.as_mut_ptr()).negative_to_error()?;
-            final_local.assume_init()
-        }
-        .into();
+        let final_local = get_local(&mut socket)?;
 
         // FIXME: Verify that sock really narrows local address in case something unspecified was
         // passed in
@@ -58,6 +83,7 @@ impl embedded_nal_async::UdpStack for UdpStack {
     ) -> Result<(embedded_nal_async::SocketAddr, Self::UniquelyBound), Self::Error> {
         todo!()
     }
+
     async fn bind_multiple(
         &self,
         local: embedded_nal_async::SocketAddr,
@@ -66,7 +92,7 @@ impl embedded_nal_async::UdpStack for UdpStack {
     }
 }
 
-impl embedded_io_async::Error for crate::error::NumericError {
+impl embedded_io_async::Error for NumericError {
     fn kind(&self) -> embedded_io_async::ErrorKind {
         // FIXME there are some that do make sense here
         embedded_io_async::ErrorKind::Other
@@ -75,11 +101,11 @@ impl embedded_io_async::Error for crate::error::NumericError {
 
 #[derive(Debug)]
 pub struct ConnectedUdpSocket {
-    socket: &'static mut riot_sys::sock_udp_t,
+    socket: &'static mut sock_udp_t,
 }
 
 impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
-    type Error = crate::error::NumericError;
+    type Error = NumericError;
 
     async fn send(&mut self, data: &[u8]) -> Result<(), Self::Error> {
         unsafe {
@@ -97,16 +123,16 @@ impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
         use crate::async_helpers::{RiotStyleFuture, RiotStylePollStruct};
 
         struct ReceiveIntoArgs<'a> {
-            sock: &'a mut riot_sys::sock_udp_t,
+            sock: &'a mut sock_udp_t,
             buffer: &'a mut [u8],
         }
         impl RiotStyleFuture for ReceiveIntoArgs<'_> {
-            type Output = Result<usize, crate::error::NumericError>;
+            type Output = Result<usize, NumericError>;
             fn poll(
                 &mut self,
                 arg: *mut riot_sys::libc::c_void,
-            ) -> core::task::Poll<Result<usize, crate::error::NumericError>> {
-                let sock: &mut riot_sys::sock_udp_t = self.sock;
+            ) -> core::task::Poll<Result<usize, NumericError>> {
+                let sock: &mut sock_udp_t = self.sock;
 
                 // Using recv_buf so that we can get the full length, and thus deliver the first
                 // slice without misleading the receiver about the length of the datagram.
@@ -182,7 +208,7 @@ impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
         }
         impl ReceiveIntoArgs<'_> {
             unsafe extern "C" fn callback(
-                sock: *mut riot_sys::sock_udp_t,
+                sock: *mut sock_udp_t,
                 flags: riot_sys::sock_async_flags_t,
                 arg: *mut riot_sys::libc::c_void,
             ) {
@@ -199,7 +225,7 @@ impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
         }
         impl Drop for ReceiveIntoArgs<'_> {
             fn drop(&mut self) {
-                let sock: &mut riot_sys::sock_udp_t = self.sock;
+                let sock: &mut sock_udp_t = self.sock;
                 unsafe {
                     riot_sys::sock_udp_set_cb(sock, None, core::ptr::null_mut());
                 }
@@ -224,11 +250,11 @@ impl Drop for ConnectedUdpSocket {
 }
 
 pub struct UnconnectedUdpSocket {
-    socket: riot_sys::sock_udp_t,
+    socket: sock_udp_t,
 }
 
 impl embedded_nal_async::UnconnectedUdp for UnconnectedUdpSocket {
-    type Error = crate::error::NumericError;
+    type Error = NumericError;
 
     async fn send(
         &mut self,
