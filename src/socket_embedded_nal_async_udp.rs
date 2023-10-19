@@ -46,7 +46,7 @@ impl embedded_nal_async::UdpStack for UdpStack {
 
         // FIXME: Verify that sock really narrows local address in case something unspecified was
         // passed in
-        // (may need additional sock features https://matrix.to/#/!pqHdpanAvkJvlCwUDE:matrix.org/$njHr_rLw0yWUceYytDYgsop1Aiz9p0WSTp4HN6NBtPA?via=matrix.org&via=utwente.io&via=rubdos.be )
+
         // (first tests indicate that while the UDP port is fixed, the local address is not)
 
         Ok((final_local.into(), ConnectedUdpSocket { socket }))
@@ -214,6 +214,12 @@ impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
             buffer,
         })
         .await
+    }
+}
+
+impl Drop for ConnectedUdpSocket {
+    fn drop(&mut self) {
+        unsafe { riot_sys::sock_udp_close(self.socket) };
     }
 }
 
