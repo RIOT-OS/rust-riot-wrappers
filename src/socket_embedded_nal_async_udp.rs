@@ -128,11 +128,15 @@ impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
         Ok(())
     }
     async fn receive_into(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
+        // This could be done more efficiently by ugins a ReceiveIntoArgs variant that doesn't pull
+        // out a remote through a pointer and a local through an aux, but as long our bottleneck is
+        // implementer efficiency, dropping that data is fine.
         RiotStylePollStruct::new(ReceiveIntoArgs {
             sock: self.socket,
             buffer,
         })
         .await
+        .map(|(n, _local, _remote)| n)
     }
 }
 
@@ -186,7 +190,11 @@ impl embedded_nal_async::UnconnectedUdp for UnconnectedUdpSocket {
         ),
         Self::Error,
     > {
-        todo!()
+        RiotStylePollStruct::new(ReceiveIntoArgs {
+            sock: self.socket,
+            buffer,
+        })
+        .await
     }
 }
 
@@ -195,11 +203,15 @@ struct ReceiveIntoArgs<'a> {
     buffer: &'a mut [u8],
 }
 impl RiotStyleFuture for ReceiveIntoArgs<'_> {
-    type Output = Result<usize, NumericError>;
-    fn poll(
-        &mut self,
-        arg: *mut riot_sys::libc::c_void,
-    ) -> core::task::Poll<Result<usize, NumericError>> {
+    type Output = Result<
+        (
+            usize,
+            embedded_nal_async::SocketAddr,
+            embedded_nal_async::SocketAddr,
+        ),
+        NumericError,
+    >;
+    fn poll(&mut self, arg: *mut riot_sys::libc::c_void) -> core::task::Poll<Self::Output> {
         let sock: &mut sock_udp_t = self.sock;
 
         // Using recv_buf so that we can get the full length, and thus deliver the first
@@ -213,17 +225,37 @@ impl RiotStyleFuture for ReceiveIntoArgs<'_> {
         let mut buf_ctx = core::ptr::null_mut();
 
         let mut cursor = 0;
+
+        // It'd be nice if we could leave that uninitialized...
+        let mut aux = riot_sys::sock_udp_aux_rx_t {
+            flags: riot_sys::SOCK_AUX_GET_LOCAL as _,
+            ..Default::default()
+        };
+        let mut remote = MaybeUninit::uninit();
+
+        let mut auxptr = Some(&mut aux);
+        let mut remoteptr = Some(&mut remote);
+
         loop {
             match (unsafe {
-                riot_sys::inline::sock_udp_recv_buf(
-                    crate::inline_cast_mut(sock),
+                riot_sys::sock_udp_recv_buf_aux(
+                    sock,
                     &mut data,
                     &mut buf_ctx,
                     // Return immediately
                     0,
-                    // Not interested: This is a connected socket, it better be coming from the
-                    // address we connected to.
-                    core::ptr::null_mut(),
+                    // That's a mouthful for "pass this pointer, and zero the pointer after the
+                    // first time" (because we only want to have this copied once, especially since
+                    // it's not guaranteed that it also works in later invocations -- at least the
+                    // aux part doesn't)
+                    remoteptr
+                        .take()
+                        .map(|r| r.as_mut_ptr())
+                        .unwrap_or(core::ptr::null_mut()),
+                    auxptr
+                        .take()
+                        .map(|r| r as *mut _)
+                        .unwrap_or(core::ptr::null_mut()),
                 )
             })
             .negative_to_error()
@@ -254,7 +286,12 @@ impl RiotStyleFuture for ReceiveIntoArgs<'_> {
                     return core::task::Poll::Ready(Err(e));
                 }
                 Ok(0) => {
-                    return core::task::Poll::Ready(Ok(cursor));
+                    // unsafe: sock_udp_recv_buf_aux was successful
+                    let remote: UdpEp = unsafe { remote.assume_init() }.into();
+                    assert!(aux.flags & riot_sys::SOCK_AUX_GET_LOCAL as riot_sys::sock_aux_flags_t == 0, "Sock backend must provide local addresses (should be enabled through the `sock_aux_local` module)");
+                    let local: UdpEp = aux.local.into();
+
+                    return core::task::Poll::Ready(Ok((cursor, local.into(), remote.into())));
                 }
                 Ok(n) => {
                     let n = n as _;
