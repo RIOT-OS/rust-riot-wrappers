@@ -291,7 +291,13 @@ impl<'a> Pktsnip<Writable> {
 
 impl<M: Mode> ::core::fmt::Debug for Pktsnip<M> {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        let mode = core::any::type_name::<M>();
+        let mode = mode
+            .rsplit("::")
+            .next()
+            .expect("Type name contains :: because it is part of a module");
         f.debug_struct("Pktsnip")
+            .field("M", &mode)
             .field("length", &self.len())
             .field("snips", &self.count())
             .finish()
