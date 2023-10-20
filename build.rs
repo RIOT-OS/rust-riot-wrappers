@@ -41,12 +41,38 @@ fn main() {
         let bindgen_output = std::fs::read_to_string(bindgen_output_file)
             .expect("Failed to read BINDGEN_OUTPUT_FILE");
 
-        // Whether or not the extra space is there depends on whether or not rustfmt is installed.
-        // FIXME: Find a better way to extract that information
-        if bindgen_output.contains("pub const CONFIG_AUTO_INIT_ENABLE_DEBUG: u32 = 1;")
-            || bindgen_output.contains("pub const CONFIG_AUTO_INIT_ENABLE_DEBUG : u32 = 1 ;")
-        {
-            println!("cargo:rustc-cfg=marker_config_auto_init_enable_debug");
+        const BOOLEAN_FLAGS: &[&str] = &[
+            // This decides whether or not some fields are populated ... and unlike with other
+            // structs, the zeroed default is not a good solution here. (It'd kind of work, but
+            // it'd produce incorrect debug output).
+            "CONFIG_AUTO_INIT_ENABLE_DEBUG",
+        ];
+
+        let parsed = syn::parse_file(&bindgen_output).expect("Failed to parse bindgen output");
+        for item in &parsed.items {
+            if let syn::Item::Const(const_) = item {
+                // It's the easiest way to get something we can `contains`...
+                let ident = const_.ident.to_string();
+                if BOOLEAN_FLAGS.contains(&ident.as_str()) {
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Int(litint),
+                        ..
+                    }) = &*const_.expr
+                    {
+                        let value: usize = litint
+                            .base10_parse()
+                            .expect("Identifier is integer literal but not parsable");
+                        if value != 0 {
+                            println!("cargo:rustc-cfg=marker_{}", ident.to_lowercase());
+                        }
+                        continue;
+                    }
+                    panic!(
+                        "Found {} but it's not the literal const it was expected to be",
+                        ident
+                    );
+                }
+            }
         }
     } else {
         println!("cargo:warning=Old riot-sys did not provide BINDGEN_OUTPUT_FILE, assuming it's an old RIOT version");

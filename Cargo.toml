@@ -48,6 +48,7 @@ pin-utils = "0.1"
 
 [build-dependencies]
 shlex = "0.1.1"
+syn = { version = "1.0.107", features = [ "parsing" ] }
 
 [features]
 default = []
