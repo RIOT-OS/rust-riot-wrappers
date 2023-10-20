@@ -3,7 +3,7 @@
 use riot_wrappers::mutex::Mutex;
 use riot_wrappers::println;
 use riot_wrappers::riot_main;
-use riot_wrappers::thread::{InThread, ValueInThread};
+use riot_wrappers::thread::InThread;
 
 riot_main!(main);
 

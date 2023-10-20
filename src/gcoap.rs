@@ -216,7 +216,7 @@ unsafe extern "C" fn link_encoder<H: WithLinkEncoder>(
     let h: &H = unsafe { &*((*resource).context as *const _) };
 
     let buf = buf as *mut u8; // cast away signedness of char
-    let mut buf = if buf.is_null() {
+    let buf = if buf.is_null() {
         None
     } else {
         Some(core::slice::from_raw_parts_mut(buf, buf_len as _))
@@ -259,7 +259,7 @@ impl<'a, H> SingleHandlerListener<'a, H>
 where
     H: 'a + Handler + WithLinkEncoder,
 {
-    /// Like [`new()`], but utilizing that the handler is also [WithLinkEncoder] and can thus influence
+    /// Like [`Self::new()`], but utilizing that the handler is also [WithLinkEncoder] and can thus influence
     /// what is reported when the default .well-known/core handler is queried.
     pub fn new_with_link_encoder(
         path: &'a core::ffi::CStr,
@@ -344,7 +344,6 @@ pub trait WithLinkEncoder {
 }
 
 use riot_sys::{
-    coap_get_total_hdr_len,
     coap_opt_add_opaque,
     coap_opt_add_uint,
     coap_opt_get_next,
@@ -374,11 +373,6 @@ impl PacketBuffer {
                 self.pkt as *mut _, // missing const in C
             )
         }) as u8 // odd return type in C
-    }
-
-    /// Wrapper for coap_get_total_hdr_len
-    fn get_total_hdr_len(&self) -> usize {
-        (unsafe { coap_get_total_hdr_len(crate::inline_cast(self.pkt)) }) as usize
     }
 
     /// Wrapper for gcoap_resp_init

@@ -1,6 +1,6 @@
 //! Tools for declaring a function that is run during initialization
 //!
-//! The [auto_init!] macro is this module's main product.
+//! The [`auto_init!`](super::auto_init!) macro is this module's main product.
 
 /// Wrapper around [riot_sys::auto_init_module_t]
 ///
@@ -13,7 +13,7 @@ impl AutoInitModule {
     /// Initializer for module auto-initialization
     ///
     /// Do not call this directly: Its result must be placed in a static in a special section in
-    /// memory, which is handled by the [`auto_init!`] macro.
+    /// memory, which is handled by the [`auto_init!`](super::auto_init!) macro.
     pub const fn new(
         init_function: extern "C" fn(),
         priority: u16,

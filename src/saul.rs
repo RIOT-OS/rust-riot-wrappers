@@ -17,12 +17,8 @@
 //!
 //! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
 
-use riot_sys as raw;
-use riot_sys::libc;
-
 use crate::error;
 use crate::helpers::PointerToCStr;
-use crate::Never;
 use error::NegativeErrorExt;
 
 pub mod registration;
@@ -95,10 +91,9 @@ impl RegistryEntry {
             unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }
                 .negative_to_error()?;
         if length != value.length.into() {
-            // FIXME is this the best way to express the error?
-            Err(error::NumericError {
-                number: length as isize,
-            })
+            // It's not pretty to synthesize an error here, but neither would be expressing the
+            // partial write in the context of lengthful phydat items.
+            Err(error::NumericError::from_constant(riot_sys::EINVAL as _))
         } else {
             Ok(())
         }
@@ -404,8 +399,10 @@ impl Unit {
     // we can just switch over before they go.
     #[deprecated(note = "Use the GForce variant instead")]
     pub const G: Self = Unit::GForce;
+    #[allow(non_upper_case_globals)]
     #[deprecated(note = "Use the Gram variant instead")]
     pub const Gr: Self = Unit::Gram;
+    #[allow(non_upper_case_globals)]
     #[deprecated(note = "Use the Gauss variant instead")]
     pub const Gs: Self = Unit::Gauss;
 

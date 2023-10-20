@@ -24,46 +24,45 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
                 cstr::cstr!("RUST PANIC").as_ptr() as _,
             )
         };
-        unreachable!()
-    }
-
-    // I *guess* it's OK for a panic to simply make a thread into a zombie -- this does allow other
-    // threads (including spawned Rust threads) to continue, but my layman's understanding of
-    // panicking is that that's OK because whatever we were just mutating can simply never be used
-    // by someone else ever again.
-
-    let me = thread::get_pid();
-
-    if cfg!(feature = "panic_handler_format") {
-        use crate::stdio::println;
-
-        println!(
-            "Error in thread {:?} ({}):",
-            me,
-            me.get_name().unwrap_or("unnamed")
-        );
-        println!("{}", info);
     } else {
-        let mut stdio = crate::stdio::Stdio {};
-        use core::fmt::Write;
-        let _ = stdio.write_str("Panic in thread ");
-        let _ = stdio.write_str(me.get_name().unwrap_or("unnamed"));
-        let _ = stdio.write_str("!\n");
-    }
+        // I *guess* it's OK for a panic to simply make a thread into a zombie -- this does allow other
+        // threads (including spawned Rust threads) to continue, but my layman's understanding of
+        // panicking is that that's OK because whatever we were just mutating can simply never be used
+        // by someone else ever again.
 
-    if cfg!(feature = "panic_handler_crash") {
-        unsafe {
-            riot_sys::core_panic(
-                riot_sys::core_panic_t_PANIC_GENERAL_ERROR,
-                cstr::cstr!("RUST PANIC").as_ptr() as _,
-            )
+        let me = thread::get_pid();
+
+        if cfg!(feature = "panic_handler_format") {
+            use crate::stdio::println;
+
+            println!(
+                "Error in thread {:?} ({}):",
+                me,
+                me.get_name().unwrap_or("unnamed")
+            );
+            println!("{}", info);
+        } else {
+            let mut stdio = crate::stdio::Stdio {};
+            use core::fmt::Write;
+            let _ = stdio.write_str("Panic in thread ");
+            let _ = stdio.write_str(me.get_name().unwrap_or("unnamed"));
+            let _ = stdio.write_str("!\n");
         }
-    }
 
-    // Not trying any unwinding -- this thread is just dead, won't be re-claimed, any mutexes it
-    // holds are just held indefinitely rather than throwing poison errors.
-    loop {
-        thread::sleep();
+        if cfg!(feature = "panic_handler_crash") {
+            unsafe {
+                riot_sys::core_panic(
+                    riot_sys::core_panic_t_PANIC_GENERAL_ERROR,
+                    cstr::cstr!("RUST PANIC").as_ptr() as _,
+                )
+            }
+        }
+
+        // Not trying any unwinding -- this thread is just dead, won't be re-claimed, any mutexes it
+        // holds are just held indefinitely rather than throwing poison errors.
+        loop {
+            thread::sleep();
+        }
     }
 }
 
