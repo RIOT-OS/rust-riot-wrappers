@@ -28,7 +28,7 @@ pub enum MsgSender {
 
 impl MsgSender {
     fn from_pid(pid: kernel_pid_t) -> Self {
-        if pid == crate::thread::pid_converted::KERNEL_PID_ISR {
+        if pid == crate::thread::KERNEL_PID_ISR {
             MsgSender::ISR
         } else {
             KernelPID::new(pid)

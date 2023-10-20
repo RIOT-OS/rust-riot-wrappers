@@ -14,41 +14,33 @@ pub use creation::{scope, spawn, CountedThread, CountingThreadScope};
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct KernelPID(pub(crate) raw::kernel_pid_t);
 
-pub(crate) mod pid_converted {
-    //! Converting the raw constants into consistently typed ones
-    use riot_sys as raw;
+// Converting the raw constants into consistently typed ones
 
-    pub const KERNEL_PID_UNDEF: raw::kernel_pid_t = raw::KERNEL_PID_UNDEF as _;
-    pub const KERNEL_PID_FIRST: raw::kernel_pid_t = raw::KERNEL_PID_FIRST as _;
-    pub const KERNEL_PID_LAST: raw::kernel_pid_t = raw::KERNEL_PID_LAST as _;
-    pub const KERNEL_PID_ISR: raw::kernel_pid_t = raw::KERNEL_PID_ISR as _;
-}
+// pub(crate) const KERNEL_PID_UNDEF: riot_sys::kernel_pid_t = riot_sys::KERNEL_PID_UNDEF as _;
+const KERNEL_PID_FIRST: riot_sys::kernel_pid_t = riot_sys::KERNEL_PID_FIRST as _;
+const KERNEL_PID_LAST: riot_sys::kernel_pid_t = riot_sys::KERNEL_PID_LAST as _;
+pub(crate) const KERNEL_PID_ISR: riot_sys::kernel_pid_t = riot_sys::KERNEL_PID_ISR as _;
 
-mod status_converted {
-    //! Converting the raw constants into consistently typed ones for use in match branches. If
-    //! that becomes a pattern, it might make sense to introduce a macro that forces a bunch of
-    //! symbols (with different capitalizations) into a given type and makes an enum with a
-    //! from_int method out of it.
+// Converting the raw constants into consistently typed ones for use in match branches. If
+// that becomes a pattern, it might make sense to introduce a macro that forces a bunch of
+// symbols (with different capitalizations) into a given type and makes an enum with a
+// from_int method out of it.
 
-    use riot_sys as raw;
+// This is special because it is not part of the enum but a cast -1
+// unsafe: Side effect free C macros
+const STATUS_NOT_FOUND: i32 = unsafe { riot_sys::macro_STATUS_NOT_FOUND() as _ };
 
-    // This is special because it is not part of the enum but a cast -1
-    // unsafe: Side effect free C macros
-    pub const STATUS_NOT_FOUND: i32 = unsafe { raw::macro_STATUS_NOT_FOUND() as _ };
-
-    pub const STATUS_STOPPED: i32 = raw::thread_status_t_STATUS_STOPPED as i32;
-    pub const STATUS_SLEEPING: i32 = raw::thread_status_t_STATUS_SLEEPING as i32;
-    pub const STATUS_MUTEX_BLOCKED: i32 = raw::thread_status_t_STATUS_MUTEX_BLOCKED as i32;
-    pub const STATUS_RECEIVE_BLOCKED: i32 = raw::thread_status_t_STATUS_RECEIVE_BLOCKED as i32;
-    pub const STATUS_SEND_BLOCKED: i32 = raw::thread_status_t_STATUS_SEND_BLOCKED as i32;
-    pub const STATUS_REPLY_BLOCKED: i32 = raw::thread_status_t_STATUS_REPLY_BLOCKED as i32;
-    pub const STATUS_FLAG_BLOCKED_ANY: i32 = raw::thread_status_t_STATUS_FLAG_BLOCKED_ANY as i32;
-    pub const STATUS_FLAG_BLOCKED_ALL: i32 = raw::thread_status_t_STATUS_FLAG_BLOCKED_ALL as i32;
-    pub const STATUS_MBOX_BLOCKED: i32 = raw::thread_status_t_STATUS_MBOX_BLOCKED as i32;
-    pub const STATUS_RUNNING: i32 = raw::thread_status_t_STATUS_RUNNING as i32;
-    pub const STATUS_PENDING: i32 = raw::thread_status_t_STATUS_PENDING as i32;
-}
-
+const STATUS_STOPPED: i32 = riot_sys::thread_status_t_STATUS_STOPPED as i32;
+const STATUS_SLEEPING: i32 = riot_sys::thread_status_t_STATUS_SLEEPING as i32;
+const STATUS_MUTEX_BLOCKED: i32 = riot_sys::thread_status_t_STATUS_MUTEX_BLOCKED as i32;
+const STATUS_RECEIVE_BLOCKED: i32 = riot_sys::thread_status_t_STATUS_RECEIVE_BLOCKED as i32;
+const STATUS_SEND_BLOCKED: i32 = riot_sys::thread_status_t_STATUS_SEND_BLOCKED as i32;
+const STATUS_REPLY_BLOCKED: i32 = riot_sys::thread_status_t_STATUS_REPLY_BLOCKED as i32;
+const STATUS_FLAG_BLOCKED_ANY: i32 = riot_sys::thread_status_t_STATUS_FLAG_BLOCKED_ANY as i32;
+const STATUS_FLAG_BLOCKED_ALL: i32 = riot_sys::thread_status_t_STATUS_FLAG_BLOCKED_ALL as i32;
+const STATUS_MBOX_BLOCKED: i32 = riot_sys::thread_status_t_STATUS_MBOX_BLOCKED as i32;
+const STATUS_RUNNING: i32 = riot_sys::thread_status_t_STATUS_RUNNING as i32;
+const STATUS_PENDING: i32 = riot_sys::thread_status_t_STATUS_PENDING as i32;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -56,17 +48,17 @@ pub enum Status {
     // I would not rely on any properties of the assigned values, but it might make the conversion
     // points easier on the generated code if it can be reasoned down to a simple check of whether
     // it's in range.
-    Stopped = status_converted::STATUS_STOPPED as isize,
-    Sleeping = status_converted::STATUS_SLEEPING as isize,
-    MutexBlocked = status_converted::STATUS_MUTEX_BLOCKED as isize,
-    ReceiveBlocked = status_converted::STATUS_RECEIVE_BLOCKED as isize,
-    SendBlocked = status_converted::STATUS_SEND_BLOCKED as isize,
-    ReplyBlocked = status_converted::STATUS_REPLY_BLOCKED as isize,
-    FlagBlockedAny = status_converted::STATUS_FLAG_BLOCKED_ANY as isize,
-    FlagBlockedAll = status_converted::STATUS_FLAG_BLOCKED_ALL as isize,
-    MboxBlocked = status_converted::STATUS_MBOX_BLOCKED as isize,
-    Running = status_converted::STATUS_RUNNING as isize,
-    Pending = status_converted::STATUS_PENDING as isize,
+    Stopped = STATUS_STOPPED as isize,
+    Sleeping = STATUS_SLEEPING as isize,
+    MutexBlocked = STATUS_MUTEX_BLOCKED as isize,
+    ReceiveBlocked = STATUS_RECEIVE_BLOCKED as isize,
+    SendBlocked = STATUS_SEND_BLOCKED as isize,
+    ReplyBlocked = STATUS_REPLY_BLOCKED as isize,
+    FlagBlockedAny = STATUS_FLAG_BLOCKED_ANY as isize,
+    FlagBlockedAll = STATUS_FLAG_BLOCKED_ALL as isize,
+    MboxBlocked = STATUS_MBOX_BLOCKED as isize,
+    Running = STATUS_RUNNING as isize,
+    Pending = STATUS_PENDING as isize,
 
     /// A status value not known to riot-wrappers. Don't match for this explicitly: Other values
     /// may, at any minor riot-wrappers update, become actual process states again.
@@ -78,17 +70,17 @@ pub enum Status {
 impl Status {
     fn from_int(status: i32) -> Self {
         match status {
-            status_converted::STATUS_STOPPED => Status::Stopped,
-            status_converted::STATUS_SLEEPING => Status::Sleeping,
-            status_converted::STATUS_MUTEX_BLOCKED => Status::MutexBlocked,
-            status_converted::STATUS_RECEIVE_BLOCKED => Status::ReceiveBlocked,
-            status_converted::STATUS_SEND_BLOCKED => Status::SendBlocked,
-            status_converted::STATUS_REPLY_BLOCKED => Status::ReplyBlocked,
-            status_converted::STATUS_FLAG_BLOCKED_ANY => Status::FlagBlockedAny,
-            status_converted::STATUS_FLAG_BLOCKED_ALL => Status::FlagBlockedAll,
-            status_converted::STATUS_MBOX_BLOCKED => Status::MboxBlocked,
-            status_converted::STATUS_RUNNING => Status::Running,
-            status_converted::STATUS_PENDING => Status::Pending,
+            STATUS_STOPPED => Status::Stopped,
+            STATUS_SLEEPING => Status::Sleeping,
+            STATUS_MUTEX_BLOCKED => Status::MutexBlocked,
+            STATUS_RECEIVE_BLOCKED => Status::ReceiveBlocked,
+            STATUS_SEND_BLOCKED => Status::SendBlocked,
+            STATUS_REPLY_BLOCKED => Status::ReplyBlocked,
+            STATUS_FLAG_BLOCKED_ANY => Status::FlagBlockedAny,
+            STATUS_FLAG_BLOCKED_ALL => Status::FlagBlockedAll,
+            STATUS_MBOX_BLOCKED => Status::MboxBlocked,
+            STATUS_RUNNING => Status::Running,
+            STATUS_PENDING => Status::Pending,
             _ => Status::Other,
         }
     }
@@ -109,7 +101,7 @@ impl KernelPID {
         // and then this function *should* be reevaluated). As pid_is_valid is static inline, the
         // compiler should be able to see through the calls down to there that the bounds checked
         // for there are the very bounds used in the construction here.
-        (pid_converted::KERNEL_PID_FIRST..=pid_converted::KERNEL_PID_LAST)
+        (KERNEL_PID_FIRST..=KERNEL_PID_LAST)
             .map(|i| KernelPID::new(i).expect("Should be valid by construction"))
     }
 
@@ -128,7 +120,7 @@ impl KernelPID {
     pub fn status(&self) -> Result<Status, NoSuchThread> {
         // unsafe: Side effect free, always-callable C function
         let status = unsafe { raw::thread_getstatus(self.0) } as _;
-        if status == status_converted::STATUS_NOT_FOUND {
+        if status == STATUS_NOT_FOUND {
             Err(NoSuchThread)
         } else {
             Ok(Status::from_int(status))

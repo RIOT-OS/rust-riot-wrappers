@@ -108,11 +108,13 @@ pub unsafe trait CommandListInternals: Sized {
         let sleeve = lock
             .as_ref()
             .expect("Callback called while no shell set up as running");
-        // unsafe: A suitable callback is always configured. We can make a &mut out of it for as
-        // long as we hold the lock.
-        let root = unsafe { &mut *(sleeve.0 as *mut Self) };
-        let result = root.find_self_and_run(argc, argv, command_index);
-        drop(root);
+        let result;
+        {
+            // unsafe: A suitable callback is always configured. We can make a &mut out of it for as
+            // long as we hold the lock.
+            let root = unsafe { &mut *(sleeve.0 as *mut Self) };
+            result = root.find_self_and_run(argc, argv, command_index);
+        }
         drop(lock);
         result
     }
