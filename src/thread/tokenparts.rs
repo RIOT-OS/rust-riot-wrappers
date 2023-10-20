@@ -228,7 +228,7 @@ impl InThread {
     pub fn promote<T>(self, value: T) -> ValueInThread<T> {
         ValueInThread {
             value,
-            in_thread: self,
+            _in_thread: self,
         }
     }
 }
@@ -258,7 +258,7 @@ impl InIsr {
 #[cfg_attr(feature = "nightly_docs", fundamental)]
 pub struct ValueInThread<T> {
     value: T,
-    in_thread: InThread,
+    _in_thread: InThread,
 }
 
 impl<T> ValueInThread<T> {

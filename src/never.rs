@@ -3,6 +3,7 @@
 ///
 /// From <https://github.com/rust-lang/rust/issues/43301#issuecomment-912390203>, adjusted for
 /// usability with pub interfaces by using a pub trait in a private module (sealing).
+#[cfg(not(feature = "actual_never_type"))]
 use crate::helpers::*;
 
 #[cfg(not(feature = "actual_never_type"))]

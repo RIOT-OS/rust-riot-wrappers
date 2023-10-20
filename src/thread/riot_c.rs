@@ -172,16 +172,19 @@ impl KernelPID {
     /// This is not backed by C functions (as most of the rest of this crate is), but rather a
     /// practical way to access struct members that may or may not be present in a build.
     pub fn stack_stats(&self) -> Result<StackStats, StackStatsError> {
-        let thread = self.thread()?;
         #[cfg(riot_develhelp)]
-        return Ok(StackStats {
-            // This cast is relevant because different platforms (eg. native and arm) disagree on
-            // whether that's an i8 or u8 pointer. Could have made it c_char, but a) don't want to
-            // alter the signatures and b) it's easier to use on the Rust side with a clear type.
-            start: unsafe { (*thread).stack_start as _ },
-            size: unsafe { (*thread).stack_size as _ },
-            free: unsafe { riot_sys::thread_measure_stack_free((*thread).stack_start) } as usize,
-        });
+        {
+            let thread = self.thread()?;
+            return Ok(StackStats {
+                // This cast is relevant because different platforms (eg. native and arm) disagree on
+                // whether that's an i8 or u8 pointer. Could have made it c_char, but a) don't want to
+                // alter the signatures and b) it's easier to use on the Rust side with a clear type.
+                start: unsafe { (*thread).stack_start as _ },
+                size: unsafe { (*thread).stack_size as _ },
+                free: unsafe { riot_sys::thread_measure_stack_free((*thread).stack_start) }
+                    as usize,
+            });
+        }
         #[cfg(not(riot_develhelp))]
         return Err(StackStatsError::InformationUnavailable);
     }
