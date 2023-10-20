@@ -400,8 +400,10 @@ impl Unit {
     // we can just switch over before they go.
     #[deprecated(note = "Use the GForce variant instead")]
     pub const G: Self = Unit::GForce;
+    #[allow(non_upper_case_globals)]
     #[deprecated(note = "Use the Gram variant instead")]
     pub const Gr: Self = Unit::Gram;
+    #[allow(non_upper_case_globals)]
     #[deprecated(note = "Use the Gauss variant instead")]
     pub const Gs: Self = Unit::Gauss;
 
