@@ -40,18 +40,25 @@ mod helpers;
 mod never;
 use never::Never;
 
+/// The identifier of the RIOT board the program is being built for (`RIOT_BOARD` in C).
+#[doc(alias = "RIOT_BOARD")]
+pub const BOARD: &'static str = {
+    let b = riot_sys::RIOT_BOARD;
+    let Ok(b) = core::ffi::CStr::from_bytes_with_nul(b) else {
+        // Could be `.expect()`, but that's not const yet
+        // Workaround-For: https://github.com/rust-lang/rust/issues/67441
+        panic!("Board names are null-terminated C strings");
+    };
+    let Ok(b) = b.to_str() else {
+        panic!("Board names should be ASCII")
+    };
+    b
+};
+
 /// Name of the RIOT board that is being used
-///
-/// Development:
-///
-/// Once this can be const, it'll be deprecated in favor of a pub const &'static str. That'll also
-/// force the compiler to remove all the exceptions at build time (currently it does not, even with
-/// aggressive optimization).
-pub fn board() -> &'static str {
-    core::ffi::CStr::from_bytes_with_nul(riot_sys::RIOT_BOARD)
-        .expect("Board names are null-terminated C strings")
-        .to_str()
-        .expect("Board names should be ASCII")
+#[deprecated(note = "Access BOARD instead")]
+pub const fn board() -> &'static str {
+    BOARD
 }
 
 /// Cast pointers around before passing them in to functions; this is sometimes needed when a
