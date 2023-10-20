@@ -33,8 +33,9 @@ pub trait Drivable: Sized {
     /// Set to true if `read` is implemented.
     ///
     /// Doing this on the type level (rather than having read and write return a more
-    /// differentiated error) allows the driver to point to the shared [riot_sys::saul_notsup]
-    /// handler rather than to monomorphize a custom erring handler for each device.
+    /// differentiated error) allows the driver to point to the shared [riot_sys::saul_read_notsup]
+    /// / [riot_sys::saul_write_notsup] handler rather than to monomorphize a custom erring handler
+    /// for each device.
     const HAS_READ: bool = false;
     /// Set to true if `write` is implemented.
     const HAS_WRITE: bool = false;
@@ -50,7 +51,7 @@ pub trait Drivable: Sized {
     /// Set the state of an actuator, or reconfigure a sensor
     ///
     /// A &self is passed in on write because there could be concurrent access from multiple SAUL
-    /// users. One option of handling this is to implement Drivable for Mutex<T>.
+    /// users. One option of handling this is to implement Drivable for `Mutex<T>`.
     ///
     /// Note that due to the way SAUL is structured, the drivable can not know the number of
     /// entries which the user intended to set. The Drivable trait always builds the Rust Phydat

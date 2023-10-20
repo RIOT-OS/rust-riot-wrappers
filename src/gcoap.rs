@@ -259,7 +259,7 @@ impl<'a, H> SingleHandlerListener<'a, H>
 where
     H: 'a + Handler + WithLinkEncoder,
 {
-    /// Like [`new()`], but utilizing that the handler is also [WithLinkEncoder] and can thus influence
+    /// Like [`Self::new()`], but utilizing that the handler is also [WithLinkEncoder] and can thus influence
     /// what is reported when the default .well-known/core handler is queried.
     pub fn new_with_link_encoder(
         path: &'a core::ffi::CStr,

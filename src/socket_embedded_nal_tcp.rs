@@ -1,8 +1,9 @@
 //! An implementation of the [embedded_nal] (Network Abstradtion Layer) TCP traits based on RIOT
 //! sockets
 //!
-//! This is vastly distinct from [socket_embedded_nal] as it requires vastly different workarounds
-//! (and because it was implemented when embedded-nal had already switched over to &mut stack).
+//! This is vastly distinct from [the UDP version](crate::socket_embedded_nal) as it requires
+//! vastly different workarounds (and because it was implemented when embedded-nal had already
+//! switched over to &mut stack).
 //!
 //! ## Warning
 //!

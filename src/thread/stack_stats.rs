@@ -1,4 +1,4 @@
-/// Gathered information about a thread, returned by [KernelPID::stack_stats()].
+/// Gathered information about a thread, returned by [super::KernelPID::stack_stats()].
 ///
 /// All accessors are unconditional, because the StackStats can't be obtained without develhelp in
 /// the first place.

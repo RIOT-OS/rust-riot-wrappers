@@ -5,7 +5,7 @@
 //! * Utility functions can disable interrupts (creating critical sections), check whether
 //!   interrupts are enabled or to determine whether code is executed in a thread or an ISR.
 //!
-//! * Some functions (eg. [`ZTimer::set_ticks_during`](crate::ztimer::ZTimer::set_ticks_during))
+//! * Some functions (eg. [`ZTimer::set_ticks_during`](crate::ztimer::Clock::set_during))
 //!   take callbacks that will be called in an interrupt context.
 //!
 //!   These are typechecked to be Send, as they are moved from the thread to the interrupt context.
