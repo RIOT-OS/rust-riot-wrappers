@@ -13,6 +13,7 @@
 pub mod periodic;
 
 use core::convert::TryInto;
+use core::mem::ManuallyDrop;
 use core::pin::Pin;
 
 use pin_project::{pin_project, pinned_drop};
@@ -80,11 +81,12 @@ impl<const HZ: u32> Clock<HZ> {
     ///
     /// Note that time starts running only when this is polled, for otherwise there's no pinned
     /// Self around.
-    pub fn sleep_async(&self, duration: Ticks<HZ>) -> impl core::future::Future<Output = ()> {
+    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
         AsyncSleep::NeverPolled(NascentAsyncSleep {
             clock: *self,
             ticks: duration,
         })
+        .await
     }
 
     /// Set the given callback to be executed in an interrupt some ticks in the future.
@@ -306,8 +308,11 @@ struct RunningAsyncSleep<const HZ: u32> {
     // If this only were pointer-sized, it'd fit inside the ztimer and we wouldn't have to lug
     // it around -- but it isn't, and it looks like we don't get it scaled down easily (that
     // is, without patching core to only accept a very specific kind of wakers).
+    //
+    // This is initialized at construction time, and gets consumed either at callback time or at
+    // drop time.
     #[pin]
-    waker: core::task::Waker,
+    waker: ManuallyDrop<core::task::Waker>,
 
     #[pin]
     // riot_sys::ztimer_t is Unpin because riot-sys doesn't know any better
@@ -356,7 +361,7 @@ impl<const HZ: u32> core::future::Future for AsyncSleep<HZ> {
             timer.callback = Some(wake_arg);
             let running = RunningAsyncSleep {
                 timer,
-                waker: ctx.waker().clone(),
+                waker: ManuallyDrop::new(ctx.waker().clone()),
                 _pin: Default::default(),
             };
 
@@ -369,8 +374,10 @@ impl<const HZ: u32> core::future::Future for AsyncSleep<HZ> {
                 _ => unreachable!("Was just set to be running"),
             };
 
-            let waker_address =
-                &running.waker as *const core::task::Waker as *const riot_sys::libc::c_void;
+            // We're casting a ManuallyDrop into the c_void here and cast it back into a Waker, but
+            // that's OK because ManuallyDrop is repr(transparent)
+            let waker_address = &running.waker as *const ManuallyDrop<core::task::Waker>
+                as *const riot_sys::libc::c_void;
             running.as_mut().project().timer.arg = waker_address as *mut _;
             let timer = &running.timer as *const _ as *mut _;
 
@@ -388,6 +395,8 @@ impl<const HZ: u32> core::future::Future for AsyncSleep<HZ> {
                 _ => unreachable!("Was just checked to be running"),
             };
 
+            // Instead of doing this relatively costly check, might we instead atomically set a
+            // property of the PendingTimer in the callback?
             if unsafe { riot_sys::ztimer_is_set(riot_sys::ZTIMER_MSEC, &running.timer) != 0 } {
                 core::task::Poll::Pending
             } else {
@@ -397,26 +406,21 @@ impl<const HZ: u32> core::future::Future for AsyncSleep<HZ> {
     }
 }
 
-// We probably don't do the right cleanup steps yet -- when this gets dropped, it should be
-// ztimer_remove'd (trusting that the removal takes the short path because it's cleared at use
-// time) and drop the waker if it has not been called yet.
-//
-// FIXME: Should we store a third state when this gets Ready, just to spare us going through the
-// ztimer_remove? Might be a good idea, might be just an optimization. The event would be ignored
-// -- if it can't be removed, it has "just" been executed (as async code isn't run with interrupts
-// off). The wake event has likely not been processed by the main loop, but the waker won't be
-// called again. (We might have an assertion in there that says "yes all interrupts have been
-// processed").
-
 #[pinned_drop]
 impl<const HZ: u32> PinnedDrop for RunningAsyncSleep<HZ> {
     fn drop(self: Pin<&mut Self>) {
-        let is_set = unsafe {
-            riot_sys::ztimer_is_set(
-                riot_sys::ZTIMER_MSEC,
-                self.project().timer.as_ref().get_ref(),
-            )
+        // FIXME: Should we store a third state when this gets Ready, just to spare us going through the
+        // ztimer_remove? Might be a good idea, might be just an optimization (that doesn't get us
+        // much, for if the timer fired, ztimer_remove can take a shortcut route).
+
+        let mut projected = self.project();
+
+        let was_pending = unsafe {
+            riot_sys::ztimer_remove(riot_sys::ZTIMER_MSEC, projected.timer.as_mut().get_mut())
         };
-        crate::println!("Dropping an RunningAsyncSleep, set? {}", is_set);
+
+        if was_pending {
+            unsafe { ManuallyDrop::drop(&mut projected.waker) };
+        }
     }
 }
