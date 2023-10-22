@@ -225,6 +225,31 @@ impl embedded_hal::blocking::delay::DelayUs<u32> for Clock<1000000> {
     }
 }
 
+#[cfg(all(feature = "embedded-hal-async", riot_module_ztimer_usec))]
+/// Struct that provides the [embedded_hal_async::delay::DelayUs] trait
+///
+/// Unlike the [Clock] structs that can be instanciated for any ZTimer clock, this is clock
+/// independent, because the embedded HAL trait offers delay methods that are provided through
+/// different global clocks.
+#[derive(Copy, Clone, Debug)]
+pub struct Delay;
+
+#[cfg(all(
+    feature = "embedded-hal-async",
+    riot_module_ztimer_usec,
+    riot_module_ztimer_msec
+))]
+impl embedded_hal_async::delay::DelayUs for Delay {
+    async fn delay_us(&mut self, us: u32) {
+        Clock::usec().sleep_async(Ticks(us)).await
+    }
+
+    async fn delay_ms(&mut self, us: u32) {
+        Clock::msec().sleep_async(Ticks(us)).await
+    }
+}
+
+
 /// The error type of fallible conversions to ticks.
 ///
 /// Overflow is the only ever indicated error type; lack of accuracy in the timer does not

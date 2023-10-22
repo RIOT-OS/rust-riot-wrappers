@@ -49,6 +49,8 @@ embedded-io-async = { version = "0.6", optional = true }
 pin-utils = "0.1"
 pin-project = "1.0.11"
 
+embedded-hal-async = { version = "1.0.0-rc.1", optional = true }
+
 [build-dependencies]
 shlex = "0.1.1"
 
@@ -76,6 +78,8 @@ with_coap_message = ["coap-message" ]
 with_coap_handler = ["coap-handler", "coap-numbers", "with_coap_message"]
 with_embedded_nal = ["embedded-nal", "embedded-nal-tcpextensions"]
 with_embedded_nal_async = [ "embedded-nal-async", "embedded-io-async" ]
+
+with_embedded_hal_async = [ "embedded-hal-async" ]
 
 # See msg::v2 documentation. Enabling this exposes components not under semver
 # guarantees.
