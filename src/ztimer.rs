@@ -303,6 +303,8 @@ struct NascentAsyncSleep<const HZ: u32> {
 
 #[pin_project(PinnedDrop)]
 struct RunningAsyncSleep<const HZ: u32> {
+    clock: crate::ztimer::Clock<HZ>,
+
     #[pin]
     timer: riot_sys::ztimer_t,
     // If this only were pointer-sized, it'd fit inside the ztimer and we wouldn't have to lug
@@ -360,6 +362,7 @@ impl<const HZ: u32> core::future::Future for AsyncSleep<HZ> {
             }
             timer.callback = Some(wake_arg);
             let running = RunningAsyncSleep {
+                clock,
                 timer,
                 waker: ManuallyDrop::new(ctx.waker().clone()),
                 _pin: Default::default(),
@@ -416,7 +419,7 @@ impl<const HZ: u32> PinnedDrop for RunningAsyncSleep<HZ> {
         let mut projected = self.project();
 
         let was_pending = unsafe {
-            riot_sys::ztimer_remove(riot_sys::ZTIMER_MSEC, projected.timer.as_mut().get_mut())
+            riot_sys::ztimer_remove(projected.clock.0, projected.timer.as_mut().get_mut())
         };
 
         if was_pending {
