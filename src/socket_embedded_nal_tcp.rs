@@ -1,8 +1,9 @@
 //! An implementation of the [embedded_nal] (Network Abstradtion Layer) TCP traits based on RIOT
 //! sockets
 //!
-//! This is vastly distinct from [socket_embedded_nal] as it requires vastly different workarounds
-//! (and because it was implemented when embedded-nal had already switched over to &mut stack).
+//! This is vastly distinct from [the UDP version](crate::socket_embedded_nal) as it requires
+//! vastly different workarounds (and because it was implemented when embedded-nal had already
+//! switched over to &mut stack).
 //!
 //! ## Warning
 //!
@@ -107,8 +108,8 @@ impl<'a, const QUEUELEN: usize> TcpClientStack for Pin<&'a mut ListenStack<QUEUE
     }
     fn connect(
         &mut self,
-        sock: &mut Self::TcpSocket,
-        addr: SocketAddr,
+        _sock: &mut Self::TcpSocket,
+        _addr: SocketAddr,
     ) -> Result<(), nb::Error<Self::Error>> {
         panic!("A ListenStack can not connect out.")
     }
@@ -116,7 +117,7 @@ impl<'a, const QUEUELEN: usize> TcpClientStack for Pin<&'a mut ListenStack<QUEUE
         // FIXME: Check whether that's what is meant (or whether more checks should be done through
         // RIOT)
         Ok(match sock.socket {
-            SocketImpl::Connection(n) => true,
+            SocketImpl::Connection(_n) => true,
             _ => false,
         })
     }
@@ -206,13 +207,15 @@ impl<'a, const QUEUELEN: usize> TcpFullStack for Pin<&'a mut ListenStack<QUEUELE
 
         Ok(())
     }
-    fn listen(&mut self, sock: &mut Self::TcpSocket) -> Result<(), Self::Error> {
+    fn listen(&mut self, _sock: &mut Self::TcpSocket) -> Result<(), Self::Error> {
         // Done already in bind
         Ok(())
     }
     fn accept(
         &mut self,
-        sock: &mut Self::TcpSocket,
+        // This is and can actually be ignored, because our stack object only serves a single
+        // listening socket.
+        _sock: &mut Self::TcpSocket,
     ) -> Result<(Self::TcpSocket, SocketAddr), nb::Error<Self::Error>> {
         let mut sockptr = core::ptr::null_mut();
         unsafe {
