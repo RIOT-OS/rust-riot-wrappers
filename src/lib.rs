@@ -156,6 +156,15 @@ pub mod socket_embedded_nal_tcp;
 #[cfg(riot_module_periph_gpio)]
 pub mod gpio;
 
+#[cfg(riot_module_periph_hwrng)]
+mod hwrng;
+
+#[cfg(riot_module_periph_hwrng)]
+pub mod prng;
+
+#[cfg(all(riot_module_random, riot_module_prng_sha256prng))]
+mod random;
+
 #[cfg(riot_module_bluetil_ad)]
 pub mod bluetil;
 
