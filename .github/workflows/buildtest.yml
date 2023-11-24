@@ -101,11 +101,10 @@ jobs:
         echo "Building ${DIRS} on ${{ matrix.board }}"
         echo "::echo ::on"
         for D in ${DIRS}; do
-          cd ${D}
           echo "::group::Building ${D}"
-          # By running buildtest instead of all, we just skip boards that don't
-          # satisfy some requirements for some test
-          BOARDS=${{ matrix.board }} make buildtest BUILDTEST_MAKE_REDIRECT=''
+          cd ${D}
+          BOARDS=${{ matrix.board }} make info-boards-supported | grep -q . || ( cd -; continue )
+          BOARD=${{ matrix.board }} make all
           echo "::endgroup::"
           if make test/available BOARD=native && [ "native" = "${{ matrix.board }}" ]; then
             echo "::group::Testing ${D}"
