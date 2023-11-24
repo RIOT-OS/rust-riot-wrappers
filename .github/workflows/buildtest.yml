@@ -105,7 +105,7 @@ jobs:
           echo "::group::Building ${D}"
           # By running buildtest instead of all, we just skip boards that don't
           # satisfy some requirements for some test
-          make buildtest BUILDTEST_MAKE_REDIRECT='' BOARDS=${{ matrix.board }}
+          BOARDS=${{ matrix.board }} make buildtest BUILDTEST_MAKE_REDIRECT=''
           echo "::endgroup::"
           if make test/available BOARD=native && [ "native" = "${{ matrix.board }}" ]; then
             echo "::group::Testing ${D}"
