@@ -93,7 +93,7 @@ jobs:
 
     - name: Build and run tests
       run: |
-        DIRS=$(echo RIOT/tests/*/)
+        DIRS=$(find RIOT/tests -name Makefile | xargs -n1 dirname)
         export RIOTBASE=$(pwd)/RIOT
         # It appears that there has to be output before :: commands really catch on
         echo "Building ${DIRS} on ${{ matrix.board }}"
