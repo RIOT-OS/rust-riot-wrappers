@@ -21,13 +21,16 @@ jobs:
         board: [native, sltb001a, samr21-xpro, stk3700]
     steps:
     # common steps start here
-    - uses: actions/checkout@v3
-    - uses: actions/checkout@v3
+    - name: Check out riot-wrappers
+      uses: actions/checkout@v3
+    - name: Check out RIOT
+      uses: actions/checkout@v3
       with:
         repository: RIOT-OS/RIOT
         path: RIOT
     - name: Patch .cargo/config.toml to use current checkout
       run: |
+        set -x
         cd RIOT
         rm -f .cargo/config.toml
         mkdir -p .cargo # Keep working if RIOT ever decides it doesn't need overrides any more
@@ -38,9 +41,7 @@ jobs:
       # No sense in running this in parallel -- this will download the index
       # and all relevant crates once, and after that, just make some notes in Cargo.lock
       run: |
-        # It appears that there has to be output before :: commands really catch on
-        echo "Pulling updates"
-        echo "::echo ::on"
+        set -x
         for MANIF in $(find RIOT -name Cargo.toml)
         do
             echo "::group::Updating ${MANIF}"
@@ -63,13 +64,16 @@ jobs:
         board: [native, sltb001a, samr21-xpro, stk3700]
     steps:
     # common steps start here
-    - uses: actions/checkout@v3
-    - uses: actions/checkout@v3
+    - name: Check out riot-wrappers
+      uses: actions/checkout@v3
+    - name: Check out RIOT
+      uses: actions/checkout@v3
       with:
         repository: RIOT-OS/RIOT
         path: RIOT
     - name: Patch .cargo/config.toml to use current checkout
       run: |
+        set -x
         cd RIOT
         rm -f .cargo/config.toml
         mkdir -p .cargo # Keep working if RIOT ever decides it doesn't need overrides any more
@@ -80,9 +84,7 @@ jobs:
       # No sense in running this in parallel -- this will download the index
       # and all relevant crates once, and after that, just make some notes in Cargo.lock
       run: |
-        # It appears that there has to be output before :: commands really catch on
-        echo "Pulling updates"
-        echo "::echo ::on"
+        set -x
         for MANIF in $(find RIOT -name Cargo.toml)
         do
             echo "::group::Updating ${MANIF}"
@@ -95,15 +97,13 @@ jobs:
 
     - name: Build and run tests
       run: |
+        set -x
         DIRS=$(find RIOT/tests -name Makefile | xargs -n1 dirname)
         export RIOTBASE=$(pwd)/RIOT
-        # It appears that there has to be output before :: commands really catch on
-        echo "Building ${DIRS} on ${{ matrix.board }}"
-        echo "::echo ::on"
         for D in ${DIRS}; do
           echo "::group::Building ${D}"
           cd ${D}
-          BOARDS=${{ matrix.board }} make info-boards-supported | grep -q . || ( cd -; continue )
+          BOARDS=${{ matrix.board }} make info-boards-supported | grep -q . || ( echo "Board is not supported for this test"; cd -; continue )
           BOARD=${{ matrix.board }} make all
           echo "::endgroup::"
           if make test/available BOARD=native && [ "native" = "${{ matrix.board }}" ]; then
