@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-test:
+  prepare:
     runs-on: ubuntu-latest
     container: riot/riotbuild
     steps:
@@ -27,46 +27,53 @@ jobs:
         echo '[patch.crates-io]' >> .cargo/config.toml
         echo 'riot-wrappers = { path = "../", version = "*" }' >> .cargo/config.toml
         echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
-    - name: Build on selected platforms
-      # not going with a 
-      #
-      # strategy:
-      #   matrix:
-      #     example: [examples/rust-hello-world examples/rust-gcoap tests/rust_minimal]
-      #
-      # setup here because really most of the stuff is the same, and the `cargo
-      # update` is much faster the second time (so a parallel execution may
-      # still be faster but uses 3x the resources)
+    - name: Pull cargo updates
+      # No sense in running this in parallel -- this will download the index
+      # and all relevant crates once, and after that, the 
       run: |
-        export BOARDS='native sltb001a samr21-xpro stk3700'
-        DIRS='examples/rust-hello-world examples/rust-gcoap tests/rust_minimal'
         # It appears that there has to be output before :: commands really catch on
-        echo "Building ${DIRS} on ${BOARDS}"
+        echo "Pulling updates"
         echo "::echo ::on"
-        cd RIOT
-        for D in ${DIRS}; do
-          cd ${D}
-          echo "::group::Building ${D}"
-          cargo update -p riot-sys -p riot-wrappers --aggressive
-          cargo tree
-          make buildtest BUILDTEST_MAKE_REDIRECT=''
-          cd ../..
-          echo "::endgroup::"
+        for MANIF in $(find RIOT -name Cargo.toml)
+        do
+            echo "::group::Updating ${MANIF}"
+            cargo update -p riot-sys -p riot-wrappers --aggressive --manifest-path $MANIF
+            cargo fetch --manifest-path $MANIF
+            cargo tree --manifest-path $MANIF
+            echo "::endgroup::"
         done
-        cd ..
-        echo "::echo ::off"
+
+  build-examples:
+    needs: prepare
+    runs-on: ubuntu-latest
+    container: riot/riotbuild
+    strategy:
+      matrix:
+        example: [examples/rust-hello-world, examples/rust-gcoap, tests/rust_minimal]
+        board: [native, sltb001a, samr32-xpro, stk3700]
+    steps:
+    - name: Build on selected platforms
+      run: |
+        make buildtest BUILDTEST_MAKE_REDIRECT='' BOARD=${{ matrix.board }} -C RIOT/${{ matrix.example }}
+
+  build-tests:
+    needs: prepare
+    runs-on: ubuntu-latest
+    container: riot/riotbuild
+    strategy:
+      matrix:
+        board: [native, sltb001a, samr21-xpro, stk3700]
+    steps:
     - name: Build and run tests
       run: |
-        export BOARDS='native sltb001a samr21-xpro stk3700'
-        DIRS=$(echo tests/*/)
+        DIRS=$(echo RIOT/tests/*/)
         export RIOTBASE=$(pwd)/RIOT
         # It appears that there has to be output before :: commands really catch on
-        echo "Building ${DIRS} on ${BOARDS}"
+        echo "Building ${DIRS} on ${{ matrix.board }}"
         echo "::echo ::on"
         for D in ${DIRS}; do
-          cd ${D}
+          pushd ${D}
           echo "::group::Building ${D}"
-          cargo update -p riot-sys -p riot-wrappers --aggressive
           make buildtest BUILDTEST_MAKE_REDIRECT=''
           echo "::endgroup::"
           if make test/available BOARD=native; then
@@ -74,6 +81,6 @@ jobs:
             make all test BOARD=native
             echo "::endgroup::"
           fi
-          cd ../..
+          popd
         done
         echo "::echo ::off"
