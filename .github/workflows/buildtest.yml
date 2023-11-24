@@ -10,10 +10,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  prepare:
+  build-examples:
     runs-on: ubuntu-latest
     container: riot/riotbuild
+    strategy:
+      matrix:
+        example: [examples/rust-hello-world, examples/rust-gcoap, tests/rust_minimal]
+        board: [native, sltb001a, samr32-xpro, stk3700]
     steps:
+    # common steps start here
     - uses: actions/checkout@v3
     - uses: actions/checkout@v3
       with:
@@ -29,7 +34,7 @@ jobs:
         echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
     - name: Pull cargo updates
       # No sense in running this in parallel -- this will download the index
-      # and all relevant crates once, and after that, the 
+      # and all relevant crates once, and after that, just make some notes in Cargo.lock
       run: |
         # It appears that there has to be output before :: commands really catch on
         echo "Pulling updates"
@@ -42,28 +47,50 @@ jobs:
             cargo tree --manifest-path $MANIF
             echo "::endgroup::"
         done
+    # common steps end here
 
-  build-examples:
-    needs: prepare
-    runs-on: ubuntu-latest
-    container: riot/riotbuild
-    strategy:
-      matrix:
-        example: [examples/rust-hello-world, examples/rust-gcoap, tests/rust_minimal]
-        board: [native, sltb001a, samr32-xpro, stk3700]
-    steps:
     - name: Build on selected platforms
       run: |
         make buildtest BUILDTEST_MAKE_REDIRECT='' BOARD=${{ matrix.board }} -C RIOT/${{ matrix.example }}
 
   build-tests:
-    needs: prepare
     runs-on: ubuntu-latest
     container: riot/riotbuild
     strategy:
       matrix:
         board: [native, sltb001a, samr21-xpro, stk3700]
     steps:
+    # common steps start here
+    - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
+      with:
+        repository: RIOT-OS/RIOT
+        path: RIOT
+    - name: Patch .cargo/config.toml to use current checkout
+      run: |
+        cd RIOT
+        rm -f .cargo/config.toml
+        mkdir -p .cargo # Keep working if RIOT ever decides it doesn't need overrides any more
+        echo '[patch.crates-io]' >> .cargo/config.toml
+        echo 'riot-wrappers = { path = "../", version = "*" }' >> .cargo/config.toml
+        echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
+    - name: Pull cargo updates
+      # No sense in running this in parallel -- this will download the index
+      # and all relevant crates once, and after that, just make some notes in Cargo.lock
+      run: |
+        # It appears that there has to be output before :: commands really catch on
+        echo "Pulling updates"
+        echo "::echo ::on"
+        for MANIF in $(find RIOT -name Cargo.toml)
+        do
+            echo "::group::Updating ${MANIF}"
+            cargo update -p riot-sys -p riot-wrappers --aggressive --manifest-path $MANIF
+            cargo fetch --manifest-path $MANIF
+            cargo tree --manifest-path $MANIF
+            echo "::endgroup::"
+        done
+    # common steps end here
+
     - name: Build and run tests
       run: |
         DIRS=$(echo RIOT/tests/*/)
