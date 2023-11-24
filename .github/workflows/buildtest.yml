@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         example: [examples/rust-hello-world, examples/rust-gcoap, tests/rust_minimal]
-        board: [native, sltb001a, samr32-xpro, stk3700]
+        board: [native, sltb001a, samr21-xpro, stk3700]
     steps:
     # common steps start here
     - uses: actions/checkout@v3
@@ -99,7 +99,7 @@ jobs:
         echo "Building ${DIRS} on ${{ matrix.board }}"
         echo "::echo ::on"
         for D in ${DIRS}; do
-          pushd ${D}
+          cd ${D}
           echo "::group::Building ${D}"
           make buildtest BUILDTEST_MAKE_REDIRECT=''
           echo "::endgroup::"
@@ -108,6 +108,6 @@ jobs:
             make all test BOARD=native
             echo "::endgroup::"
           fi
-          popd
+          cd -
         done
         echo "::echo ::off"
