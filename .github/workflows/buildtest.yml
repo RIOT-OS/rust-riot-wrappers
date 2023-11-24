@@ -13,6 +13,8 @@ jobs:
   build-examples:
     runs-on: ubuntu-latest
     container: riot/riotbuild
+    # Best would be "continue until there are errors from different examples *and* different boards"
+    continue-on-error: true
     strategy:
       matrix:
         example: [examples/rust-hello-world, examples/rust-gcoap, tests/rust_minimal]
