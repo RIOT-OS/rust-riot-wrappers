@@ -103,14 +103,20 @@ jobs:
         for D in ${DIRS}; do
           echo "::group::Building ${D}"
           cd ${D}
-          BOARDS=${{ matrix.board }} make info-boards-supported | grep -q . || ( echo "Board is not supported for this test"; cd -; continue )
-          BOARD=${{ matrix.board }} make all
-          echo "::endgroup::"
-          if make test/available BOARD=native && [ "native" = "${{ matrix.board }}" ]; then
-            echo "::group::Testing ${D}"
-            make all test BOARD=native
-            echo "::endgroup::"
+          if BOARDS=${{ matrix.board }} make info-boards-supported | grep -q .
+          then
+            BOARD=${{ matrix.board }} make all
+
+            if [ "native" = "${{ matrix.board }}" ] && make test/available BOARD=native
+            then
+              echo "::group::Testing ${D}"
+              make all test BOARD=native
+              echo "::endgroup::"
+            fi
+          else
+            echo "Board is not supported for this test, skipping."
           fi
           cd -
+          echo "::endgroup::"
         done
         echo "::echo ::off"
