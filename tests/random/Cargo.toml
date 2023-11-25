@@ -12,6 +12,6 @@ crate-type = ["staticlib"]
 panic = "abort"
 
 [dependencies]
-riot-wrappers = { version = "*", features = [ "set_panic_handler" ] }
+riot-wrappers = { version = "*", features = [ "set_panic_handler", "panic_handler_format" ] }
 rand_core = "0.6"
 rngcheck = "0.1.1"

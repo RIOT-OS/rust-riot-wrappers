@@ -9,6 +9,7 @@ riot_main!(main);
 fn check_csrng(mut rng: impl rand_core::CryptoRng + rand_core::RngCore) {
     use rngcheck::{helpers::*, nist::*};
 
+    // This is also in https://github.com/ryankurte/rngcheck/pull/3
     struct BitIter<'a, R: rand_core::RngCore> {
         rng: &'a mut R,
         remaining: usize,
@@ -62,8 +63,8 @@ fn check_csrng(mut rng: impl rand_core::CryptoRng + rand_core::RngCore) {
         nist_freq_block(BitIter::new(&mut rng, count), 16).unwrap()
     );
 
-    println!("Generating 10 more random numbers");
-    for _ in 0..10 {
+    println!("Generating 3 more random numbers");
+    for _ in 0..3 {
         println!("{}", rng.next_u32());
     }
 
