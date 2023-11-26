@@ -124,6 +124,7 @@ jobs:
               make all test BOARD=native
               echo "::endgroup::"
             fi
+            BOARD=${{ matrix.board }} make clean
           else
             echo "Board is not supported for this test, skipping."
           fi
