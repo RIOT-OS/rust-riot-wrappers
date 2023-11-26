@@ -105,7 +105,17 @@ jobs:
           cd ${D}
           if BOARDS=${{ matrix.board }} make info-boards-supported | grep -q .
           then
-            BOARD=${{ matrix.board }} make all
+            # RIOTNOLINK is a workaround for boards with insufficient memory
+            # showing as supported but still being known not to be buildable.
+            # Other CI works around by having RIOT_CI_BUILD set RIOTNOLINK if
+            # the board is known to not have enough memory from
+            # BOARD_INSUFFICIENT_MEMORY, but that information is not piped out.
+            #
+            # Until a better workaround is found, no boards are linked, and if
+            # a board does exceed its memory due to a Rust change, that will
+            # only be spotted when the Rust crate is updated in RIOT and a full
+            # test with the precise criterion is run.
+            BOARD=${{ matrix.board }} make all RIOTNOLINK=1
 
             if [ "native" = "${{ matrix.board }}" ] && make test/available BOARD=native
             then
