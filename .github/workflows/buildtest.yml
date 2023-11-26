@@ -98,7 +98,8 @@ jobs:
     - name: Build and run tests
       run: |
         set -x
-        DIRS=$(find RIOT/tests -name Makefile | xargs -n1 dirname)
+        # Removing tests/pkg/lvgl due to https://github.com/RIOT-OS/RIOT/issues/20110
+        DIRS=$(find RIOT/tests -name Makefile | grep -v tests/pkg/lvgl | xargs -n1 dirname)
         export RIOTBASE=$(pwd)/RIOT
         for D in ${DIRS}; do
           echo "::group::Building ${D}"
