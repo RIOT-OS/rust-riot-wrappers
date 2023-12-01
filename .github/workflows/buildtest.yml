@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-examples:
+  quick-examples:
     runs-on: ubuntu-latest
     container: riot/riotbuild
     # Best would be "continue until there are errors from different examples *and* different boards"
@@ -56,7 +56,7 @@ jobs:
       run: |
         make all BOARD=${{ matrix.board }} -C RIOT/${{ matrix.example }}
 
-  build-tests:
+  most-tests:
     runs-on: ubuntu-latest
     container: riot/riotbuild
     strategy:
