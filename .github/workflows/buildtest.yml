@@ -99,7 +99,7 @@ jobs:
       run: |
         set -x
         # Removing tests/pkg/lvgl due to https://github.com/RIOT-OS/RIOT/issues/20110
-        DIRS=$(find RIOT/tests -name Makefile | grep -v tests/pkg/lvgl | xargs -n1 dirname)
+        DIRS=$(make -f makefiles/app_dirs.inc.mk info-applications | grep -v tests/pkg/lvgl)
         export RIOTBASE=$(pwd)/RIOT
         for D in ${DIRS}; do
           echo "::group::Building ${D}"
