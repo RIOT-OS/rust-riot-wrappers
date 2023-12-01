@@ -1,7 +1,7 @@
 # Ideally this should be replaced with a call out to Murdock; until that is
 # practical, building representative examples.
 
-name: build-test
+name: test
 
 on:
   pull_request:
@@ -141,3 +141,13 @@ jobs:
           echo "::endgroup::"
         done
         echo "::echo ::off"
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    container: rustlang/rust:nightly
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Run cargo-fmt
+      run: cargo fmt --check
