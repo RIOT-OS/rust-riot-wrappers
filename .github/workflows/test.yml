@@ -98,7 +98,7 @@ jobs:
     - name: Build and run tests
       run: |
         set -x
-        cd RIOT
+        export RIOTBASE=$(pwd)/RIOT
         # Removing tests/pkg/lvgl due to https://github.com/RIOT-OS/RIOT/issues/20110
         #
         # Skipping examples because ... not sure, did it that way before
@@ -108,8 +108,7 @@ jobs:
         # Skipping peripheral and driver tests because we don't implement those
         # with wrappers; the valuable ones are those like saul where there are
         # modules that use Rust.
-        DIRS=$(make -f makefiles/app_dirs.inc.mk info-applications | grep -v tests/pkg/lvgl |grep -v examples |grep -v periph |grep -v driver)
-        export RIOTBASE=$(pwd)/RIOT
+        DIRS=$(make --quiet -C ${RIOTBASE} -f makefiles/app_dirs.inc.mk info-applications | grep -v tests/pkg/lvgl |grep -v examples |grep -v periph |grep -v driver)
         for D in ${DIRS}; do
           echo "::group::Building ${D}"
           cd ${D}
