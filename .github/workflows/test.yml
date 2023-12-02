@@ -1,0 +1,152 @@
+# Ideally this should be replaced with a call out to Murdock; until that is
+# practical, building representative examples.
+
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  quick-examples:
+    runs-on: ubuntu-latest
+    container: riot/riotbuild
+    # Best would be "continue until there are errors from different examples *and* different boards"
+    continue-on-error: true
+    strategy:
+      matrix:
+        example: [examples/rust-hello-world, examples/rust-gcoap, tests/rust_minimal]
+        board: [native, sltb001a, samr21-xpro, stk3700]
+    steps:
+    # common steps start here
+    - name: Check out riot-wrappers
+      uses: actions/checkout@v3
+    - name: Check out RIOT
+      uses: actions/checkout@v3
+      with:
+        repository: RIOT-OS/RIOT
+        path: RIOT
+    - name: Patch .cargo/config.toml to use current checkout
+      run: |
+        set -x
+        cd RIOT
+        rm -f .cargo/config.toml
+        mkdir -p .cargo # Keep working if RIOT ever decides it doesn't need overrides any more
+        echo '[patch.crates-io]' >> .cargo/config.toml
+        echo 'riot-wrappers = { path = "../", version = "*" }' >> .cargo/config.toml
+        echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
+    - name: Pull cargo updates
+      # No sense in running this in parallel -- this will download the index
+      # and all relevant crates once, and after that, just make some notes in Cargo.lock
+      run: |
+        set -x
+        for MANIF in $(find RIOT -name Cargo.toml)
+        do
+            echo "::group::Updating ${MANIF}"
+            cargo update -p riot-sys -p riot-wrappers --aggressive --manifest-path $MANIF
+            cargo fetch --manifest-path $MANIF
+            cargo tree --manifest-path $MANIF
+            echo "::endgroup::"
+        done
+    # common steps end here
+
+    - name: Build the example
+      run: |
+        make all BOARD=${{ matrix.board }} -C RIOT/${{ matrix.example }}
+
+  most-tests:
+    runs-on: ubuntu-latest
+    container: riot/riotbuild
+    strategy:
+      matrix:
+        board: [native, sltb001a, samr21-xpro, stk3700]
+    steps:
+    # common steps start here
+    - name: Check out riot-wrappers
+      uses: actions/checkout@v3
+    - name: Check out RIOT
+      uses: actions/checkout@v3
+      with:
+        repository: RIOT-OS/RIOT
+        path: RIOT
+    - name: Patch .cargo/config.toml to use current checkout
+      run: |
+        set -x
+        cd RIOT
+        rm -f .cargo/config.toml
+        mkdir -p .cargo # Keep working if RIOT ever decides it doesn't need overrides any more
+        echo '[patch.crates-io]' >> .cargo/config.toml
+        echo 'riot-wrappers = { path = "../", version = "*" }' >> .cargo/config.toml
+        echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
+    - name: Pull cargo updates
+      # No sense in running this in parallel -- this will download the index
+      # and all relevant crates once, and after that, just make some notes in Cargo.lock
+      run: |
+        set -x
+        for MANIF in $(find RIOT -name Cargo.toml)
+        do
+            echo "::group::Updating ${MANIF}"
+            cargo update -p riot-sys -p riot-wrappers --aggressive --manifest-path $MANIF
+            cargo fetch --manifest-path $MANIF
+            cargo tree --manifest-path $MANIF
+            echo "::endgroup::"
+        done
+    # common steps end here
+
+    - name: Build and run tests
+      run: |
+        set -x
+        export RIOTBASE=$(pwd)/RIOT
+        # Removing tests/pkg/lvgl due to https://github.com/RIOT-OS/RIOT/issues/20110
+        #
+        # Skipping examples because ... not sure, did it that way before
+        # https://github.com/RIOT-OS/rust-riot-wrappers/pull/68, and examples
+        # are built extra
+        #
+        # Skipping peripheral and driver tests because we don't implement those
+        # with wrappers; the valuable ones are those like saul where there are
+        # modules that use Rust.
+        DIRS=$(make --quiet -C ${RIOTBASE} -f makefiles/app_dirs.inc.mk info-applications | grep -v tests/pkg/lvgl |grep -v examples |grep -v periph |grep -v driver)
+        for D in ${DIRS}; do
+          echo "::group::Building ${D}"
+          cd ${D}
+          if BOARDS=${{ matrix.board }} make info-boards-supported | grep -q .
+          then
+            # RIOTNOLINK is a workaround for boards with insufficient memory
+            # showing as supported but still being known not to be buildable.
+            # Other CI works around by having RIOT_CI_BUILD set RIOTNOLINK if
+            # the board is known to not have enough memory from
+            # BOARD_INSUFFICIENT_MEMORY, but that information is not piped out.
+            #
+            # Until a better workaround is found, no boards are linked, and if
+            # a board does exceed its memory due to a Rust change, that will
+            # only be spotted when the Rust crate is updated in RIOT and a full
+            # test with the precise criterion is run.
+            BOARD=${{ matrix.board }} make all RIOTNOLINK=1
+
+            if [ "native" = "${{ matrix.board }}" ] && make test/available BOARD=native
+            then
+              echo "::group::Testing ${D}"
+              make all test BOARD=native
+              echo "::endgroup::"
+            fi
+            BOARD=${{ matrix.board }} make clean
+          else
+            echo "Board is not supported for this test, skipping."
+          fi
+          cd -
+          echo "::endgroup::"
+        done
+        echo "::echo ::off"
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    container: rustlang/rust:nightly
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Run cargo-fmt
+      run: cargo fmt --check
