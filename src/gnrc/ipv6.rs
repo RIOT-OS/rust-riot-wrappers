@@ -180,7 +180,7 @@ impl From<embedded_nal::Ipv6Addr> for Address {
 #[cfg(feature = "with_embedded_nal")]
 impl From<Address> for embedded_nal::Ipv6Addr {
     fn from(addr: Address) -> Self {
-        Self::from(self.raw())
+        Self::from(*addr.raw())
     }
 }
 

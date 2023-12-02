@@ -17,12 +17,8 @@
 //!
 //! [SAUL]: https://doc.riot-os.org/group__drivers__saul.html
 
-use riot_sys as raw;
-use riot_sys::libc;
-
 use crate::error;
 use crate::helpers::PointerToCStr;
-use crate::Never;
 use error::NegativeErrorExt;
 
 pub mod registration;
@@ -95,10 +91,9 @@ impl RegistryEntry {
             unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }
                 .negative_to_error()?;
         if length != value.length.into() {
-            // FIXME is this the best way to express the error?
-            Err(error::NumericError {
-                number: length as isize,
-            })
+            // It's not pretty to synthesize an error here, but neither would be expressing the
+            // partial write in the context of lengthful phydat items.
+            Err(error::NumericError::from_constant(riot_sys::EINVAL as _))
         } else {
             Ok(())
         }
@@ -404,8 +399,10 @@ impl Unit {
     // we can just switch over before they go.
     #[deprecated(note = "Use the GForce variant instead")]
     pub const G: Self = Unit::GForce;
+    #[allow(non_upper_case_globals)]
     #[deprecated(note = "Use the Gram variant instead")]
     pub const Gr: Self = Unit::Gram;
+    #[allow(non_upper_case_globals)]
     #[deprecated(note = "Use the Gauss variant instead")]
     pub const Gs: Self = Unit::Gauss;
 
@@ -419,13 +416,13 @@ impl Unit {
             riot_sys::UNIT_M => Some(Unit::M),
             riot_sys::UNIT_M2 => Some(Unit::M2),
             riot_sys::UNIT_M3 => Some(Unit::M3),
-            riot_sys::UNIT_G => Some(Unit::GForce),
+            riot_sys::UNIT_G_FORCE => Some(Unit::GForce),
             riot_sys::UNIT_DPS => Some(Unit::Dps),
-            riot_sys::UNIT_GR => Some(Unit::Gram),
+            riot_sys::UNIT_GRAM => Some(Unit::Gram),
             riot_sys::UNIT_A => Some(Unit::A),
             riot_sys::UNIT_V => Some(Unit::V),
             riot_sys::UNIT_W => Some(Unit::W),
-            riot_sys::UNIT_GS => Some(Unit::Gauss),
+            riot_sys::UNIT_GAUSS => Some(Unit::Gauss),
             riot_sys::UNIT_T => Some(Unit::T),
             riot_sys::UNIT_DBM => Some(Unit::Dbm),
             riot_sys::UNIT_COULOMB => Some(Unit::Coulomb),
@@ -459,13 +456,13 @@ impl Unit {
             Some(Unit::M) => riot_sys::UNIT_M,
             Some(Unit::M2) => riot_sys::UNIT_M2,
             Some(Unit::M3) => riot_sys::UNIT_M3,
-            Some(Unit::GForce) => riot_sys::UNIT_G,
+            Some(Unit::GForce) => riot_sys::UNIT_G_FORCE,
             Some(Unit::Dps) => riot_sys::UNIT_DPS,
-            Some(Unit::Gram) => riot_sys::UNIT_GR,
+            Some(Unit::Gram) => riot_sys::UNIT_GRAM,
             Some(Unit::A) => riot_sys::UNIT_A,
             Some(Unit::V) => riot_sys::UNIT_V,
             Some(Unit::W) => riot_sys::UNIT_W,
-            Some(Unit::Gauss) => riot_sys::UNIT_GS,
+            Some(Unit::Gauss) => riot_sys::UNIT_GAUSS,
             Some(Unit::T) => riot_sys::UNIT_T,
             Some(Unit::Dbm) => riot_sys::UNIT_DBM,
             Some(Unit::Coulomb) => riot_sys::UNIT_COULOMB,

@@ -2,11 +2,11 @@
 //!
 //! ## Tokens
 //!
-//! Some thread creation mechanisms (currently only [riot_main_with_tokens] and not those in here)
-//! are "with tokens". With these, the zero-sized type [StartToken] is used to pass along the
-//! information that the execution is currently happening in a thread, and more importantly that
-//! some operations doable only once per thread (eg. setting up a message queue) have not yet
-//! happed.
+//! Some thread creation mechanisms (currently only
+//! [`riot_main_with_tokens!`](crate::riot_main_with_tokens!) and not those in here) are "with
+//! tokens". With these, the zero-sized type [StartToken] is used to pass along the information
+//! that the execution is currently happening in a thread, and more importantly that some
+//! operations doable only once per thread (eg. setting up a message queue) have not yet happed.
 //!
 //! When threads are created that way, they need to return an [EndToken] which ensures that
 //! no operations that preclude the termination of a thread have happened.
@@ -23,6 +23,7 @@ pub use riot_c::*;
 mod tokenparts;
 #[cfg(doc)]
 pub use tokenparts::TokenParts;
+#[allow(deprecated)]
 pub use tokenparts::{EndToken, InIsr, InThread, StartToken, TerminationToken, ValueInThread};
 
 mod stack_stats;

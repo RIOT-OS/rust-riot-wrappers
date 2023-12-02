@@ -112,12 +112,17 @@ pub mod thread;
 pub mod gcoap;
 #[cfg(riot_module_gnrc)]
 pub mod gnrc;
+// Note that this can also exist without gnrc
+#[cfg(riot_module_gnrc_pktbuf)]
+pub mod gnrc_pktbuf;
 #[cfg(riot_module_gnrc)]
 pub mod gnrc_util;
 #[cfg(riot_module_periph_i2c)]
 pub mod i2c;
 #[cfg(riot_module_core_msg)]
 pub mod msg;
+#[cfg(riot_module_random)]
+pub mod random;
 
 #[cfg(riot_module_periph_spi)]
 pub mod spi;

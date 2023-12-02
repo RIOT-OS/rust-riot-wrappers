@@ -44,8 +44,9 @@ pub struct TokenParts<const MSG_SEMANTICS: bool, const MSG_QUEUE: bool, const FL
 impl TokenParts<true, true, true> {
     /// Claim that the current thread has not done anything yet that is covered by this type
     ///
-    /// Do not call yourself; this needs to be public because [riot_main_with_tokens] is a macro
-    /// and thus technically called from the main crate.
+    /// Do not call yourself; this needs to be public because
+    /// [`riot_main_with_tokens!`](crate::riot_main_with_tokens!) is a macro and thus technically
+    /// called from the main crate.
     pub unsafe fn new() -> Self {
         TokenParts {
             _not_send: PhantomData,
@@ -228,7 +229,7 @@ impl InThread {
     pub fn promote<T>(self, value: T) -> ValueInThread<T> {
         ValueInThread {
             value,
-            in_thread: self,
+            _in_thread: self,
         }
     }
 }
@@ -253,12 +254,14 @@ impl InIsr {
 ///
 /// This does barely implement anything on its own, but the module implementing `T` might provide
 /// extra methods.
+///
+/// This makes the wrapped value not `Send`.
 // Making the type fundamental results in ValueInThread<&Mutex<T>> being shown at Mutex's page.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "nightly_docs", fundamental)]
 pub struct ValueInThread<T> {
     value: T,
-    in_thread: InThread,
+    _in_thread: InThread,
 }
 
 impl<T> ValueInThread<T> {

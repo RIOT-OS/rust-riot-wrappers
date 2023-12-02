@@ -43,7 +43,7 @@ impl Stat {
 
 /// Parameter for seeking in a file
 ///
-/// It is analogous to [std::io::SeekFrom].
+/// It is analogous to [std::io::SeekFrom](https://doc.rust-lang.org/std/io/enum.SeekFrom.html).
 #[derive(Debug)]
 pub enum SeekFrom {
     /// Seek to the given position from the start of the file
