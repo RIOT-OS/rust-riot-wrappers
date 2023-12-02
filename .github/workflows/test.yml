@@ -146,3 +146,11 @@ jobs:
         fetch-depth: 0
     - name: Run cargo-fmt
       run: cargo fmt --check
+
+  all-done:
+    needs: [rustfmt, wrappers-tests, examples-and-tests]
+    # It'd suffice to just do "needs", but GitHub actions insist to have steps
+    runs-on: ubuntu-latest
+    steps:
+    - run: echo "All done"
+
