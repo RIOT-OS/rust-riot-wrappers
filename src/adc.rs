@@ -6,12 +6,24 @@ impl ADCLine {
     /// Initialize an ADC line and get it as a handle. This is declared as unsafe as it may only
     /// be called once. (A safe abstraction would need to check which RIOT devices have been
     /// initialized already).
+    ///
+    /// This being unsafe is inconsistent with other subsystem wrappers that chose to not declare
+    /// this unsafe; that inconsistency is tracked in
+    /// <https://github.com/RIOT-OS/rust-riot-wrappers/issues/59> and so far unresolved.
     pub unsafe fn init(line: riot_sys::adc_t) -> Result<Self, i32> {
         let success = riot_sys::adc_init(line);
         match success {
             0 => Ok(ADCLine(line)),
             e => Err(e),
         }
+    }
+
+    /// Initialize an ADC line identified by the line number it is assigned on the board
+    ///
+    /// Safety: See [init]
+    pub unsafe fn from_number(line: u32) -> Result<Self, i32> {
+        let line = riot_sys::macro_ADC_LINE(line);
+        Self::init(line)
     }
 }
 
