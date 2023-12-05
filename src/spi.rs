@@ -10,7 +10,7 @@ use riot_sys::{
     spi_transfer_bytes,
 };
 
-pub struct SPIDevice(pub spi_t);
+pub struct SPIDevice(#[deprecated(note = "Use constructor instead")] pub spi_t);
 
 pub struct AcquiredSPI<'a> {
     device: &'a mut SPIDevice,
@@ -24,6 +24,17 @@ impl<'a> Drop for AcquiredSPI<'a> {
 }
 
 impl SPIDevice {
+    /// Create an SPI device from an `spi_t`
+    pub fn from_c(bus: spi_t) -> Self {
+        Self(bus)
+    }
+
+    /// Create an SPI device from the number it is assigned on the board
+    pub fn from_number(bus: u32) -> Self {
+        let bus = unsafe { riot_sys::macro_SPI_DEV(bus) };
+        Self::from_c(bus)
+    }
+
     pub fn acquire<'a>(
         &'a mut self,
         cs: spi_cs_t,

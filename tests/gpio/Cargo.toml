@@ -1,0 +1,17 @@
+[package]
+name = "riot-wrappers-test-gpio"
+version = "0.1.0"
+authors = ["Christian Amsüss <chrysn@fsfe.org>"]
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+riot-wrappers = { version = "*", features = [ "set_panic_handler", "panic_handler_format" ] }
+riot-sys = "*"
+embedded-hal = "0.2.4"

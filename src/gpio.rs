@@ -85,14 +85,16 @@ impl GPIO {
         }
     }
 
-    // using a generic GPIO_PIN is probably best done by making GPIO_INIT a static inline (given
-    // it's already fixed to types at tests/periph_gpio/main.c)
-    //     /// Create a GPIO out of thin air
-    //     #[cfg(riot_module_nrf5x_common_periph)]
-    //     pub unsafe fn new(port: u8, pin: u8) -> Self {
-    //         // EXPANDED cpu/nrf5x_common/include/periph_cpu_common.h:50
-    //         GPIO(((port << 5) | pin).into())
-    //     }
+    /// Create a GPIO from its port and pin numbers
+    ///
+    /// ```
+    /// let pin_c8 = GPIO::from_port_and_pin(3, 8);
+    /// ```
+    ///
+    /// See [from_c] for safety constraints.
+    pub fn from_port_and_pin(port: u32, pin: u32) -> Option<Self> {
+        Self::from_c(unsafe { riot_sys::macro_GPIO_PIN(port, pin) })
+    }
 
     pub fn configure_as_output(
         self,
