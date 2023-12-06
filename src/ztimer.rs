@@ -226,11 +226,16 @@ impl embedded_hal::blocking::delay::DelayUs<u32> for Clock<1000000> {
 }
 
 #[cfg(all(feature = "embedded-hal-async", riot_module_ztimer_usec))]
-/// Struct that provides the [embedded_hal_async::delay::DelayUs] trait
+/// Struct that provides the [embedded_hal_async::delay::DelayNs] trait
 ///
 /// Unlike the [Clock] structs that can be instanciated for any ZTimer clock, this is clock
 /// independent, because the embedded HAL trait offers delay methods that are provided through
 /// different global clocks.
+///
+/// ## Caveats
+///
+/// RIOT does not provide a general nanosecond clock; nanosecond sleeps are implemented at the
+/// microsecond clock, and will pause longer as the trait demands.
 #[derive(Copy, Clone, Debug)]
 pub struct Delay;
 
@@ -239,7 +244,12 @@ pub struct Delay;
     riot_module_ztimer_usec,
     riot_module_ztimer_msec
 ))]
-impl embedded_hal_async::delay::DelayUs for Delay {
+impl embedded_hal_async::delay::DelayNs for Delay {
+    async fn delay_ns(&mut self, ns: u32) {
+        // See struct level documentation
+        Clock::usec().sleep_async(Ticks(ns.div_ceil(1000))).await
+    }
+
     async fn delay_us(&mut self, us: u32) {
         Clock::usec().sleep_async(Ticks(us)).await
     }
