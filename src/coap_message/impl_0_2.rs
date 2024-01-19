@@ -1,4 +1,4 @@
-use coap_message::{
+use coap_message_0_2::{
     MessageOption,
     MinimalWritableMessage,
     MutableWritableMessage,
