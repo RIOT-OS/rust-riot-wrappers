@@ -2,6 +2,7 @@
 //! [coap_message::WritableMessage] around RIOT's coap_pkt_t.
 
 mod impl_0_2;
+mod impl_0_3;
 
 use crate::gcoap::{PacketBuffer, PacketBufferOptIter};
 
@@ -24,6 +25,8 @@ impl<'a> Iterator for OptionsIterator<'a> {
 }
 
 pub struct ResponseMessage<'a> {
+    /// Note that this is a slightly weird version of PacketBuffer, where opt_finish is never
+    /// called, and .payload() perpetually reports the payload marker as part of the payload.
     message: &'a mut PacketBuffer,
     payload_written: Option<usize>,
 }
@@ -37,6 +40,10 @@ impl<'a> ResponseMessage<'a> {
             message: buf,
             payload_written: None,
         }
+    }
+
+    pub(crate) fn rewind(&mut self) {
+        self.message.resp_init(5 << 5).unwrap();
     }
 
     pub fn finish(&self) -> isize {

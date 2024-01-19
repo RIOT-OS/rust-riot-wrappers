@@ -3,9 +3,14 @@
 
 use core::convert::TryInto;
 
-use coap_handler_0_1::{Attribute, Handler, Record, Reporting};
+use coap_handler_0_2::{Attribute, Handler, Record, Reporting};
 
-use coap_message_0_2::{MutableWritableMessage, ReadableMessage};
+use coap_message_0_3::{
+    error::RenderableOnMinimal,
+    MinimalWritableMessage,
+    MutableWritableMessage,
+    ReadableMessage,
+};
 
 use crate::coap_message::ResponseMessage;
 use crate::gcoap::PacketBuffer;
@@ -23,7 +28,25 @@ where
     fn handle(&mut self, pkt: &mut PacketBuffer) -> isize {
         let request_data = self.0.extract_request_data(pkt);
         let mut lengthwrapped = ResponseMessage::new(pkt);
-        self.0.build_response(&mut lengthwrapped, request_data);
+        match request_data {
+            Ok(r) => {
+                if let Err(e) = self.0.build_response(&mut lengthwrapped, r) {
+                    lengthwrapped.rewind();
+                    if let Err(_e2) = e.render(&mut lengthwrapped) {
+                        // Render double fault
+                        lengthwrapped.rewind();
+                        lengthwrapped.set_code(coap_numbers::code::INTERNAL_SERVER_ERROR);
+                    }
+                }
+            }
+            Err(e) => {
+                if let Err(_e2) = e.render(&mut lengthwrapped) {
+                    // Render double fault
+                    lengthwrapped.rewind();
+                    lengthwrapped.set_code(coap_numbers::code::INTERNAL_SERVER_ERROR);
+                }
+            }
+        }
         lengthwrapped.finish()
     }
 }
@@ -79,8 +102,16 @@ where
 {
     type RequestData = Option<H::RequestData>;
 
-    fn extract_request_data<'a>(&mut self, request: &'a impl ReadableMessage) -> Self::RequestData {
-        self.try_lock().map(|mut h| h.extract_request_data(request))
+    type ExtractRequestError = H::ExtractRequestError;
+    type BuildResponseError<M: MinimalWritableMessage> = H::BuildResponseError<M>;
+
+    fn extract_request_data<M: ReadableMessage>(
+        &mut self,
+        request: &M,
+    ) -> Result<Self::RequestData, Self::ExtractRequestError> {
+        self.try_lock()
+            .map(|mut h| h.extract_request_data(request))
+            .transpose()
     }
 
     fn estimate_length(&mut self, request: &Self::RequestData) -> usize {
@@ -93,11 +124,11 @@ where
         1
     }
 
-    fn build_response(
+    fn build_response<M: MutableWritableMessage>(
         &mut self,
-        response: &mut impl MutableWritableMessage,
+        response: &mut M,
         request: Self::RequestData,
-    ) {
+    ) -> Result<(), Self::BuildResponseError<M>> {
         if let Some(r) = request {
             if let Some(mut s) = self.try_lock() {
                 return s.build_response(response, r);
@@ -110,6 +141,6 @@ where
                 .map_err(|_| "Message type can't even exprss Service Unavailable")
                 .unwrap(),
         );
-        response.set_payload(b"");
+        Ok(())
     }
 }
