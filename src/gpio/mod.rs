@@ -4,6 +4,7 @@
 //! the [embedded_hal_0_2::digital::v2] traits.
 
 mod impl_0_2;
+mod impl_1;
 
 use riot_sys::{gpio_clear, gpio_mode_t, gpio_read, gpio_set, gpio_t, gpio_toggle};
 

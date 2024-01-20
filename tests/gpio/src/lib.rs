@@ -4,7 +4,7 @@ use riot_wrappers::gpio::{InputMode, OutputMode, GPIO};
 use riot_wrappers::println;
 use riot_wrappers::riot_main;
 
-use embedded_hal_0_2::digital::v2::{InputPin, OutputPin, PinState};
+use embedded_hal::digital::{InputPin, OutputPin, PinState};
 
 riot_main!(main);
 
@@ -22,7 +22,7 @@ fn main() {
         .expect("Out pin does not exist")
         .configure_as_output(OutputMode::Out)
         .expect("Out pin could not be configured");
-    let p_in = GPIO::from_port_and_pin(in_port, in_pin)
+    let mut p_in = GPIO::from_port_and_pin(in_port, in_pin)
         .expect("In pin does not exist")
         .configure_as_input(in_mode)
         .expect("In pin could not be configured");
@@ -30,6 +30,8 @@ fn main() {
     loop {
         let value = p_in.is_high().unwrap();
         println!("Read GPIO value {}, writing it to the out port", value);
-        p_out.set_state(if value { PinState::High } else { PinState::Low });
+        p_out
+            .set_state(if value { PinState::High } else { PinState::Low })
+            .unwrap();
     }
 }
