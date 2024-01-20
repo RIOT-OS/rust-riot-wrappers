@@ -1,19 +1,12 @@
-/// This module implements coap_message::ReadableMessage for, and a wrapper that provides
-/// coap_message::WritableMessage around RIOT's coap_pkt_t.
-use crate::gcoap::{PacketBuffer, PacketBufferOptIter};
-use coap_message::{
+use coap_message_0_2::{
+    MessageOption,
     MinimalWritableMessage,
     MutableWritableMessage,
     ReadableMessage,
     WithSortedOptions,
 };
 
-pub struct MessageOption<'a> {
-    number: u16,
-    value: &'a [u8],
-}
-
-impl<'a> coap_message::MessageOption for MessageOption<'a> {
+impl<'a> MessageOption for super::MessageOption<'a> {
     fn number(&self) -> u16 {
         self.number
     }
@@ -23,27 +16,14 @@ impl<'a> coap_message::MessageOption for MessageOption<'a> {
     }
 }
 
-pub struct OptionsIterator<'a>(PacketBufferOptIter<'a>);
-impl<'a> Iterator for OptionsIterator<'a> {
-    type Item = MessageOption<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (opt_num, slice) = self.0.next()?;
-        Some(MessageOption {
-            number: opt_num,
-            value: slice,
-        })
-    }
-}
-
-impl WithSortedOptions for PacketBuffer {
+impl WithSortedOptions for super::PacketBuffer {
     // valid because gcoap just reads options from the message where they are stored in sequence
 }
 
-impl ReadableMessage for PacketBuffer {
+impl ReadableMessage for super::PacketBuffer {
     type Code = u8;
-    type OptionsIter<'a> = OptionsIterator<'a>;
-    type MessageOption<'a> = MessageOption<'a>;
+    type OptionsIter<'a> = super::OptionsIterator<'a>;
+    type MessageOption<'a> = super::MessageOption<'a>;
 
     fn code(&self) -> Self::Code {
         self.get_code_raw()
@@ -54,35 +34,11 @@ impl ReadableMessage for PacketBuffer {
     }
 
     fn options(&self) -> Self::OptionsIter<'_> {
-        OptionsIterator(self.opt_iter())
+        super::OptionsIterator(self.opt_iter())
     }
 }
 
-pub struct ResponseMessage<'a> {
-    message: &'a mut PacketBuffer,
-    payload_written: Option<usize>,
-}
-
-impl<'a> ResponseMessage<'a> {
-    pub fn new(buf: &'a mut PacketBuffer) -> Self {
-        // Can't really err; FIXME ensure that such a check won't affect ROM too much
-        buf.resp_init(5 << 5).unwrap();
-
-        ResponseMessage {
-            message: buf,
-            payload_written: None,
-        }
-    }
-
-    pub fn finish(&self) -> isize {
-        self.message.get_length(match self.payload_written {
-            None => 0,
-            Some(x) => x + 1,
-        }) as isize
-    }
-}
-
-impl<'a> MinimalWritableMessage for ResponseMessage<'a> {
+impl<'a> MinimalWritableMessage for super::ResponseMessage<'a> {
     type Code = u8;
     type OptionNumber = u16;
 
@@ -105,7 +61,7 @@ impl<'a> MinimalWritableMessage for ResponseMessage<'a> {
     }
 }
 
-impl<'a> MutableWritableMessage for ResponseMessage<'a> {
+impl<'a> MutableWritableMessage for super::ResponseMessage<'a> {
     fn available_space(&self) -> usize {
         self.message.payload().len()
     }

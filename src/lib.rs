@@ -20,7 +20,7 @@
 )]
 // Primarily for documentation, see feature docs
 #![cfg_attr(feature = "actual_never_type", feature(never_type))]
-#![cfg_attr(feature = "nightly_docs", feature(fundamental))]
+#![cfg_attr(feature = "nightly_docs", feature(fundamental, doc_auto_cfg))]
 
 /// riot-sys is re-exported here as it is necessary in some places when using it to get values (eg.
 /// in [error::NumericError::from_constant]). It is also used in macros such as [static_command!].
@@ -143,9 +143,9 @@ pub mod rwlock;
 #[cfg(feature = "set_panic_handler")]
 mod panic;
 
-#[cfg(feature = "with_coap_handler")]
+#[cfg(riot_module_gcoap)]
 pub mod coap_handler;
-#[cfg(feature = "with_coap_message")]
+#[cfg(riot_module_gcoap)]
 pub mod coap_message;
 
 #[cfg(riot_module_sock)]
