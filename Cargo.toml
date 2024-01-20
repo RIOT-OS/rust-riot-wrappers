@@ -18,7 +18,7 @@ license = "MIT OR Apache-2.0"
 
 
 [dependencies]
-embedded-hal = { version = "0.2.4", features = ["unproven"] }
+embedded-hal-0-2 = { package = "embedded-hal", version = "0.2.4", features = ["unproven"] }
 switch-hal = "0.4.0"
 nb = "0.1.1"
 riot-sys = "0.7.8"

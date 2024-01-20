@@ -4,7 +4,7 @@ use riot_wrappers::gpio::{InputMode, OutputMode, GPIO};
 use riot_wrappers::println;
 use riot_wrappers::riot_main;
 
-use embedded_hal::digital::v2::{InputPin, OutputPin, PinState};
+use embedded_hal_0_2::digital::v2::{InputPin, OutputPin, PinState};
 
 riot_main!(main);
 

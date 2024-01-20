@@ -23,12 +23,12 @@ impl<const I: u8> switch_hal::OutputSwitch for LED<I> {
     type Error = Never;
 
     fn on(&mut self) -> Result<(), Self::Error> {
-        use embedded_hal::digital::v2::OutputPin;
+        use embedded_hal_0_2::digital::v2::OutputPin;
         self.set_high()
     }
 
     fn off(&mut self) -> Result<(), Self::Error> {
-        use embedded_hal::digital::v2::OutputPin;
+        use embedded_hal_0_2::digital::v2::OutputPin;
         self.set_low()
     }
 }
@@ -37,11 +37,11 @@ impl<const I: u8> switch_hal::ToggleableOutputSwitch for LED<I> {
     type Error = Never;
 
     fn toggle(&mut self) -> Result<(), Self::Error> {
-        <Self as embedded_hal::digital::v2::ToggleableOutputPin>::toggle(self)
+        <Self as embedded_hal_0_2::digital::v2::ToggleableOutputPin>::toggle(self)
     }
 }
 
-impl<const I: u8> embedded_hal::digital::v2::OutputPin for LED<I> {
+impl<const I: u8> embedded_hal_0_2::digital::v2::OutputPin for LED<I> {
     type Error = Never;
 
     fn set_high(&mut self) -> Result<(), Never> {
@@ -81,7 +81,7 @@ impl<const I: u8> embedded_hal::digital::v2::OutputPin for LED<I> {
     }
 }
 
-impl<const I: u8> embedded_hal::digital::v2::ToggleableOutputPin for LED<I> {
+impl<const I: u8> embedded_hal_0_2::digital::v2::ToggleableOutputPin for LED<I> {
     type Error = Never;
 
     fn toggle(&mut self) -> Result<(), Never> {

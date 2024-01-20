@@ -197,13 +197,13 @@ impl Clock<1000000> {
     }
 }
 
-impl embedded_hal::blocking::delay::DelayMs<u32> for Clock<1000> {
+impl embedded_hal_0_2::blocking::delay::DelayMs<u32> for Clock<1000> {
     fn delay_ms(&mut self, ms: u32) {
         self.sleep_ticks(ms.into());
     }
 }
 
-impl embedded_hal::blocking::delay::DelayUs<u32> for Clock<1000000> {
+impl embedded_hal_0_2::blocking::delay::DelayUs<u32> for Clock<1000000> {
     fn delay_us(&mut self, us: u32) {
         self.sleep_ticks(us);
     }

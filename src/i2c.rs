@@ -1,13 +1,13 @@
 //! Controlling the I²C bus
 
-use embedded_hal::blocking;
+use embedded_hal_0_2::blocking;
 use riot_sys::i2c_t;
 
 /// An I²C master backed by RIOT's [I2C implementation]
 ///
 /// [I2C implementation]: http://doc.riot-os.org/group__drivers__periph__i2c.html
 ///
-/// Actual transactions on this are performed through the [embedded_hal::blocking::i2c] traits
+/// Actual transactions on this are performed through the [mbedded_hal_0_2::blocking::i2c] traits
 /// implemented by this.
 #[derive(Debug)]
 pub struct I2CDevice {

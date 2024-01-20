@@ -1,11 +1,11 @@
 //! Access to [RIOT's GPIO pins](http://doc.riot-os.org/group__drivers__periph__gpio.html)
 //!
 //! The various configured GPIO types ([InputGPIO], [OutputGPIO], [InOutGPIO]) can be used through
-//! the [embedded_hal::digital::v2] traits.
+//! the [embedded_hal_0_2::digital::v2] traits.
 
 use riot_sys::{gpio_clear, gpio_mode_t, gpio_read, gpio_set, gpio_t, gpio_toggle};
 
-use embedded_hal::digital::v2::{InputPin, OutputPin, ToggleableOutputPin};
+use embedded_hal_0_2::digital::v2::{InputPin, OutputPin, ToggleableOutputPin};
 
 use crate::error::NegativeErrorExt;
 use crate::Never;

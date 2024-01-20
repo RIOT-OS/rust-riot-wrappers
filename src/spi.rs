@@ -1,5 +1,5 @@
 use crate::Never;
-use embedded_hal::blocking;
+use embedded_hal_0_2::blocking;
 use riot_sys::{
     spi_acquire,
     spi_clk_t,
