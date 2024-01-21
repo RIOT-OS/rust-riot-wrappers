@@ -8,8 +8,9 @@ use crate::Never;
 ///
 /// LEDs are accessible safely; any not implemented on a board are silently ignored.
 ///
-/// LEDs are wrapped into GPIOs for compatibility reasons; GPIO is interpreted such that "high" is
-/// having the LED on, and "low" is off.
+/// LEDs are wrapped into embedded-hal 0.2 GPIOs for compatibility reasons (but that integration is
+/// discontinued with embedded-hal 1.0); GPIO is interpreted such that "high" is having the LED on,
+/// and "low" is off.
 pub struct LED<const I: u8>(());
 
 impl<const I: u8> LED<I> {
