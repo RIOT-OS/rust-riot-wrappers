@@ -1,12 +1,13 @@
 //! Access to [RIOT's GPIO pins](http://doc.riot-os.org/group__drivers__periph__gpio.html)
 //!
 //! The various configured GPIO types ([InputGPIO], [OutputGPIO], [InOutGPIO]) can be used through
-//! the [embedded_hal_0_2::digital::v2] traits.
+//! the [embedded_hal::digital::v2] traits. As recommended for infallible types, they also
+//! provide identically named direct methods, which (for input pins) also work on shared reference.
 
 mod impl_0_2;
 mod impl_1;
 
-use riot_sys::{gpio_clear, gpio_mode_t, gpio_read, gpio_set, gpio_t, gpio_toggle};
+use riot_sys::{gpio_clear, gpio_mode_t, gpio_read, gpio_set, gpio_t, gpio_toggle, gpio_write};
 
 use crate::error::NegativeErrorExt;
 use crate::Never;
@@ -143,6 +144,18 @@ impl OutputGPIO {
     pub fn deconfigured(self) -> GPIO {
         self.0
     }
+
+    pub fn set_high(&mut self) {
+        unsafe { gpio_set(self.to_c()) };
+    }
+
+    pub fn set_low(&mut self) {
+        unsafe { gpio_clear(self.to_c()) };
+    }
+
+    pub fn set_state(&mut self, state: bool) {
+        unsafe { gpio_write(self.to_c(), state as _) };
+    }
 }
 
 /// A [GPIO] configured and usable for input
@@ -158,6 +171,14 @@ impl InputGPIO {
     pub fn deconfigured(self) -> GPIO {
         self.0
     }
+
+    pub fn is_high(&self) -> bool {
+        unsafe { gpio_read(self.to_c()) != 0 }
+    }
+
+    pub fn is_low(&self) -> bool {
+        unsafe { gpio_read(self.to_c()) == 0 }
+    }
 }
 
 /// A [GPIO] configured and usable for input and output
@@ -172,5 +193,25 @@ impl InOutGPIO {
     /// Lose information about how the pin is configured, making it configurable again
     pub fn deconfigured(self) -> GPIO {
         self.0
+    }
+
+    pub fn set_high(&mut self) {
+        unsafe { gpio_set(self.to_c()) };
+    }
+
+    pub fn set_low(&mut self) {
+        unsafe { gpio_clear(self.to_c()) };
+    }
+
+    pub fn set_state(&mut self, state: bool) {
+        unsafe { gpio_write(self.to_c(), state as _) };
+    }
+
+    pub fn is_high(&self) -> bool {
+        unsafe { gpio_read(self.to_c()) != 0 }
+    }
+
+    pub fn is_low(&self) -> bool {
+        unsafe { gpio_read(self.to_c()) == 0 }
     }
 }
