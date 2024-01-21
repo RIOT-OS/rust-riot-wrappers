@@ -1,6 +1,7 @@
 //! Controlling the I²C bus
 
-use embedded_hal_0_2::blocking;
+pub mod impl_0_2;
+
 use riot_sys::i2c_t;
 
 /// An I²C master backed by RIOT's [I2C implementation]
@@ -24,100 +25,7 @@ impl I2CDevice {
     }
 }
 
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum Error {
-    AcquireError,
-    WriteError(i32),
-    ReadError(i32),
-}
-
-use riot_sys::libc;
-use riot_sys::{i2c_acquire, i2c_read_bytes, i2c_release, i2c_write_bytes};
-
-impl blocking::i2c::WriteRead for I2CDevice {
-    type Error = Error;
-
-    fn write_read(
-        &mut self,
-        address: u8,
-        bytes: &[u8],
-        buffer: &mut [u8],
-    ) -> Result<(), Self::Error> {
-        unsafe { i2c_acquire(self.dev) };
-        let err = unsafe {
-            i2c_write_bytes(
-                self.dev,
-                address as u16,
-                bytes.as_ptr() as *const libc::c_void,
-                bytes.len() as _,
-                0,
-            )
-        };
-        if err != 0 {
-            unsafe { i2c_release(self.dev) };
-            return Err(Error::WriteError(err));
-        }
-        let err = unsafe {
-            i2c_read_bytes(
-                self.dev,
-                address as u16,
-                buffer.as_ptr() as *mut libc::c_void,
-                buffer.len() as _,
-                0,
-            )
-        };
-        if err != 0 {
-            unsafe { i2c_release(self.dev) };
-            return Err(Error::ReadError(err));
-        }
-        unsafe { i2c_release(self.dev) };
-        Ok(())
-    }
-}
-
-impl blocking::i2c::Write for I2CDevice {
-    type Error = Error;
-
-    fn write(&mut self, address: u8, bytes: &[u8]) -> Result<(), Self::Error> {
-        unsafe { i2c_acquire(self.dev) };
-        let err = unsafe {
-            i2c_write_bytes(
-                self.dev,
-                address as u16,
-                bytes.as_ptr() as *const libc::c_void,
-                bytes.len() as _,
-                0,
-            )
-        };
-        if err != 0 {
-            unsafe { i2c_release(self.dev) };
-            return Err(Error::WriteError(err));
-        }
-        unsafe { i2c_release(self.dev) };
-        Ok(())
-    }
-}
-
-impl blocking::i2c::Read for I2CDevice {
-    type Error = Error;
-
-    fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
-        unsafe { i2c_acquire(self.dev) };
-        let err = unsafe {
-            i2c_read_bytes(
-                self.dev,
-                address as u16,
-                buffer.as_ptr() as *mut libc::c_void,
-                buffer.len() as _,
-                0,
-            )
-        };
-        if err != 0 {
-            unsafe { i2c_release(self.dev) };
-            return Err(Error::ReadError(err));
-        }
-        unsafe { i2c_release(self.dev) };
-        Ok(())
-    }
-}
+#[deprecated(
+    note = "This error type applies to embedded-hal 0.2 only, use it through the impl_0_2 module."
+)]
+pub use impl_0_2::Error;
