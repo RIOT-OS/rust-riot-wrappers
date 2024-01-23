@@ -14,4 +14,4 @@ panic = "abort"
 [dependencies]
 riot-wrappers = { version = "*", features = [ "set_panic_handler", "panic_handler_format" ] }
 riot-sys = "*"
-embedded-hal = "0.2"
+embedded-hal = "1"

@@ -2,7 +2,7 @@
 //! device is connected. (And reading should be safe on any device / bus).
 #![no_std]
 
-use embedded_hal::blocking::i2c::Read;
+use embedded_hal::i2c::I2c;
 
 use riot_wrappers::println;
 use riot_wrappers::riot_main;
