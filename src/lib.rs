@@ -143,9 +143,9 @@ pub mod rwlock;
 #[cfg(feature = "set_panic_handler")]
 mod panic;
 
-#[cfg(feature = "with_coap_handler")]
+#[cfg(riot_module_gcoap)]
 pub mod coap_handler;
-#[cfg(feature = "with_coap_message")]
+#[cfg(riot_module_gcoap)]
 pub mod coap_message;
 
 #[cfg(riot_module_sock)]
