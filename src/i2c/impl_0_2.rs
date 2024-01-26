@@ -1,28 +1,14 @@
-//! Controlling the I²C bus
+//! Implementation of embedded-hal 0.2's I2C for [I2CDevice]
+//!
+//! As the implementation is on the [I2CDevice directly], all that is in this module is the
+//! suitable [Error] type.
 
-use embedded_hal::blocking;
-use riot_sys::i2c_t;
+use embedded_hal_0_2::blocking;
 
-/// An I²C master backed by RIOT's [I2C implementation]
-///
-/// [I2C implementation]: http://doc.riot-os.org/group__drivers__periph__i2c.html
-///
-/// Actual transactions on this are performed through the [embedded_hal::blocking::i2c] traits
-/// implemented by this.
-#[derive(Debug)]
-pub struct I2CDevice {
-    dev: i2c_t,
-}
+use super::*;
 
-impl I2CDevice {
-    /// Create a new I2CDevice from a RIOT descriptor
-    ///
-    /// As all transactions on the bus are gated by acquire / release steps implied in the
-    /// individual reads or writes, multiple copies of the same device can safely coexist.
-    pub fn new(dev: i2c_t) -> Self {
-        I2CDevice { dev }
-    }
-}
+use riot_sys::libc;
+use riot_sys::{i2c_acquire, i2c_read_bytes, i2c_release, i2c_write_bytes};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -31,9 +17,6 @@ pub enum Error {
     WriteError(i32),
     ReadError(i32),
 }
-
-use riot_sys::libc;
-use riot_sys::{i2c_acquire, i2c_read_bytes, i2c_release, i2c_write_bytes};
 
 impl blocking::i2c::WriteRead for I2CDevice {
     type Error = Error;
