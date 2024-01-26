@@ -53,6 +53,8 @@ pin-project = "1.0.11"
 
 embedded-hal-async = { version = "1", optional = true }
 
+critical-section = { version = "1.0", optional = true }
+
 [build-dependencies]
 shlex = "0.1.1"
 syn = { version = "1.0.107", features = [ "parsing" ] }
@@ -74,6 +76,9 @@ panic_handler_format = []
 # system. Otherwise, the panic in thread mode outside of a critical section
 # only affects that single thread.
 panic_handler_crash = []
+
+# Provide an implementation of critical-section 1.0 using irq_disable()/_restore().
+provide_critical_section_1_0 = ["critical-section/restore-state-u32"]
 
 # If these are present, traits for the respective optional dependencies will be
 # implemented.
