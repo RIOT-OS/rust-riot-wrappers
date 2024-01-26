@@ -13,6 +13,10 @@
 pub mod periodic;
 
 use core::convert::TryInto;
+use core::mem::ManuallyDrop;
+use core::pin::Pin;
+
+use pin_project::{pin_project, pinned_drop};
 
 use riot_sys::ztimer_clock_t;
 
@@ -31,7 +35,6 @@ pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 /// seconds.
 #[derive(Copy, Clone, Debug)]
 pub struct Ticks<const HZ: u32>(pub u32);
-
 
 impl<const HZ: u32> Clock<HZ> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
@@ -71,6 +74,19 @@ impl<const HZ: u32> Clock<HZ> {
             ticks -= u64::from(u32::MAX);
         }
         self.sleep_ticks(ticks.try_into().expect("Was just checked manually above"));
+    }
+
+    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
+    /// `.await`ed.
+    ///
+    /// Note that time starts running only when this is polled, for otherwise there's no pinned
+    /// Self around.
+    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
+        AsyncSleep::NeverPolled(NascentAsyncSleep {
+            clock: *self,
+            ticks: duration,
+        })
+        .await
     }
 
     /// Set the given callback to be executed in an interrupt some ticks in the future.
@@ -209,6 +225,41 @@ impl embedded_hal_0_2::blocking::delay::DelayUs<u32> for Clock<1000000> {
     }
 }
 
+#[cfg(all(feature = "embedded-hal-async", riot_module_ztimer_usec))]
+/// Struct that provides the [embedded_hal_async::delay::DelayNs] trait
+///
+/// Unlike the [Clock] structs that can be instanciated for any ZTimer clock, this is clock
+/// independent, because the embedded HAL trait offers delay methods that are provided through
+/// different global clocks.
+///
+/// ## Caveats
+///
+/// RIOT does not provide a general nanosecond clock; nanosecond sleeps are implemented at the
+/// microsecond clock, and will pause longer as the trait demands.
+#[derive(Copy, Clone, Debug)]
+pub struct Delay;
+
+#[cfg(all(
+    feature = "embedded-hal-async",
+    riot_module_ztimer_usec,
+    riot_module_ztimer_msec
+))]
+impl embedded_hal_async::delay::DelayNs for Delay {
+    async fn delay_ns(&mut self, ns: u32) {
+        // See struct level documentation
+        Clock::usec().sleep_async(Ticks(ns.div_ceil(1000))).await
+    }
+
+    async fn delay_us(&mut self, us: u32) {
+        Clock::usec().sleep_async(Ticks(us)).await
+    }
+
+    async fn delay_ms(&mut self, us: u32) {
+        Clock::msec().sleep_async(Ticks(us)).await
+    }
+}
+
+
 impl<const F: u32> embedded_hal::delay::DelayNs for Clock<F> {
     // FIXME: Provide delay_us and delay_ms, at least for the clocks where those fit, to avoid the
     // loops where the provided function wakes up every 4.3s
@@ -302,5 +353,138 @@ impl<const HZ: u32> TryFrom<core::time::Duration> for Ticks<HZ> {
 
     fn try_from(duration: core::time::Duration) -> Result<Self, Overflow> {
         Self::from_duration(duration)
+    }
+}
+
+#[derive(Copy, Clone)]
+struct NascentAsyncSleep<const HZ: u32> {
+    clock: crate::ztimer::Clock<HZ>,
+    ticks: Ticks<HZ>,
+}
+
+#[pin_project(PinnedDrop)]
+struct RunningAsyncSleep<const HZ: u32> {
+    clock: crate::ztimer::Clock<HZ>,
+
+    #[pin]
+    timer: riot_sys::ztimer_t,
+    // If this only were pointer-sized, it'd fit inside the ztimer and we wouldn't have to lug
+    // it around -- but it isn't, and it looks like we don't get it scaled down easily (that
+    // is, without patching core to only accept a very specific kind of wakers).
+    //
+    // This is initialized at construction time, and gets consumed either at callback time or at
+    // drop time.
+    #[pin]
+    waker: ManuallyDrop<core::task::Waker>,
+
+    #[pin]
+    // riot_sys::ztimer_t is Unpin because riot-sys doesn't know any better
+    _pin: core::marker::PhantomPinned,
+}
+
+#[pin_project(project=ProjectedAsyncSleep)]
+enum AsyncSleep<const HZ: u32> {
+    NeverPolled(NascentAsyncSleep<HZ>),
+    Running(#[pin] RunningAsyncSleep<HZ>),
+}
+
+impl<const HZ: u32> core::future::Future for AsyncSleep<HZ> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, ctx: &mut core::task::Context<'_>) -> core::task::Poll<()> {
+        // There's no unsafe version of set_during, thus emulating this ourselves
+        //
+        // This should be conceptually sound: The timer gets set, and a cloned waker gets moved in.
+        // The timer itself is pinned and thus won't move away without a Drop, and the moved in
+        // argument is owned (here it being pinned might not be enough, as it's used as a callback,
+        // and then everything accessible from the callback would need to be pinned as well, just
+        // in case the timer went out of lifetime without being dropped, which is OK as long as
+        // it's never accessed, and thus we may only access memory from there, probably ... the DMA
+        // problem).
+
+        // To use the data in nascent we have to keep &mut self usable; cloning this out is more
+        // about making the borrow checker happy: It doesn't see that when clocks and ticks are
+        // moved out of nascent, the lifetime of the `match self.as_mut().project()` value can be
+        // terminated alreadyh before we write to &mut self again.
+        let copied_out = match self.as_mut().project() {
+            ProjectedAsyncSleep::NeverPolled(nascent) => Some(nascent.clone()),
+            _ => None,
+        };
+
+        if let Some(nascent) = copied_out {
+            let NascentAsyncSleep { clock, ticks } = nascent;
+
+            let mut timer: riot_sys::ztimer_t = Default::default();
+            extern "C" fn wake_arg(arg: *mut riot_sys::libc::c_void) {
+                // Moving it out of its pinned position, leaving the bit pattern in place (but it
+                // won't ever be used again, as the timer only fires once).
+                let waker: core::task::Waker = unsafe { (arg as *mut core::task::Waker).read() };
+                waker.wake();
+            }
+            timer.callback = Some(wake_arg);
+            let running = RunningAsyncSleep {
+                clock,
+                timer,
+                waker: ManuallyDrop::new(ctx.waker().clone()),
+                _pin: Default::default(),
+            };
+
+            Pin::set(&mut self, AsyncSleep::Running(running));
+
+            // Pinned now, can add self referentiality to waker
+
+            let mut running = match self.as_mut().project() {
+                ProjectedAsyncSleep::Running(w) => w,
+                _ => unreachable!("Was just set to be running"),
+            };
+
+            // We're casting a ManuallyDrop into the c_void here and cast it back into a Waker, but
+            // that's OK because ManuallyDrop is repr(transparent)
+            let waker_address = &running.waker as *const ManuallyDrop<core::task::Waker>
+                as *const riot_sys::libc::c_void;
+            running.as_mut().project().timer.arg = waker_address as *mut _;
+            let timer = &running.timer as *const _ as *mut _;
+
+            // Start timer
+
+            // unsafe: OK per C API
+            unsafe {
+                riot_sys::ztimer_set(clock.0, timer, ticks.0);
+            }
+
+            core::task::Poll::Pending
+        } else {
+            let running = match self.project() {
+                ProjectedAsyncSleep::Running(running) => running,
+                _ => unreachable!("Was just checked to be running"),
+            };
+
+            // Instead of doing this relatively costly check, might we instead atomically set a
+            // property of the PendingTimer in the callback?
+            if unsafe { riot_sys::ztimer_is_set(riot_sys::ZTIMER_MSEC, &running.timer) != 0 } {
+                core::task::Poll::Pending
+            } else {
+                core::task::Poll::Ready(())
+            }
+        }
+    }
+}
+
+#[pinned_drop]
+impl<const HZ: u32> PinnedDrop for RunningAsyncSleep<HZ> {
+    fn drop(self: Pin<&mut Self>) {
+        // FIXME: Should we store a third state when this gets Ready, just to spare us going through the
+        // ztimer_remove? Might be a good idea, might be just an optimization (that doesn't get us
+        // much, for if the timer fired, ztimer_remove can take a shortcut route).
+
+        let mut projected = self.project();
+
+        let was_pending = unsafe {
+            riot_sys::ztimer_remove(projected.clock.0, projected.timer.as_mut().get_mut())
+        };
+
+        if was_pending {
+            unsafe { ManuallyDrop::drop(&mut projected.waker) };
+        }
     }
 }
