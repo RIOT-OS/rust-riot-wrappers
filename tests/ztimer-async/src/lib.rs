@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(type_alias_impl_trait)] // for the embassy-executor/nightly ::task macro
 
 use riot_wrappers::println;
 use riot_wrappers::riot_main;
