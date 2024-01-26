@@ -1,5 +1,5 @@
 [package]
-name = "riot-wrappers-test-gpio"
+name = "riot-wrappers-test-i2c"
 version = "0.1.0"
 authors = ["Christian Amsüss <chrysn@fsfe.org>"]
 edition = "2021"

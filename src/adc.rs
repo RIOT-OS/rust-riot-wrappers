@@ -35,14 +35,14 @@ pub struct ADC {
     pub resolution: riot_sys::adc_res_t,
 }
 
-impl embedded_hal::adc::Channel<ADC> for ADCLine {
+impl embedded_hal_0_2::adc::Channel<ADC> for ADCLine {
     type ID = riot_sys::adc_t;
     fn channel() -> Self::ID {
         unimplemented!("See https://github.com/rust-embedded/embedded-hal/issues/110")
     }
 }
 
-impl embedded_hal::adc::OneShot<ADC, i32, ADCLine> for ADC {
+impl embedded_hal_0_2::adc::OneShot<ADC, i32, ADCLine> for ADC {
     type Error = Never;
 
     fn read(&mut self, pin: &mut ADCLine) -> nb::Result<i32, Never> {

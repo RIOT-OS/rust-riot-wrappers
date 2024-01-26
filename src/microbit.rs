@@ -14,7 +14,7 @@ use crate::Never;
 
 /// The 5x5 LED matrix of the micro:bit boards
 ///
-/// Use the [embedded_hal] mechanisms to paint on them.
+/// Use the [embedded_graphics] mechanisms to paint on them.
 pub struct LEDs {
     _private: (),
 }

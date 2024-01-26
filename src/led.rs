@@ -8,8 +8,9 @@ use crate::Never;
 ///
 /// LEDs are accessible safely; any not implemented on a board are silently ignored.
 ///
-/// LEDs are wrapped into GPIOs for compatibility reasons; GPIO is interpreted such that "high" is
-/// having the LED on, and "low" is off.
+/// LEDs are wrapped into embedded-hal 0.2 GPIOs for compatibility reasons (but that integration is
+/// discontinued with embedded-hal 1.0); GPIO is interpreted such that "high" is having the LED on,
+/// and "low" is off.
 pub struct LED<const I: u8>(());
 
 impl<const I: u8> LED<I> {
@@ -23,12 +24,12 @@ impl<const I: u8> switch_hal::OutputSwitch for LED<I> {
     type Error = Never;
 
     fn on(&mut self) -> Result<(), Self::Error> {
-        use embedded_hal::digital::v2::OutputPin;
+        use embedded_hal_0_2::digital::v2::OutputPin;
         self.set_high()
     }
 
     fn off(&mut self) -> Result<(), Self::Error> {
-        use embedded_hal::digital::v2::OutputPin;
+        use embedded_hal_0_2::digital::v2::OutputPin;
         self.set_low()
     }
 }
@@ -37,11 +38,11 @@ impl<const I: u8> switch_hal::ToggleableOutputSwitch for LED<I> {
     type Error = Never;
 
     fn toggle(&mut self) -> Result<(), Self::Error> {
-        <Self as embedded_hal::digital::v2::ToggleableOutputPin>::toggle(self)
+        <Self as embedded_hal_0_2::digital::v2::ToggleableOutputPin>::toggle(self)
     }
 }
 
-impl<const I: u8> embedded_hal::digital::v2::OutputPin for LED<I> {
+impl<const I: u8> embedded_hal_0_2::digital::v2::OutputPin for LED<I> {
     type Error = Never;
 
     fn set_high(&mut self) -> Result<(), Never> {
@@ -81,7 +82,7 @@ impl<const I: u8> embedded_hal::digital::v2::OutputPin for LED<I> {
     }
 }
 
-impl<const I: u8> embedded_hal::digital::v2::ToggleableOutputPin for LED<I> {
+impl<const I: u8> embedded_hal_0_2::digital::v2::ToggleableOutputPin for LED<I> {
     type Error = Never;
 
     fn toggle(&mut self) -> Result<(), Never> {

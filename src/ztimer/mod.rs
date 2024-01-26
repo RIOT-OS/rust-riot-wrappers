@@ -197,15 +197,41 @@ impl Clock<1000000> {
     }
 }
 
-impl embedded_hal::blocking::delay::DelayMs<u32> for Clock<1000> {
+impl embedded_hal_0_2::blocking::delay::DelayMs<u32> for Clock<1000> {
     fn delay_ms(&mut self, ms: u32) {
         self.sleep_ticks(ms.into());
     }
 }
 
-impl embedded_hal::blocking::delay::DelayUs<u32> for Clock<1000000> {
+impl embedded_hal_0_2::blocking::delay::DelayUs<u32> for Clock<1000000> {
     fn delay_us(&mut self, us: u32) {
         self.sleep_ticks(us);
+    }
+}
+
+impl<const F: u32> embedded_hal::delay::DelayNs for Clock<F> {
+    // FIXME: Provide delay_us and delay_ms, at least for the clocks where those fit, to avoid the
+    // loops where the provided function wakes up every 4.3s
+
+    #[inline(always)]
+    fn delay_ns(&mut self, ns: u32) {
+        if F > NANOS_PER_SEC {
+            // On really fast ZTimers, we may need to loop (but let's implement this when anyone
+            // ever implements a faster-than-nanosecond timer)
+            todo!("Test for whether this needs to loop")
+        } else {
+            // No need to loop, but we need to take care not to overflow -- and we can't
+            // pre-calculate (F / NANOS_PER_SEC) because that's rounded to 0
+
+            // FIXME: There has to be a more efficient way -- for now we're relying on inlining and
+            // hope that constant propagation takes care of things
+
+            // FIXME: This does not round correctly (it should round up the ticks), but ztimer
+            // ticks have some uncertainty on their own anyway.
+
+            let ticks = (ns as u64) * (F as u64) / (NANOS_PER_SEC as u64);
+            self.sleep_ticks(ticks as u32);
+        }
     }
 }
 
