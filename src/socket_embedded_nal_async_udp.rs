@@ -76,10 +76,12 @@ pub struct UnconnectedUdpSocket {
     socket: &'static mut sock_udp_t,
 }
 
-mod implementation {
+macro_rules! implementation_module {
+    ($ena_crate:ident) => {
+
     use super::*;
 
-    impl embedded_nal_async::UdpStack for UdpStack {
+    impl $ena_crate::UdpStack for UdpStack {
         type Error = NumericError;
         type Connected = ConnectedUdpSocket;
         // This could be done more efficiently (in particular, the send of UniquelyBound wouldn't need
@@ -90,9 +92,9 @@ mod implementation {
 
         async fn connect_from(
             &self,
-            local: embedded_nal_async::SocketAddr,
-            remote: embedded_nal_async::SocketAddr,
-        ) -> Result<(embedded_nal_async::SocketAddr, Self::Connected), Self::Error> {
+            local: $ena_crate::SocketAddr,
+            remote: $ena_crate::SocketAddr,
+        ) -> Result<($ena_crate::SocketAddr, Self::Connected), Self::Error> {
             let mut socket = self.create(Some(local.into()), Some(remote.into()), 0)?;
 
             let final_local = get_local(&mut socket)?;
@@ -107,8 +109,8 @@ mod implementation {
 
         async fn bind_single(
             &self,
-            local: embedded_nal_async::SocketAddr,
-        ) -> Result<(embedded_nal_async::SocketAddr, Self::UniquelyBound), Self::Error> {
+            local: $ena_crate::SocketAddr,
+        ) -> Result<($ena_crate::SocketAddr, Self::UniquelyBound), Self::Error> {
             let mut socket = self.create(Some(local.into()), None, 0)?;
 
             let final_local = get_local(&mut socket)?;
@@ -118,7 +120,7 @@ mod implementation {
 
         async fn bind_multiple(
             &self,
-            local: embedded_nal_async::SocketAddr,
+            local: $ena_crate::SocketAddr,
         ) -> Result<Self::MultiplyBound, Self::Error> {
             let mut socket = self.create(Some(local.into()), None, 0)?;
 
@@ -126,7 +128,7 @@ mod implementation {
         }
     }
 
-    impl embedded_nal_async::ConnectedUdp for ConnectedUdpSocket {
+    impl $ena_crate::ConnectedUdp for ConnectedUdpSocket {
         type Error = NumericError;
 
         async fn send(&mut self, data: &[u8]) -> Result<(), Self::Error> {
@@ -154,13 +156,13 @@ mod implementation {
         }
     }
 
-    impl embedded_nal_async::UnconnectedUdp for UnconnectedUdpSocket {
+    impl $ena_crate::UnconnectedUdp for UnconnectedUdpSocket {
         type Error = NumericError;
 
         async fn send(
             &mut self,
-            local: embedded_nal_async::SocketAddr,
-            remote: embedded_nal_async::SocketAddr,
+            local: $ena_crate::SocketAddr,
+            remote: $ena_crate::SocketAddr,
             data: &[u8],
         ) -> Result<(), Self::Error> {
             let remote: UdpEp = remote.into();
@@ -188,8 +190,8 @@ mod implementation {
         ) -> Result<
             (
                 usize,
-                embedded_nal_async::SocketAddr,
-                embedded_nal_async::SocketAddr,
+                $ena_crate::SocketAddr,
+                $ena_crate::SocketAddr,
             ),
             Self::Error,
         > {
@@ -209,8 +211,8 @@ mod implementation {
         type Output = Result<
             (
                 usize,
-                embedded_nal_async::SocketAddr,
-                embedded_nal_async::SocketAddr,
+                $ena_crate::SocketAddr,
+                $ena_crate::SocketAddr,
             ),
             NumericError,
         >;
@@ -340,4 +342,13 @@ mod implementation {
             // any more.
         }
     }
+
+    }
+}
+
+mod implementation {
+    implementation_module! {embedded_nal_async}
+}
+mod implementation_0_7 {
+    implementation_module! {embedded_nal_async_0_7}
 }
