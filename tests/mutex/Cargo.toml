@@ -12,4 +12,4 @@ crate-type = ["staticlib"]
 panic = "abort"
 
 [dependencies]
-riot-wrappers = { version = "*", features = [ "set_panic_handler" ] }
+riot-wrappers = { path = "../..", features = [ "set_panic_handler" ] }

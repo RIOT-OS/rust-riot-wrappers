@@ -12,6 +12,5 @@ crate-type = ["staticlib"]
 panic = "abort"
 
 [dependencies]
-riot-wrappers = { version = "*", features = [ "set_panic_handler", "panic_handler_format" ] }
-riot-sys = "*"
+riot-wrappers = { path = "../..", features = [ "set_panic_handler", "panic_handler_format" ] }
 embedded-hal = "1"
