@@ -1,6 +1,6 @@
 [package]
 name = "riot-wrappers"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Christian Amsüss <chrysn@fsfe.org>"]
 edition = "2021"
 rust-version = "1.65"
@@ -22,7 +22,7 @@ embedded-hal-0-2 = { package = "embedded-hal", version = "0.2.4", features = ["u
 embedded-hal = "1"
 switch-hal = "0.4.0"
 nb = "0.1.1"
-riot-sys = "0.7.8"
+riot-sys = "0.7.10"
 num-traits = { version = "0.2", default-features = false }
 mutex-trait = "0.2"
 

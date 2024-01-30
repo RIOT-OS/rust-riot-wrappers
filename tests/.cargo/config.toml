@@ -1,3 +1,0 @@
-[patch.crates-io]
-riot-wrappers = { path = ".." }
-riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }
