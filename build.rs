@@ -23,58 +23,43 @@ fn main() {
         }
     }
 
-    let mut bindgen_output_file = None;
+    let bindgen_output_file = env::var("DEP_RIOT_SYS_BINDGEN_OUTPUT_FILE")
+        .expect("riot-sys did not provide BINDGEN_OUTPUT_FILE");
 
-    for (key, value) in env::vars() {
-        if let Some(marker) = key.strip_prefix("DEP_RIOT_SYS_MARKER_") {
-            println!("cargo:rerun-if-env-changed={}", key);
-            // It appears that they get uppercased in Cargo -- but should be lower-case as in the
-            // original riot-sys build.rs, especially to not make the cfg statements look weird.
-            println!("cargo:rustc-cfg=marker_{}", marker.to_lowercase());
-        }
-        if key == "DEP_RIOT_SYS_BINDGEN_OUTPUT_FILE" {
-            bindgen_output_file = Some(value);
-        }
-    }
+    let bindgen_output =
+        std::fs::read_to_string(bindgen_output_file).expect("Failed to read BINDGEN_OUTPUT_FILE");
 
-    if let Some(bindgen_output_file) = bindgen_output_file {
-        let bindgen_output = std::fs::read_to_string(bindgen_output_file)
-            .expect("Failed to read BINDGEN_OUTPUT_FILE");
+    const BOOLEAN_FLAGS: &[&str] = &[
+        // This decides whether or not some fields are populated ... and unlike with other
+        // structs, the zeroed default is not a good solution here. (It'd kind of work, but
+        // it'd produce incorrect debug output).
+        "CONFIG_AUTO_INIT_ENABLE_DEBUG",
+    ];
 
-        const BOOLEAN_FLAGS: &[&str] = &[
-            // This decides whether or not some fields are populated ... and unlike with other
-            // structs, the zeroed default is not a good solution here. (It'd kind of work, but
-            // it'd produce incorrect debug output).
-            "CONFIG_AUTO_INIT_ENABLE_DEBUG",
-        ];
-
-        let parsed = syn::parse_file(&bindgen_output).expect("Failed to parse bindgen output");
-        for item in &parsed.items {
-            if let syn::Item::Const(const_) = item {
-                // It's the easiest way to get something we can `contains`...
-                let ident = const_.ident.to_string();
-                if BOOLEAN_FLAGS.contains(&ident.as_str()) {
-                    if let syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Int(litint),
-                        ..
-                    }) = &*const_.expr
-                    {
-                        let value: usize = litint
-                            .base10_parse()
-                            .expect("Identifier is integer literal but not parsable");
-                        if value != 0 {
-                            println!("cargo:rustc-cfg=marker_{}", ident.to_lowercase());
-                        }
-                        continue;
+    let parsed = syn::parse_file(&bindgen_output).expect("Failed to parse bindgen output");
+    for item in &parsed.items {
+        if let syn::Item::Const(const_) = item {
+            // It's the easiest way to get something we can `contains`...
+            let ident = const_.ident.to_string();
+            if BOOLEAN_FLAGS.contains(&ident.as_str()) {
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Int(litint),
+                    ..
+                }) = &*const_.expr
+                {
+                    let value: usize = litint
+                        .base10_parse()
+                        .expect("Identifier is integer literal but not parsable");
+                    if value != 0 {
+                        println!("cargo:rustc-cfg=marker_{}", ident.to_lowercase());
                     }
-                    panic!(
-                        "Found {} but it's not the literal const it was expected to be",
-                        ident
-                    );
+                    continue;
                 }
+                panic!(
+                    "Found {} but it's not the literal const it was expected to be",
+                    ident
+                );
             }
         }
-    } else {
-        println!("cargo:warning=Old riot-sys did not provide BINDGEN_OUTPUT_FILE, assuming it's an old RIOT version");
     }
 }
