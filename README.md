@@ -44,8 +44,7 @@ Supported RIOT & Rust versions
 Currently, this crate targets the latest development version of RIOT.
 Support for the latest release is maintained on a best-effort basis.
 
-This crate works on stable Rust 1.64,
-unless particular features are enabled.
+This crate has no MSRV, it may start depending on the latest stable as soon as RIOT's build infrastructure has it.
 
 When a released version of RIOT is used with anything but the riot-sys / riot-wrappers / nightly-compiler combination it was released with,
 it is likely that all these must be upgraded together.
