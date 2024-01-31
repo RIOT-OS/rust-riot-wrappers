@@ -62,7 +62,7 @@ On item presence and modules
 
 This crate makes some of its modules' presence conditional on whether the
 corresponding RIOT module is active in the build configuration; that
-information is obtained through the riot-sys crate. For example,
+information is obtained by inspecting the `riotbuild.h file`. For example,
 `riot_wrappers::saul` is only present if `USEMODULE += saul` is (directly or
 indirectly) set in the Makefile.
 
