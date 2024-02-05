@@ -121,7 +121,7 @@ where
                 *mut libc::c_char,
                 riot_sys::size_t,
                 *mut riot_sys::coap_link_encoder_ctx_t,
-            ) -> i32,
+            ) -> riot_sys::ssize_t,
         >,
     ) -> Self {
         let methods = methods.try_into().unwrap();
@@ -171,9 +171,9 @@ where
     unsafe extern "C" fn call_handler(
         pkt: *mut coap_pkt_t,
         buf: *mut u8,
-        len: u32,
+        len: riot_sys::size_t,
         context: *mut riot_sys::coap_request_ctx_t,
-    ) -> i32 {
+    ) -> riot_sys::ssize_t {
         /* The remaining information in the request_ctx is inaccessible through the CoAP handler
          * API as it is now */
         let h = riot_sys::coap_request_ctx_get_context(context) as *mut H;
@@ -193,7 +193,7 @@ unsafe extern "C" fn link_encoder<H: WithLinkEncoder>(
     buf: *mut libc::c_char,
     buf_len: riot_sys::size_t,
     ctx: *mut riot_sys::coap_link_encoder_ctx_t,
-) -> i32 {
+) -> riot_sys::ssize_t {
     // We're a SingleHandlerListener, therefore we only have a single resource and can
     // back-track to Self
     // (But we don't need this)
@@ -221,7 +221,7 @@ fn link_encoder_safe<H: WithLinkEncoder>(
     h: &H,
     mut buf: Option<&mut [u8]>,
     ctx: &mut riot_sys::coap_link_encoder_ctx_t,
-) -> i32 {
+) -> riot_sys::ssize_t {
     let mut writer = LinkEncoder::new(buf.as_deref_mut(), ctx);
     h.encode(&mut writer);
     let written = writer.written();
