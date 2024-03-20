@@ -112,7 +112,6 @@ impl Drop for File {
     }
 }
 
-
 /// A directory in the file system
 ///
 /// The directory can be iterated over, producing directory entries one by one.

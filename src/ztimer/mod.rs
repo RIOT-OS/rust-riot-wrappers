@@ -259,7 +259,6 @@ impl embedded_hal_async::delay::DelayNs for Delay {
     }
 }
 
-
 impl<const F: u32> embedded_hal::delay::DelayNs for Clock<F> {
     // FIXME: Provide delay_us and delay_ms, at least for the clocks where those fit, to avoid the
     // loops where the provided function wakes up every 4.3s

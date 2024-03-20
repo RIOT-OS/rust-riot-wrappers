@@ -4,14 +4,8 @@ use core::marker::PhantomData;
 use core::mem::forget;
 
 use riot_sys::{
-    gnrc_netif_hdr_build,
-    gnrc_nettype_t,
-    gnrc_pktbuf_add,
-    gnrc_pktbuf_hold,
-    gnrc_pktbuf_realloc_data,
-    gnrc_pktbuf_release_error,
-    gnrc_pktsnip_t,
-    GNRC_NETERR_SUCCESS,
+    gnrc_netif_hdr_build, gnrc_nettype_t, gnrc_pktbuf_add, gnrc_pktbuf_hold,
+    gnrc_pktbuf_realloc_data, gnrc_pktbuf_release_error, gnrc_pktsnip_t, GNRC_NETERR_SUCCESS,
 };
 
 /// Error type for pktsnip operations that need free buffer space

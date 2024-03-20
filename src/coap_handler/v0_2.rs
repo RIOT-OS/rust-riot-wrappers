@@ -6,10 +6,7 @@ use core::convert::TryInto;
 use coap_handler_0_2::{Attribute, Handler, Record, Reporting};
 
 use coap_message_0_3::{
-    error::RenderableOnMinimal,
-    MinimalWritableMessage,
-    MutableWritableMessage,
-    ReadableMessage,
+    error::RenderableOnMinimal, MinimalWritableMessage, MutableWritableMessage, ReadableMessage,
 };
 
 use crate::coap_message::ResponseMessage;

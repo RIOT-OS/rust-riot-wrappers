@@ -246,7 +246,6 @@ fn link_encoder_safe<H: WithLinkEncoder>(
     }
 }
 
-
 impl<'a, H> SingleHandlerListener<'a, H>
 where
     H: 'a + Handler + WithLinkEncoder,
@@ -336,10 +335,7 @@ pub trait WithLinkEncoder {
 }
 
 use riot_sys::{
-    coap_opt_add_opaque,
-    coap_opt_add_uint,
-    coap_opt_get_next,
-    gcoap_register_listener,
+    coap_opt_add_opaque, coap_opt_add_uint, coap_opt_get_next, gcoap_register_listener,
     gcoap_resp_init,
 };
 

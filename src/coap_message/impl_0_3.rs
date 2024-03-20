@@ -1,11 +1,6 @@
 use coap_message_0_3::{
-    error::RenderableOnMinimal,
-    Code,
-    MessageOption,
-    MinimalWritableMessage,
-    MutableWritableMessage,
-    ReadableMessage,
-    WithSortedOptions,
+    error::RenderableOnMinimal, Code, MessageOption, MinimalWritableMessage,
+    MutableWritableMessage, ReadableMessage, WithSortedOptions,
 };
 
 use crate::error::NumericError;

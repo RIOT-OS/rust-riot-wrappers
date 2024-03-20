@@ -385,7 +385,6 @@ pub fn new() -> impl CommandList {
     CommandListEnd
 }
 
-
 /// Make a function whose signature is `fn(&mut `[`Stdio`](stdio::Stdio)`, `[`Args`]`<'b>) -> impl `[`Termination`](crate::main::Termination) available through
 /// XFA in any RIOT shell, even when called throuch C. (The function's signature may be more
 /// generic, eg. accepting an `impl `[`Write`](core::fmt::Write) and an `impl `[`IntoIterator`]`<&str>`).
