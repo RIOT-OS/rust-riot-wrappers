@@ -106,6 +106,11 @@ impl KernelPID {
     }
 
     pub fn get_name(&self) -> Option<&str> {
+        // Shortcut through an otherwise unoptimizable function
+        if !cfg!(riot_develhelp) {
+            return None;
+        }
+
         let ptr = unsafe { raw::thread_getname(self.0) };
 
         // If the thread stops, the name might be not valid any more, but then again the getname

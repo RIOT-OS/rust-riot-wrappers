@@ -2,12 +2,13 @@
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     use crate::thread;
 
-    let os_can_continue = crate::thread::InThread::new()
-        // Panics with IRQs off are fatal because we can't safely re-enable them
-        .map(|i| i.irq_is_enabled())
-        // Panics in ISRs are always fatal because continuing in threads would signal to the
-        // remaining system that the ISR terminated
-        .unwrap_or(false);
+    let os_can_continue = !cfg!(feature = "panic_handler_crash")
+        && crate::thread::InThread::new()
+            // Panics with IRQs off are fatal because we can't safely re-enable them
+            .map(|i| i.irq_is_enabled())
+            // Panics in ISRs are always fatal because continuing in threads would signal to the
+            // remaining system that the ISR terminated
+            .unwrap_or(false);
 
     if !os_can_continue {
         // We can't abort on stable -- but even if we could: Set a breakpoint and wait for the
@@ -47,15 +48,6 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
             let _ = stdio.write_str("Panic in thread ");
             let _ = stdio.write_str(me.get_name().unwrap_or("unnamed"));
             let _ = stdio.write_str("!\n");
-        }
-
-        if cfg!(feature = "panic_handler_crash") {
-            unsafe {
-                riot_sys::core_panic(
-                    riot_sys::core_panic_t_PANIC_GENERAL_ERROR,
-                    cstr::cstr!("RUST PANIC").as_ptr() as _,
-                )
-            }
         }
 
         // Not trying any unwinding -- this thread is just dead, won't be re-claimed, any mutexes it
