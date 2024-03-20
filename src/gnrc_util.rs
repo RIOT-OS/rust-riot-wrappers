@@ -12,9 +12,7 @@ use crate::thread::KernelPID;
 #[cfg(riot_module_gnrc_udp)]
 use riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UDP as GNRC_NETTYPE_UDP;
 use riot_sys::{
-    gnrc_netif_hdr_t,
-    gnrc_nettype_t_GNRC_NETTYPE_NETIF as GNRC_NETTYPE_NETIF,
-    udp_hdr_t,
+    gnrc_netif_hdr_t, gnrc_nettype_t_GNRC_NETTYPE_NETIF as GNRC_NETTYPE_NETIF, udp_hdr_t,
 };
 
 /// Trait of data structures that store all the information needed to respond to a Pktsnip in some

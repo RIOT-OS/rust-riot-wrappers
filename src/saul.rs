@@ -23,7 +23,6 @@ use error::NegativeErrorExt;
 
 pub mod registration;
 
-
 /// A discovered SAUL registry entry
 pub struct RegistryEntry(*mut riot_sys::saul_reg);
 

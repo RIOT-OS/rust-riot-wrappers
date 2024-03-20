@@ -136,7 +136,6 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
         // that the stack is available for 'a and won't move.
         let socket: &'a mut _ = unsafe { &mut *socket };
 
-
         handle.socket = Some(socket);
 
         Ok(())

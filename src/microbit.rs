@@ -3,11 +3,7 @@
 //! [microbit module]: https://doc.riot-os.org/group__boards__common__microbit.html
 
 use embedded_graphics::{
-    drawable::Pixel,
-    geometry::Point,
-    geometry::Size,
-    pixelcolor::BinaryColor,
-    DrawTarget,
+    drawable::Pixel, geometry::Point, geometry::Size, pixelcolor::BinaryColor, DrawTarget,
 };
 
 use crate::Never;

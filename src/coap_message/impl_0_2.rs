@@ -1,8 +1,5 @@
 use coap_message_0_2::{
-    MessageOption,
-    MinimalWritableMessage,
-    MutableWritableMessage,
-    ReadableMessage,
+    MessageOption, MinimalWritableMessage, MutableWritableMessage, ReadableMessage,
     WithSortedOptions,
 };
 
