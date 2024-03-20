@@ -13,8 +13,6 @@ jobs:
   examples-and-tests:
     runs-on: ubuntu-latest
     container: riot/riotbuild
-    # Best would be "continue until there are errors from different examples *and* different boards"
-    continue-on-error: true
     strategy:
       matrix:
         # This is the subset of `make -f makefiles/app_dirs.inc.mk
