@@ -43,7 +43,10 @@ jobs:
       # and all relevant crates once, and after that, just make some notes in Cargo.lock
       run: |
         set -x
-        for MANIF in $(find RIOT -name Cargo.toml)
+        # It is important to cd in early, for otherwise the patch.crates-io
+        # will not catch on during the update
+        cd RIOT
+        for MANIF in $(find -name Cargo.toml)
         do
             echo "::group::Updating ${MANIF}"
             cargo update -p riot-sys -p riot-wrappers --aggressive --manifest-path $MANIF
@@ -105,7 +108,10 @@ jobs:
       # and all relevant crates once, and after that, just make some notes in Cargo.lock
       run: |
         set -x
-        for MANIF in $(find RIOT -name Cargo.toml)
+        # It is important to cd in early, for otherwise the patch.crates-io
+        # will not catch on during the update
+        cd RIOT
+        for MANIF in $(find -name Cargo.toml)
         do
             echo "::group::Updating ${MANIF}"
             cargo update -p riot-sys -p riot-wrappers --aggressive --manifest-path $MANIF
