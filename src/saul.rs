@@ -185,7 +185,7 @@ impl core::fmt::Display for Phydat {
         if self.values.scale != 0 {
             write!(f, "×10^{}", self.values.scale)?;
         }
-        match Unit::from_c(self.values.unit).map(|u| (u, u.name())) {
+        match Unit::from_c(self.values.unit).map(|u| (u, u.name_owned::<16>())) {
             Some((_, Some(s))) => write!(f, " {}", s)?,
             Some((u, _)) => write!(f, " in units of {:?}", u)?,
             None => (),
