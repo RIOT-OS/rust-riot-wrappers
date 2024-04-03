@@ -185,7 +185,7 @@ impl core::fmt::Display for Phydat {
         if self.values.scale != 0 {
             write!(f, "×10^{}", self.values.scale)?;
         }
-        match Unit::from_c(self.values.unit).map(|u| (u, u.name())) {
+        match Unit::from_c(self.values.unit).map(|u| (u, u.name_owned::<16>())) {
             Some((_, Some(s))) => write!(f, " {}", s)?,
             Some((u, _)) => write!(f, " in units of {:?}", u)?,
             None => (),
@@ -486,18 +486,41 @@ impl Unit {
     }
 
     /// String representation of a given unit (e.g. `V` or `m`)
-    #[doc(alias = "phydat_unit_to_str")]
+    #[deprecated(
+        note = "RIOT's mechanism changed; this returns None unconditionally, use .name_owned() instead"
+    )]
     pub fn name(self) -> Option<&'static str> {
-        unsafe { riot_sys::phydat_unit_to_str(Self::to_c(Some(self))).to_lifetimed_cstr()? }
-            .to_str()
-            .ok()
+        None
     }
 
     /// Like [`.name()`](Unit::name), but with additional names like "none" or "time".
-    #[doc(alias = "phydat_unit_to_str_verbose")]
+    #[deprecated(
+        note = "RIOT's mechanism changed; this returns None unconditionally, use .name_owned() instead"
+    )]
     pub fn name_verbose(self) -> Option<&'static str> {
-        unsafe { riot_sys::phydat_unit_to_str_verbose(Self::to_c(Some(self))).to_lifetimed_cstr()? }
-            .to_str()
-            .ok()
+        None
+    }
+
+    /// String representation of a given unit (e.g. `V`, `m`, `none` or `time`)
+    #[doc(alias = "phydat_unit_write")]
+    pub fn name_owned<const S: usize>(self) -> Option<heapless::String<S>> {
+        let mut result = heapless::String::new();
+        // SAFETY: The C API will only write UTF-8 bytes.
+        let mut bytes = unsafe { result.as_mut_vec() };
+        // SAFETY: C API promises to write only up to S bytes, will not write NULL byte.
+        let len = unsafe {
+            riot_sys::phydat_unit_write(
+                // Casting away signedness
+                bytes.as_mut_ptr() as *mut _,
+                // size_t is not always usize
+                S as _,
+                Self::to_c(Some(self)),
+            )
+        }
+        .negative_to_error()
+        .ok()?;
+        // SAFETY: We just wrote those bytes.
+        unsafe { bytes.set_len(len as _) };
+        Some(result)
     }
 }
