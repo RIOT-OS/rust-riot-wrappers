@@ -1,6 +1,6 @@
 [package]
 name = "riot-wrappers"
-version = "0.8.3"
+version = "0.8.999" # really 0.9.0-alpha.1, but we also try hard to not break realistic 0.8 users who fixed all deprecation warnings and don't hold things wrong.
 authors = ["Christian Amsüss <chrysn@fsfe.org>"]
 edition = "2021"
 rust-version = "1.75"
