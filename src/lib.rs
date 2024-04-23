@@ -192,3 +192,11 @@ pub mod led;
 pub mod auto_init;
 
 mod async_helpers;
+
+#[cfg(all(
+    riot_module_sock_udp,
+    riot_module_sock_aux_local,
+    feature = "with_embedded_nal_async",
+    feature = "with_matter"
+))]
+pub mod matter;
