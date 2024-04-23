@@ -14,7 +14,7 @@ use rs_matter::error::{Error, ErrorCode};
 use rs_matter::transport::network::{UdpReceive, UdpSend};
 use log::{debug, warn, error, Level, LevelFilter, Log, Record, SetLoggerError};
 
-pub struct UdpSocketWrapper {
+pub struct MatterCompatUdpSocket {
     local_addr: SocketAddr,
     socket: Mutex<UnconnectedUdpSocket>,
     release_socket_notification: Notification,
@@ -46,7 +46,7 @@ pub fn init_logger(level: LevelFilter) -> Result<(), SetLoggerError> {
         .map(|_| log::set_max_level(level))
 }
 
-impl UdpSocketWrapper {
+impl MatterCompatUdpSocket {
     pub fn new(local_addr: SocketAddr, socket: UnconnectedUdpSocket) -> Self {
         Self {
             local_addr,
@@ -57,7 +57,7 @@ impl UdpSocketWrapper {
     }
 }
 
-impl UdpSend for &UdpSocketWrapper {
+impl UdpSend for &MatterCompatUdpSocket {
     async fn send_to(&mut self, data: &[u8], addr: SocketAddr) -> Result<(), Error> {
         if addr.is_ipv4() {
             // IPv4 not supported!
@@ -77,7 +77,7 @@ impl UdpSend for &UdpSocketWrapper {
     }
 }
 
-impl UdpReceive for &UdpSocketWrapper {
+impl UdpReceive for &MatterCompatUdpSocket {
     async fn recv_from(&mut self, buffer: &mut [u8]) -> Result<(usize, SocketAddr), Error> {
         loop {
             let mut sock = self.socket.try_lock().expect("sender should have ensured that this mutex is free");
