@@ -64,7 +64,6 @@ embassy-futures = { version = "0.1.1", optional = true }
 embassy-sync = { version = "0.5.0", optional = true }
 embassy-executor-riot = { git = "https://gitlab.com/etonomy/riot-module-examples", optional = true }
 embassy-executor = { version = "0.5", features = ["nightly"], optional = true }
-log = { version =  "0.4.21", optional = true }
 
 [build-dependencies]
 shlex = "0.1.1"
@@ -103,7 +102,7 @@ with_embedded_hal_async = [ "embedded-hal-async" ]
 # guarantees.
 with_msg_v2 = []
 
-with_matter = ["rs-matter", "with_embedded_nal_async", "with_embedded_hal_async", "embassy-futures", "embassy-sync", "embassy-executor-riot", "embassy-executor", "log"]
+with_matter = ["rs-matter", "with_embedded_nal_async", "with_embedded_hal_async", "embassy-futures", "embassy-sync", "embassy-executor-riot", "embassy-executor"]
 
 # Use actual `!` rather than the stable Never workaround. As far as the
 # workaround is understood, this causes no actual change in any types, just in

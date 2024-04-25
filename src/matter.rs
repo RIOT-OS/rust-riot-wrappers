@@ -1,4 +1,3 @@
-use crate::println;
 use crate::mutex::Mutex;
 use crate::socket_embedded_nal_async_udp::UnconnectedUdpSocket;
 use crate::ztimer;
@@ -12,7 +11,6 @@ use embassy_sync::{
 };
 use rs_matter::error::{Error, ErrorCode};
 use rs_matter::transport::network::{UdpReceive, UdpSend};
-use log::{debug, warn, error, Level, LevelFilter, Log, Record, SetLoggerError};
 
 pub struct MatterCompatUdpSocket {
     local_addr: SocketAddr,
@@ -21,30 +19,7 @@ pub struct MatterCompatUdpSocket {
     socket_released_notification: Notification,
 }
 
-struct RiotLogger;
-
 pub type Notification = Signal<NoopRawMutex, ()>;
-
-static LOGGER: RiotLogger = RiotLogger;
-
-impl Log for RiotLogger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() >= Level::Info
-    }
-
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            println!("[{}] {}", record.level(), record.args());
-        }
-    }
-
-    fn flush(&self) {}
-}
-
-pub fn init_logger(level: LevelFilter) -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER)
-        .map(|_| log::set_max_level(level))
-}
 
 impl MatterCompatUdpSocket {
     pub fn new(local_addr: SocketAddr, socket: UnconnectedUdpSocket) -> Self {
@@ -93,16 +68,6 @@ impl UdpReceive for &MatterCompatUdpSocket {
                     continue;
                 }
                 Either::Second(res) => {
-                    match res {
-                        Ok((bytes_recvd, local_addr, remote_addr)) => {
-                            if remote_addr.is_ipv4() {
-                                // IPv4 not supported!
-                                return Ok((bytes_recvd, remote_addr));
-                            }
-                        }
-                        Err(_) => { error!("Error during UDP receive!"); }
-                    }
-                    // return receive result
                     let (bytes_recvd, remote_addr) = res.map(|(bytes_recvd, _, remote_addr)|
                         (bytes_recvd, remote_addr)
                     ).map_err(|_| Error::new(ErrorCode::StdIoError))?;
