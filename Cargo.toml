@@ -56,6 +56,8 @@ embedded-hal-async = { version = "1", optional = true }
 
 critical-section = { version = "1.0", optional = true }
 
+no-std-net = "0.6.0"
+
 # for with_matter feature
 rs-matter = { git = "https://github.com/maikerlab/rs-matter", branch = "feature/RIOT_OS", default-features = false, features = ["riot-os"], optional = true }
 embassy-futures = { version = "0.1.1", optional = true }
@@ -101,7 +103,7 @@ with_embedded_hal_async = [ "embedded-hal-async" ]
 # guarantees.
 with_msg_v2 = []
 
-with_matter = ["rs-matter", "with_embedded_nal_async", "embassy-futures", "embassy-sync", "embassy-executor-riot", "embassy-executor", "log"]
+with_matter = ["rs-matter", "with_embedded_nal_async", "with_embedded_hal_async", "embassy-futures", "embassy-sync", "embassy-executor-riot", "embassy-executor", "log"]
 
 # Use actual `!` rather than the stable Never workaround. As far as the
 # workaround is understood, this causes no actual change in any types, just in
