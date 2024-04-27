@@ -1,15 +1,18 @@
 use crate::mutex::Mutex;
 use crate::socket_embedded_nal_async_udp::UnconnectedUdpSocket;
-use crate::ztimer;
-
-use embedded_nal_async::{SocketAddr, UnconnectedUdp};
+use crate::{vfs, ztimer};
+use crate::random::Random;
+use crate::error::NumericError;
+use embedded_nal_async::{UnconnectedUdp, SocketAddr};
 use embassy_futures::select::{Either, select};
 use embedded_hal_async::delay::DelayNs as _;
 use embassy_sync::{
     signal::Signal,
     blocking_mutex::raw::NoopRawMutex,
 };
+use rand_core_06::RngCore as _;
 use rs_matter::error::{Error, ErrorCode};
+use rs_matter::data_model::sdm::dev_att::{DataType, DevAttDataFetcher};
 use rs_matter::transport::network::{UdpReceive, UdpSend};
 
 pub struct MatterCompatUdpSocket {
@@ -74,6 +77,73 @@ impl UdpReceive for &MatterCompatUdpSocket {
                     return Ok((bytes_recvd, remote_addr));
                 }
             }
+        }
+    }
+}
+
+/// Generate random bytes using the RIOT RNG
+#[cfg(riot_module_random)]
+pub fn sys_rand(buf: &mut [u8]) {
+    Random::new().fill_bytes(buf);
+}
+
+pub trait CommissioningDataFetcher {
+    /// Reads Discriminator and Passcode) from device firmware
+    fn read_commissioning_data(&self) -> Result<(u16, u32), NumericError>;
+}
+
+/// Provides methods for reading Matter data from VFS (Virtual File System Layer)
+/// such as commissioning and device attestation data.
+/// For now, only reading from constfs (mountpoint `/const`) is supported, but could be extended to support various filesystems and proper encryption.
+///
+/// It is expected that the following files exist in the VFS layer of the target device, otherwise it will panic:
+/// - `/const/cd`: Certificate Declaration
+/// - `/const/pai`: Product Attestation Intermediary Certificate
+/// - `/const/dac`: Device Attestation Certificate
+/// - `/const/dac_pubkey`: DAC Public Key
+/// - `/const/dac_privkey`: DAC Private Key
+/// - `/const/passcode`: Passcode required for successful commissioning
+/// - `/const/discriminator`: Required for Node Discovery via mDNS
+pub struct VfsDataFetcher;
+
+impl CommissioningDataFetcher for VfsDataFetcher {
+    fn read_commissioning_data(&self) -> Result<(u16, u32), NumericError> {
+        // TODO: Read Commissioning Data from VFS
+        todo!("not implemented - see https://github.com/RIOT-OS/rust-riot-wrappers/issues/93");
+
+        let mut passcode_data: [u8; 4] = [0; 4];
+        let mut passcode_file = vfs::File::open("/const/passcode")?;
+        passcode_file.read(&mut passcode_data)?;
+        let passcode = u32::from_be_bytes(passcode_data);
+
+        let mut discriminator_data: [u8; 2]= [0; 2];
+        let mut discriminator_file = vfs::File::open("/const/discriminator")?;
+        discriminator_file.read(&mut discriminator_data)?;
+        let discriminator = u16::from_be_bytes(discriminator_data);
+
+        Ok((discriminator, passcode))
+    }
+}
+
+impl DevAttDataFetcher for VfsDataFetcher {
+    fn get_devatt_data(&self, data_type: DataType, data: &mut [u8]) -> Result<usize, Error> {
+        // TODO: Read Device Attestation Data from VFS
+        todo!("not implemented - see https://github.com/RIOT-OS/rust-riot-wrappers/issues/93");
+        let src_path = match data_type {
+                DataType::CertDeclaration => "/const/cd",
+                DataType::PAI => "/const/pai",
+                DataType::DAC => "/const/dac",
+                DataType::DACPubKey => "/const/dac_pubkey",
+                DataType::DACPrivKey => "/const/dac_privkey"
+        };
+        let mut src = vfs::File::open(src_path).map_err(|_| Error::new(ErrorCode::StdIoError))?;
+        let len = src.read(data)
+            .map_err(|_| Error::new(ErrorCode::StdIoError))?;
+        if len <= data.len() {
+            let data = &mut data[0..len];
+            Ok(len)
+        } else {
+            Err(ErrorCode::NoSpace.into())
         }
     }
 }
