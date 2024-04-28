@@ -115,12 +115,12 @@ impl CommissioningDataFetcher for VfsDataFetcher {
         let mut passcode_data: [u8; 4] = [0; 4];
         let mut passcode_file = vfs::File::open("/const/passcode")?;
         passcode_file.read(&mut passcode_data)?;
-        let passcode = u32::from_be_bytes(passcode_data);
+        let passcode = u32::from_le_bytes(passcode_data);
 
         let mut discriminator_data: [u8; 2]= [0; 2];
         let mut discriminator_file = vfs::File::open("/const/discriminator")?;
         discriminator_file.read(&mut discriminator_data)?;
-        let discriminator = u16::from_be_bytes(discriminator_data);
+        let discriminator = u16::from_le_bytes(discriminator_data);
 
         Ok((discriminator, passcode))
     }
