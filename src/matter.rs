@@ -13,6 +13,7 @@ use embassy_sync::{
 use rand_core_06::RngCore as _;
 use rs_matter::error::{Error, ErrorCode};
 use rs_matter::data_model::sdm::dev_att::{DataType, DevAttDataFetcher};
+use rs_matter::Matter;
 use rs_matter::transport::network::{UdpReceive, UdpSend};
 
 pub struct MatterCompatUdpSocket {
@@ -145,5 +146,48 @@ impl DevAttDataFetcher for VfsDataFetcher {
         } else {
             Err(ErrorCode::NoSpace.into())
         }
+    }
+}
+
+/// Used for storing and loading ACL and Fabric data in a key-value store
+pub struct PersistenceManager<'a> {
+    matter: &'a Matter<'a>,
+    buf: [u8; 4096],
+    dir: &'a str,
+}
+
+impl<'a> PersistenceManager<'a> {
+    #[inline(always)]
+    pub fn new(matter: &'a Matter<'a>) -> Result<Self, Error> {
+        let mut buf = [0; 4096];
+        Ok(Self { matter, buf, dir: "data" })
+    }
+
+    /// Waits for data changes by the Matter service and saves ACL and/or fabric data
+    pub async fn run(&mut self) -> Result<(), Error> {
+        loop {
+            self.matter.wait_changed().await;
+            if self.matter.is_changed() {
+                if let Some(data) = self.matter.store_acls(&mut self.buf)? {
+                    todo!("not implemented yet")
+                    //Self::store("acls", data)?;
+                }
+
+                if let Some(data) = self.matter.store_fabrics(&mut self.buf)? {
+                    todo!("not implemented yet")
+                    //Self::store("fabrics", data)?;
+                }
+            }
+        }
+    }
+
+    /// Loads data from the key-value store and writes it to the buffer
+    fn load<'b>(key: &str, buf: &'b mut [u8]) -> Result<Option<&'b [u8]>, Error> {
+        todo!("not implemented yet")
+    }
+
+    /// Stores data to the key-value store
+    fn store(key: &str, data: &[u8]) -> Result<(), Error> {
+        todo!("not implemented yet")
     }
 }
