@@ -1,8 +1,10 @@
+use core::time::Duration;
 use crate::mutex::Mutex;
 use crate::socket_embedded_nal_async_udp::UnconnectedUdpSocket;
 use crate::{vfs, ztimer};
 use crate::random::Random;
 use crate::error::NumericError;
+use riot_sys::{ZTIMER_MSEC, inline::{ztimer_now, ztimer_clock}};
 use embedded_nal_async::{UnconnectedUdp, SocketAddr};
 use embassy_futures::select::{Either, select};
 use embedded_hal_async::delay::DelayNs as _;
@@ -15,6 +17,9 @@ use rs_matter::error::{Error, ErrorCode};
 use rs_matter::data_model::sdm::dev_att::{DataType, DevAttDataFetcher};
 use rs_matter::Matter;
 use rs_matter::transport::network::{UdpReceive, UdpSend};
+
+// RIOT_EPOCH(2020) in seconds since UNIX Epoch
+const RIOT_EPOCH_SECS: u64 = 1577833200;
 
 pub struct MatterCompatUdpSocket {
     local_addr: SocketAddr,
@@ -86,6 +91,36 @@ impl UdpReceive for &MatterCompatUdpSocket {
 #[cfg(riot_module_random)]
 pub fn sys_rand(buf: &mut [u8]) {
     Random::new().fill_bytes(buf);
+}
+
+/// Returns Duration since UNIX Epoch (01.01.1970 00:00:00)
+pub fn sys_epoch() -> Duration {
+    let epoch_sec = RIOT_EPOCH_SECS + get_riot_sec() as u64;
+    let epoch_ms: u32 = unsafe {
+        ztimer_now(ZTIMER_MSEC as *mut ztimer_clock) % 1000
+    };
+    Duration::new(epoch_sec as u64, epoch_ms*1000000)
+}
+
+/// Returns elapsed seconds since `RIOT_EPOCH` using `periph_rtc`
+#[cfg(riot_module_periph_rtc)]
+fn get_riot_sec() -> u32 {
+    use riot_sys::{rtc_get_time, rtc_tm_normalize, rtc_mktime};
+    unsafe {
+        let mut now = riot_sys::tm::default();
+        rtc_get_time(&mut now);
+        rtc_tm_normalize(&mut now);
+        rtc_mktime(&mut now)
+    }
+}
+
+/// Returns elapsed seconds since `RIOT_EPOCH` using `ztimer_sec`
+#[cfg(not(riot_module_periph_rtc))]
+fn get_riot_sec() -> u32 {
+    use riot_sys::ZTIMER_SEC;
+    unsafe {
+        ztimer_now(ZTIMER_SEC as *mut ztimer_clock)
+    }
 }
 
 pub trait CommissioningDataFetcher {
