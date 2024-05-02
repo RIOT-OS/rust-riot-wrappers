@@ -96,10 +96,10 @@ pub fn sys_rand(buf: &mut [u8]) {
 /// Returns Duration since UNIX Epoch (01.01.1970 00:00:00)
 pub fn sys_epoch() -> Duration {
     let epoch_sec = RIOT_EPOCH_SECS + get_riot_sec() as u64;
-    let epoch_ms: u32 = unsafe {
+    let mut epoch_ms: u32 = unsafe {
         ztimer_now(ZTIMER_MSEC as *mut ztimer_clock) % 1000
     };
-    Duration::new(epoch_sec as u64, epoch_ms*1000000)
+    Duration::from_millis((epoch_sec*1000) + epoch_ms as u64)
 }
 
 /// Returns elapsed seconds since `RIOT_EPOCH` using `periph_rtc`
@@ -115,7 +115,7 @@ fn get_riot_sec() -> u32 {
 }
 
 /// Returns elapsed seconds since `RIOT_EPOCH` using `ztimer_sec`
-#[cfg(not(riot_module_periph_rtc))]
+#[cfg(all(not(riot_module_periph_rtc), riot_module_ztimer_sec))]
 fn get_riot_sec() -> u32 {
     use riot_sys::ZTIMER_SEC;
     unsafe {
@@ -140,9 +140,15 @@ pub trait CommissioningDataFetcher {
 /// - `/const/dac_privkey`: DAC Private Key
 /// - `/const/passcode`: Passcode required for successful commissioning
 /// - `/const/discriminator`: Required for Node Discovery via mDNS
-pub struct VfsDataFetcher;
+pub struct FirmwareDataFetcher;
 
-impl CommissioningDataFetcher for VfsDataFetcher {
+impl FirmwareDataFetcher {
+    pub fn new() -> Self{
+        Self {}
+    }
+}
+
+impl CommissioningDataFetcher for FirmwareDataFetcher {
     fn read_commissioning_data(&self) -> Result<(u16, u32), NumericError> {
         // TODO: Read Commissioning Data from VFS
         todo!("not implemented - see https://github.com/RIOT-OS/rust-riot-wrappers/issues/93");
@@ -161,7 +167,7 @@ impl CommissioningDataFetcher for VfsDataFetcher {
     }
 }
 
-impl DevAttDataFetcher for VfsDataFetcher {
+impl DevAttDataFetcher for FirmwareDataFetcher {
     fn get_devatt_data(&self, data_type: DataType, data: &mut [u8]) -> Result<usize, Error> {
         // TODO: Read Device Attestation Data from VFS
         todo!("not implemented - see https://github.com/RIOT-OS/rust-riot-wrappers/issues/93");
@@ -200,6 +206,7 @@ impl<'a> PersistenceManager<'a> {
 
     /// Waits for data changes by the Matter service and saves ACL and/or fabric data
     pub async fn run(&mut self) -> Result<(), Error> {
+        todo!("A key-value store must be implemented for PersistenceManager");
         loop {
             self.matter.wait_changed().await;
             if self.matter.is_changed() {
