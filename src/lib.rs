@@ -192,3 +192,6 @@ pub mod led;
 pub mod auto_init;
 
 mod async_helpers;
+
+mod static_data;
+pub use static_data::StaticData;
