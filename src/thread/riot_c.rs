@@ -178,7 +178,7 @@ impl KernelPID {
                 // alter the signatures and b) it's easier to use on the Rust side with a clear type.
                 start: unsafe { (*thread).stack_start as _ },
                 size: unsafe { (*thread).stack_size as _ },
-                free: unsafe { riot_sys::thread_measure_stack_free((*thread).stack_start) }
+                free: unsafe { riot_sys::inline::thread_measure_stack_free(thread as *const riot_sys::inline::_thread) }
                     as usize,
             });
         }
