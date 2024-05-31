@@ -171,6 +171,23 @@ impl KernelPID {
     pub fn stack_stats(&self) -> Result<StackStats, StackStatsError> {
         #[cfg(riot_develhelp)]
         {
+            /// Out of a thread pointer, build whatever thread_measure_stack_free happens to need
+            /// right now
+            struct ThreadOrItsStart(*const riot_sys::thread_t);
+
+            // Before https://github.com/RIOT-OS/RIOT/pull/18942 (up and including 2024.04)
+            impl Into<*const riot_sys::libc::c_char> for ThreadOrItsStart {
+                fn into(self) -> *const riot_sys::libc::c_char {
+                    unsafe { (*self.0).stack_start }
+                }
+            }
+            // After https://github.com/RIOT-OS/RIOT/pull/18942 (presumably 2024.07 and later)
+            impl Into<*const riot_sys::inline::thread_t> for ThreadOrItsStart {
+                fn into(self) -> *const riot_sys::inline::thread_t {
+                    crate::inline_cast(self.0)
+                }
+            }
+
             let thread = self.thread()?;
             return Ok(StackStats {
                 // This cast is relevant because different platforms (eg. native and arm) disagree on
@@ -178,8 +195,12 @@ impl KernelPID {
                 // alter the signatures and b) it's easier to use on the Rust side with a clear type.
                 start: unsafe { (*thread).stack_start as _ },
                 size: unsafe { (*thread).stack_size as _ },
-                free: unsafe { riot_sys::thread_measure_stack_free((*thread).stack_start) }
-                    as usize,
+                #[allow(unused_imports)]
+                free: unsafe {
+                    use riot_sys::inline::*;
+                    use riot_sys::*;
+                    thread_measure_stack_free(ThreadOrItsStart(thread).into())
+                } as usize,
             });
         }
         #[cfg(not(riot_develhelp))]
