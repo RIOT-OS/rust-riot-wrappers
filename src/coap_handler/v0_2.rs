@@ -22,8 +22,8 @@ impl<H> crate::gcoap::Handler for GcoapHandler<H>
 where
     H: Handler,
 {
-    fn handle(&mut self, pkt: &mut PacketBuffer) -> isize {
-        let request_data = self.0.extract_request_data(pkt);
+    fn handle(&mut self, pkt: PacketBuffer) -> isize {
+        let request_data = self.0.extract_request_data(&pkt);
         let mut lengthwrapped = ResponseMessage::new(pkt);
         match request_data {
             Ok(r) => {

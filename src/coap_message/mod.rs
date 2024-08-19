@@ -10,8 +10,8 @@ pub struct MessageOption<'a> {
     value: &'a [u8],
 }
 
-pub struct OptionsIterator<'a>(PacketBufferOptIter<'a>);
-impl<'a> Iterator for OptionsIterator<'a> {
+pub struct OptionsIterator<'a, 'b>(PacketBufferOptIter<'a, 'b>);
+impl<'a, 'b> Iterator for OptionsIterator<'a, 'b> {
     type Item = MessageOption<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -23,15 +23,15 @@ impl<'a> Iterator for OptionsIterator<'a> {
     }
 }
 
-pub struct ResponseMessage<'a> {
+pub struct ResponseMessage<'b> {
     /// Note that this is a slightly weird version of PacketBuffer, where opt_finish is never
     /// called, and .payload() perpetually reports the payload marker as part of the payload.
-    message: &'a mut PacketBuffer,
+    message: PacketBuffer<'b>,
     payload_written: Option<usize>,
 }
 
-impl<'a> ResponseMessage<'a> {
-    pub fn new(buf: &'a mut PacketBuffer) -> Self {
+impl<'b> ResponseMessage<'b> {
+    pub fn new(mut buf: PacketBuffer<'b>) -> Self {
         // Can't really err; FIXME ensure that such a check won't affect ROM too much
         buf.resp_init(5 << 5).unwrap();
 

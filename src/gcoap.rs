@@ -180,11 +180,11 @@ where
 
         let h = &mut *h;
         let mut pb = PacketBuffer {
-            pkt,
+            pkt: &mut *pkt,
             buf,
             len: len.try_into().unwrap(),
         };
-        H::handle(h, &mut pb).try_into().unwrap()
+        H::handle(h, pb).try_into().unwrap()
     }
 }
 
@@ -277,7 +277,7 @@ where
 // Can be implemented by application code that'd then need to call some gcoap response functions,
 // but preferably using the coap_handler module (behind the with-coap-handler feature).
 pub trait Handler {
-    fn handle(&mut self, pkt: &mut PacketBuffer) -> isize;
+    fn handle(&mut self, pkt: PacketBuffer) -> isize;
 }
 
 /// The message buffer of a .well-known/core file in appication/link-format, as it is passed to a
@@ -347,20 +347,17 @@ use riot_sys::{
 /// messages are created. (For example, it does not keep the user from adding options after the
 /// payload marker). Use CoAP generalization for that.
 #[derive(Debug)]
-pub struct PacketBuffer {
-    pkt: *mut coap_pkt_t,
+pub struct PacketBuffer<'b> {
+    pkt: &'b mut coap_pkt_t,
     buf: *mut u8,
     len: usize,
 }
 
-impl PacketBuffer {
+impl<'b> PacketBuffer<'b> {
     /// Wrapper for coap_get_code_raw
     pub fn get_code_raw(&self) -> u8 {
-        (unsafe {
-            riot_sys::coap_get_code_raw(
-                self.pkt as *mut _, // missing const in C
-            )
-        }) as u8 // odd return type in C
+        (unsafe { riot_sys::coap_get_code_raw(crate::inline_cast_ref(self.pkt)) }) as u8
+        // odd return type in C
     }
 
     /// Wrapper for gcoap_resp_init
@@ -446,14 +443,14 @@ impl PacketBuffer {
         .map(|_| ())
     }
 
-    pub fn opt_iter<'a>(&'a self) -> PacketBufferOptIter<'a> {
+    pub fn opt_iter<'a>(&'a self) -> PacketBufferOptIter<'a, 'b> {
         PacketBufferOptIter {
             buffer: self,
             state: None,
         }
     }
 
-    pub fn opt_iter_mut<'a>(&'a mut self) -> PacketBufferOptIterMut<'a> {
+    pub fn opt_iter_mut<'a>(&'a mut self) -> PacketBufferOptIterMut<'a, 'b> {
         PacketBufferOptIterMut {
             buffer: self,
             state: None,
@@ -461,12 +458,12 @@ impl PacketBuffer {
     }
 }
 
-pub struct PacketBufferOptIter<'a> {
-    buffer: &'a PacketBuffer,
+pub struct PacketBufferOptIter<'a, 'b> {
+    buffer: &'a PacketBuffer<'b>,
     state: Option<coap_optpos_t>,
 }
 
-impl<'a> Iterator for PacketBufferOptIter<'a> {
+impl<'a, 'b> Iterator for PacketBufferOptIter<'a, 'b> {
     type Item = (u16, &'a [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -512,12 +509,12 @@ impl<'a> Iterator for PacketBufferOptIter<'a> {
     }
 }
 
-pub struct PacketBufferOptIterMut<'a> {
-    buffer: &'a mut PacketBuffer,
+pub struct PacketBufferOptIterMut<'a, 'b> {
+    buffer: &'a mut PacketBuffer<'b>,
     state: Option<coap_optpos_t>,
 }
 
-impl<'a> Iterator for PacketBufferOptIterMut<'a> {
+impl<'a, 'b> Iterator for PacketBufferOptIterMut<'a, 'b> {
     type Item = (u16, &'a mut [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {
