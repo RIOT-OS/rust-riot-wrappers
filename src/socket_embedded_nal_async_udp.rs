@@ -346,9 +346,6 @@ macro_rules! implementation_module {
     }
 }
 
-mod implementation {
-    implementation_module! {embedded_nal_async}
-}
 mod implementation_0_7 {
     implementation_module! {embedded_nal_async_0_7}
 }
