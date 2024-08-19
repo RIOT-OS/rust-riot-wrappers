@@ -30,7 +30,7 @@ bare-metal = "1"
 
 cstr = "^0.2.11"
 
-heapless = "^0.8"
+heapless =  { version="0.8", features = ["portable-atomic-unsafe-assume-single-core"] }
 rand_core_06 = { package = "rand_core", version = "^0.6" }
 
 # For nimble UUID parsing and some debug implementations
