@@ -1,6 +1,6 @@
 //! Wrappers for the `LEDn_{ON,OFF,TOGGLE}` macros
 
-use crate::Never;
+use core::convert::Infallible;
 
 /// The Ith LED (calling the `LED<I>_{ON,OFF,TOGGLE}` macros).
 ///
@@ -21,7 +21,7 @@ impl<const I: u8> LED<I> {
 }
 
 impl<const I: u8> switch_hal::OutputSwitch for LED<I> {
-    type Error = Never;
+    type Error = Infallible;
 
     fn on(&mut self) -> Result<(), Self::Error> {
         use embedded_hal_0_2::digital::v2::OutputPin;
@@ -35,7 +35,7 @@ impl<const I: u8> switch_hal::OutputSwitch for LED<I> {
 }
 
 impl<const I: u8> switch_hal::ToggleableOutputSwitch for LED<I> {
-    type Error = Never;
+    type Error = Infallible;
 
     fn toggle(&mut self) -> Result<(), Self::Error> {
         <Self as embedded_hal_0_2::digital::v2::ToggleableOutputPin>::toggle(self)
@@ -43,9 +43,9 @@ impl<const I: u8> switch_hal::ToggleableOutputSwitch for LED<I> {
 }
 
 impl<const I: u8> embedded_hal_0_2::digital::v2::OutputPin for LED<I> {
-    type Error = Never;
+    type Error = Infallible;
 
-    fn set_high(&mut self) -> Result<(), Never> {
+    fn set_high(&mut self) -> Result<(), Infallible> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {
@@ -63,7 +63,7 @@ impl<const I: u8> embedded_hal_0_2::digital::v2::OutputPin for LED<I> {
         Ok(())
     }
 
-    fn set_low(&mut self) -> Result<(), Never> {
+    fn set_low(&mut self) -> Result<(), Infallible> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {
@@ -83,9 +83,9 @@ impl<const I: u8> embedded_hal_0_2::digital::v2::OutputPin for LED<I> {
 }
 
 impl<const I: u8> embedded_hal_0_2::digital::v2::ToggleableOutputPin for LED<I> {
-    type Error = Never;
+    type Error = Infallible;
 
-    fn toggle(&mut self) -> Result<(), Never> {
+    fn toggle(&mut self) -> Result<(), Infallible> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {

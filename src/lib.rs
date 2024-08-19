@@ -38,7 +38,6 @@ pub mod error;
 
 mod helpers;
 mod never;
-use never::Never;
 
 /// The identifier of the RIOT board the program is being built for (`RIOT_BOARD` in C).
 #[doc(alias = "RIOT_BOARD")]

@@ -149,7 +149,7 @@ impl<const MS: bool, const FS: bool> TokenParts<MS, true, FS> {
     // would be sent to again.
     pub fn with_message_queue<
         const N: usize,
-        F: FnOnce(TokenParts<MS, false, FS>) -> crate::Never,
+        F: FnOnce(TokenParts<MS, false, FS>) -> crate::never::Never,
     >(
         self,
         f: F,
