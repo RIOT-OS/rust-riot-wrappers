@@ -20,7 +20,7 @@ use pin_project::{pin_project, pinned_drop};
 
 use riot_sys::ztimer_clock_t;
 
-use crate::thread::ValueInThread;
+use crate::thread::{InThread, ValueInThread};
 
 // Useful for working with durations
 const NANOS_PER_SEC: u32 = 1_000_000_000;
@@ -198,10 +198,23 @@ impl<const HZ: u32> Clock<HZ> {
 impl Clock<1> {
     /// Get the global second ZTimer clock, ZTIMER_SEC.
     ///
-    /// This function is only available if the ztimer_sec module is built.
+    /// This function verifies (at a small runtime cost) that the caller is in a thread context.
+    /// This can be avoided by calling `in_thread.promote(Clock::sec_unbound())` on an existing
+    /// [riot_wrappers::thread::InThread] token.
     #[cfg(riot_module_ztimer_sec)]
     #[doc(alias = "ZTIMER_SEC")]
-    pub fn sec() -> Self {
+    pub fn sec() -> ValueInThread<Self> {
+        InThread::new()
+            .expect("Thread-bound ZTimer clock created in ISR")
+            .promote(Self::sec_unbound())
+    }
+
+    /// Get the global second ZTimer clock, ZTIMER_SEC.
+    ///
+    /// The clock is *not* packed in a [ValueInThread], which makes the blocking sleep methods and
+    /// delay implementations unavailable, but works even in interrupts contexts.
+    #[cfg(riot_module_ztimer_sec)]
+    pub fn sec_unbound() -> Self {
         Clock(unsafe { riot_sys::ZTIMER_SEC })
     }
 }
@@ -209,10 +222,23 @@ impl Clock<1> {
 impl Clock<1000> {
     /// Get the global milliseconds ZTimer clock, ZTIMER_MSEC.
     ///
-    /// This function is only available if the ztimer_msec module is built.
+    /// This function verifies (at a small runtime cost) that the caller is in a thread context.
+    /// This can be avoided by calling `in_thread.promote(Clock::msec_unbound())` on an existing
+    /// [riot_wrappers::thread::InThread] token.
     #[cfg(riot_module_ztimer_msec)]
     #[doc(alias = "ZTIMER_MSEC")]
-    pub fn msec() -> Self {
+    pub fn msec() -> ValueInThread<Self> {
+        InThread::new()
+            .expect("Thread-bound ZTimer clock created in ISR")
+            .promote(Self::msec_unbound())
+    }
+
+    /// Get the global milliseconds ZTimer clock, ZTIMER_MSEC.
+    ///
+    /// The clock is *not* packed in a [ValueInThread], which makes the blocking sleep methods and
+    /// delay implementations unavailable, but works even in interrupts contexts.
+    #[cfg(riot_module_ztimer_msec)]
+    pub fn msec_unbound() -> Self {
         Clock(unsafe { riot_sys::ZTIMER_MSEC })
     }
 }
@@ -220,10 +246,23 @@ impl Clock<1000> {
 impl Clock<1000000> {
     /// Get the global microseconds ZTimer clock, ZTIMER_USEC.
     ///
-    /// This function is only available if the ztimer_usec module is built.
+    /// This function verifies (at a small runtime cost) that the caller is in a thread context.
+    /// This can be avoided by calling `in_thread.promote(Clock::usec_unbound())` on an existing
+    /// [riot_wrappers::thread::InThread] token.
     #[cfg(riot_module_ztimer_usec)]
     #[doc(alias = "ZTIMER_USEC")]
-    pub fn usec() -> Self {
+    pub fn usec() -> ValueInThread<Self> {
+        InThread::new()
+            .expect("Thread-bound ZTimer clock created in ISR")
+            .promote(Self::usec_unbound())
+    }
+
+    /// Get the global microseconds ZTimer clock, ZTIMER_USEC.
+    ///
+    /// The clock is *not* packed in a [ValueInThread], which makes the blocking sleep methods and
+    /// delay implementations unavailable, but works even in interrupts contexts.
+    #[cfg(riot_module_ztimer_usec)]
+    pub fn usec_unbound() -> Self {
         Clock(unsafe { riot_sys::ZTIMER_USEC })
     }
 }
@@ -250,15 +289,17 @@ pub struct Delay;
 impl embedded_hal_async::delay::DelayNs for Delay {
     async fn delay_ns(&mut self, ns: u32) {
         // See struct level documentation
-        Clock::usec().sleep_async(Ticks(ns.div_ceil(1000))).await
+        Clock::usec_unbound()
+            .sleep_async(Ticks(ns.div_ceil(1000)))
+            .await
     }
 
     async fn delay_us(&mut self, us: u32) {
-        Clock::usec().sleep_async(Ticks(us)).await
+        Clock::usec_unbound().sleep_async(Ticks(us)).await
     }
 
     async fn delay_ms(&mut self, us: u32) {
-        Clock::msec().sleep_async(Ticks(us)).await
+        Clock::msec_unbound().sleep_async(Ticks(us)).await
     }
 }
 
