@@ -1,6 +1,5 @@
 //! Controlling the I²C bus
 
-pub mod impl_0_2;
 pub mod impl_1;
 
 use riot_sys::i2c_t;

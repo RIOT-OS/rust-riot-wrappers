@@ -7,10 +7,6 @@ use core::convert::Infallible;
 /// The preferred interface for turning a LED on and off is [switch_hal::OutputSwitch].
 ///
 /// LEDs are accessible safely; any not implemented on a board are silently ignored.
-///
-/// LEDs are wrapped into embedded-hal 0.2 GPIOs for compatibility reasons (but that integration is
-/// discontinued with embedded-hal 1.0); GPIO is interpreted such that "high" is having the LED on,
-/// and "low" is off.
 pub struct LED<const I: u8>(());
 
 impl<const I: u8> LED<I> {
@@ -24,28 +20,6 @@ impl<const I: u8> switch_hal::OutputSwitch for LED<I> {
     type Error = Infallible;
 
     fn on(&mut self) -> Result<(), Self::Error> {
-        use embedded_hal_0_2::digital::v2::OutputPin;
-        self.set_high()
-    }
-
-    fn off(&mut self) -> Result<(), Self::Error> {
-        use embedded_hal_0_2::digital::v2::OutputPin;
-        self.set_low()
-    }
-}
-
-impl<const I: u8> switch_hal::ToggleableOutputSwitch for LED<I> {
-    type Error = Infallible;
-
-    fn toggle(&mut self) -> Result<(), Self::Error> {
-        <Self as embedded_hal_0_2::digital::v2::ToggleableOutputPin>::toggle(self)
-    }
-}
-
-impl<const I: u8> embedded_hal_0_2::digital::v2::OutputPin for LED<I> {
-    type Error = Infallible;
-
-    fn set_high(&mut self) -> Result<(), Infallible> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {
@@ -63,7 +37,7 @@ impl<const I: u8> embedded_hal_0_2::digital::v2::OutputPin for LED<I> {
         Ok(())
     }
 
-    fn set_low(&mut self) -> Result<(), Infallible> {
+    fn off(&mut self) -> Result<(), Self::Error> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {
@@ -82,10 +56,10 @@ impl<const I: u8> embedded_hal_0_2::digital::v2::OutputPin for LED<I> {
     }
 }
 
-impl<const I: u8> embedded_hal_0_2::digital::v2::ToggleableOutputPin for LED<I> {
+impl<const I: u8> switch_hal::ToggleableOutputSwitch for LED<I> {
     type Error = Infallible;
 
-    fn toggle(&mut self) -> Result<(), Infallible> {
+    fn toggle(&mut self) -> Result<(), Self::Error> {
         // unsafe: RIOT's LED functions can be called any time (and no-op on undefined LEDs)
         unsafe {
             match I {

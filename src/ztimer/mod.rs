@@ -213,18 +213,6 @@ impl Clock<1000000> {
     }
 }
 
-impl embedded_hal_0_2::blocking::delay::DelayMs<u32> for Clock<1000> {
-    fn delay_ms(&mut self, ms: u32) {
-        self.sleep_ticks(ms.into());
-    }
-}
-
-impl embedded_hal_0_2::blocking::delay::DelayUs<u32> for Clock<1000000> {
-    fn delay_us(&mut self, us: u32) {
-        self.sleep_ticks(us);
-    }
-}
-
 #[cfg(all(feature = "embedded-hal-async", riot_module_ztimer_usec))]
 /// Struct that provides the [embedded_hal_async::delay::DelayNs] trait
 ///

@@ -4,7 +4,6 @@
 //! the [embedded_hal::digital::v2] traits. As recommended for infallible types, they also
 //! provide identically named direct methods, which (for input pins) also work on shared reference.
 
-mod impl_0_2;
 mod impl_1;
 
 use riot_sys::{gpio_clear, gpio_mode_t, gpio_read, gpio_set, gpio_t, gpio_toggle, gpio_write};
