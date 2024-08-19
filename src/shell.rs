@@ -151,10 +151,9 @@ pub trait CommandList<const BUFSIZE: usize = { riot_sys::SHELL_DEFAULT_BUFSIZE a
     /// [shell_run_forever]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
     ///
     /// The line buffer is allocated inside this function with the size configured as part of the
-    /// trait type; use `.with_buffer_size::<>()` to alter that. The method will be renamed to
-    /// `run_forever` once that name is free.
+    /// trait type; use `.with_buffer_size::<>()` to alter that.
     #[doc(alias = "shell_run_forever")]
-    fn run_forever_providing_buf(&mut self) -> ! {
+    fn run_forever(&mut self) -> ! {
         let mut linebuffer = [0; BUFSIZE];
         self.run_forever_with_buf(&mut linebuffer)
     }
@@ -166,12 +165,21 @@ pub trait CommandList<const BUFSIZE: usize = { riot_sys::SHELL_DEFAULT_BUFSIZE a
     /// [shell_run_once]: https://doc.riot-os.org/group__sys__shell.html#ga3d3d8dea426c6c5fa188479e53286aec
     ///
     /// The line buffer is allocated inside this function with the size configured as part of the
-    /// trait type; use `.with_buffer_size::<>()` to alter that. The method will be renamed to
-    /// `run_once` once that name is free.
+    /// trait type; use `.with_buffer_size::<>()` to alter that.
     #[doc(alias = "shell_run_once")]
-    fn run_once_providing_buf(&mut self) {
+    fn run_once(&mut self) {
         let mut linebuffer = [0; BUFSIZE];
         self.run_once_with_buf(&mut linebuffer)
+    }
+
+    #[deprecated(note = "Renamed to run_forever", since = "0.9")]
+    fn run_forever_providing_buf(&mut self) -> ! {
+        self.run_forever()
+    }
+
+    #[deprecated(note = "Renamed to run_once", since = "0.9")]
+    fn run_once_providing_buf(&mut self) {
+        self.run_once()
     }
 
     /// Extend the list of commands by an additional one.
