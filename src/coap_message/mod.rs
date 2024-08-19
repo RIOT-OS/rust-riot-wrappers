@@ -1,7 +1,6 @@
 //! This module implements [coap_message::ReadableMessage] for, and a wrapper that provides
 //! [coap_message::WritableMessage] around RIOT's coap_pkt_t.
 
-mod impl_0_2;
 mod impl_0_3;
 
 use crate::gcoap::{PacketBuffer, PacketBufferOptIter};
