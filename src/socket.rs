@@ -64,73 +64,84 @@ impl Into<riot_sys::sock_udp_ep_t> for UdpEp {
     }
 }
 
+macro_rules! implementation_no_std_net {
+    ($nsn_crate:ident) => {
+        use super::*;
+        use $nsn_crate::SocketAddr;
+
+        impl Into<UdpEp> for &SocketAddr {
+            fn into(self) -> UdpEp {
+                use SocketAddr::*;
+
+                // Constructing via default avoids using the volatile names of the union types
+                let mut ep: riot_sys::sock_udp_ep_t = Default::default();
+
+                ep.family = match self {
+                    V4(_) => riot_sys::AF_INET as _,
+                    V6(_) => riot_sys::AF_INET6 as _,
+                };
+                ep.netif = match self {
+                    V4(_) => 0,
+                    V6(a) => a.scope_id() as _,
+                };
+                ep.port = self.port();
+                match self {
+                    V4(a) => {
+                        ep.addr.ipv4 = a.ip().octets();
+                    }
+                    V6(a) => {
+                        ep.addr.ipv6 = a.ip().octets();
+                    }
+                }
+
+                UdpEp(ep)
+            }
+        }
+
+        impl Into<UdpEp> for SocketAddr {
+            fn into(self) -> UdpEp {
+                (&self).into()
+            }
+        }
+
+        impl Into<SocketAddr> for &UdpEp {
+            fn into(self) -> SocketAddr {
+                match self.0.family as _ {
+                    riot_sys::AF_INET6 => $nsn_crate::SocketAddrV6::new(
+                        // unsafe: Access to C union whose type was just checked
+                        unsafe { self.0.addr.ipv6.into() },
+                        self.0.port,
+                        0,
+                        self.0.netif.into(),
+                    )
+                    .into(),
+
+                    riot_sys::AF_INET => $nsn_crate::SocketAddrV4::new(
+                        // unsafe: Access to C union whose type was just checked
+                        unsafe { self.0.addr.ipv4.into() },
+                        self.0.port,
+                    )
+                    .into(),
+
+                    _ => panic!("Endpoint not expressible in no_std_net"),
+                }
+            }
+        }
+
+        impl Into<SocketAddr> for UdpEp {
+            fn into(self) -> SocketAddr {
+                (&self).into()
+            }
+        }
+    };
+}
+
 #[cfg(feature = "with_embedded_nal")]
-mod nal_impls {
-    use super::*;
-    use embedded_nal::SocketAddr;
+mod implementation_no_std_net_0_5 {
+    implementation_no_std_net! {no_std_net_0_5}
+}
 
-    impl Into<UdpEp> for &SocketAddr {
-        fn into(self) -> UdpEp {
-            use SocketAddr::*;
-
-            // Constructing via default avoids using the volatile names of the union types
-            let mut ep: riot_sys::sock_udp_ep_t = Default::default();
-
-            ep.family = match self {
-                V4(_) => riot_sys::AF_INET as _,
-                V6(_) => riot_sys::AF_INET6 as _,
-            };
-            ep.netif = match self {
-                V4(_) => 0,
-                V6(a) => a.scope_id() as _,
-            };
-            ep.port = self.port();
-            match self {
-                V4(a) => {
-                    ep.addr.ipv4 = a.ip().octets();
-                }
-                V6(a) => {
-                    ep.addr.ipv6 = a.ip().octets();
-                }
-            }
-
-            UdpEp(ep)
-        }
-    }
-
-    impl Into<UdpEp> for SocketAddr {
-        fn into(self) -> UdpEp {
-            (&self).into()
-        }
-    }
-
-    impl Into<SocketAddr> for &UdpEp {
-        fn into(self) -> SocketAddr {
-            match self.0.family as _ {
-                riot_sys::AF_INET6 => embedded_nal::SocketAddrV6::new(
-                    // unsafe: Access to C union whose type was just checked
-                    unsafe { self.0.addr.ipv6.into() },
-                    self.0.port,
-                    0,
-                    self.0.netif.into(),
-                )
-                .into(),
-
-                riot_sys::AF_INET => embedded_nal::SocketAddrV4::new(
-                    // unsafe: Access to C union whose type was just checked
-                    unsafe { self.0.addr.ipv4.into() },
-                    self.0.port,
-                )
-                .into(),
-
-                _ => panic!("Endpoint not expressible in embedded_nal"),
-            }
-        }
-    }
-
-    impl Into<SocketAddr> for UdpEp {
-        fn into(self) -> SocketAddr {
-            (&self).into()
-        }
-    }
+#[cfg(feature = "with_embedded_nal_async")]
+mod implementation_no_std_net_0_6 {
+    implementation_no_std_net! {no_std_net_0_6}
 }
