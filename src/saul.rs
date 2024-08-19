@@ -353,6 +353,7 @@ pub enum SensorClass {
 #[derive(Copy, Clone, Debug)]
 /// Unit of measurement required to interpret numeric values in a [Phydat] exchanged with a SAUL
 /// device
+#[non_exhaustive]
 pub enum Unit {
     /// Note that this means "data has no physical unit", and is distinct from "No unit given",
     /// which is `Option::<Unit>::None` as opposed to `Some(Unit::None)`.
