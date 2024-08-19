@@ -4,7 +4,7 @@ use riot_sys::{
     spi_acquire, spi_clk_t, spi_cs_t, spi_mode_t, spi_release, spi_t, spi_transfer_bytes,
 };
 
-pub struct SPIDevice(#[deprecated(note = "Use constructor instead")] pub spi_t);
+pub struct SPIDevice(spi_t);
 
 pub struct AcquiredSPI<'a> {
     device: &'a mut SPIDevice,

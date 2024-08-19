@@ -25,8 +25,3 @@ impl I2CDevice {
         I2CDevice { dev }
     }
 }
-
-#[deprecated(
-    note = "This error type applies to embedded-hal 0.2 only, use it through the impl_0_2 module."
-)]
-pub use impl_0_2::Error;

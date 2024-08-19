@@ -27,8 +27,7 @@
 /// [`irq_is_in`](https://doc.riot-os.org/group__core__irq.html#ga83decbeef665d955290f730125ef0e3f)
 ///
 /// Returns true when called from an interrupt service routine
-#[deprecated(note = "Use crate::thread::InThread::new() instead")]
-pub fn irq_is_in() -> bool {
+pub(crate) fn irq_is_in() -> bool {
     unsafe { riot_sys::irq_is_in() }
 }
 
@@ -38,8 +37,7 @@ pub fn irq_is_in() -> bool {
 /// Returns true if interrupts are currently enabled
 ///
 /// Note that this only returns reliable values when called from a thread context.
-#[deprecated(note = "use crate::thread::InThread::irq_is_enabled() instead")]
-pub fn irq_is_enabled() -> bool {
+pub(crate) fn irq_is_enabled() -> bool {
     unsafe { riot_sys::irq_is_enabled() }
 }
 
@@ -76,26 +74,4 @@ pub fn free<R, F: FnOnce(&CriticalSection) -> R>(f: F) -> R {
 
     unsafe { riot_sys::irq_restore(stored) };
     ret
-}
-
-/// Wrap a Rust interrupt handler in an extern "C" wrapper that does the post-return cleaups.
-///
-/// As with all code executed in interrupt contexts, the wrapped function should not panic.
-///
-/// ## Caveats
-///
-/// This is Cortex-M specific.
-#[deprecated(
-    note = "See module documentation: This needs to be done manually per platform; it is incomplete as riot-wrappers provides no method of enabling platform specific interrupts, and provides no other access to configure the peripheral through registers. If it is re-introduced, it will likely carry an `InIsr` token into the function."
-)]
-#[macro_export]
-macro_rules! interrupt {
-    ($isr_name:ident, $rust_handler:expr) => {
-        #[no_mangle]
-        pub extern "C" fn $isr_name() -> () {
-            $rust_handler();
-
-            unsafe { riot_sys::inline::cortexm_isr_end() };
-        }
-    };
 }

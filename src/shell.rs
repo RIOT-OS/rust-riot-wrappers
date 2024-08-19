@@ -136,26 +136,12 @@ pub trait CommandList<const BUFSIZE: usize = { riot_sys::SHELL_DEFAULT_BUFSIZE a
         })
     }
 
-    #[deprecated(
-        note = "Use run_once_with_buf, or just run_once_providing_buf, which will take over this name in the next breaking release"
-    )]
-    fn run_once(&mut self, linebuffer: &mut [u8]) {
-        self.run_once_with_buf(linebuffer)
-    }
-
     fn run_forever_with_buf(&mut self, linebuffer: &mut [u8]) -> ! {
         // unsafe: See unsafe in run_any where it's called
         self.run_any(linebuffer, |built, buf, len| unsafe {
             shell_run_forever(built as _, buf, len);
             unreachable!()
         })
-    }
-
-    #[deprecated(
-        note = "Use run_forever_with_buf, or just run_forever_providing_buf, which will take over this name in the next breaking release"
-    )]
-    fn run_forever(&mut self, linebuffer: &mut [u8]) -> ! {
-        self.run_forever_with_buf(linebuffer)
     }
 
     /// Run the shell prompt on stdio

@@ -55,12 +55,6 @@ pub const BOARD: &'static str = {
     b
 };
 
-/// Name of the RIOT board that is being used
-#[deprecated(note = "Access BOARD instead")]
-pub const fn board() -> &'static str {
-    BOARD
-}
-
 /// Cast pointers around before passing them in to functions; this is sometimes needed when a
 /// struct is used from bindgen (`riot_sys::*`) but passed to a C2Rust function that uses its own
 /// definition (`riot_sys::inline::*`).

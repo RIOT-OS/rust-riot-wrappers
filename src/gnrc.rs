@@ -5,8 +5,8 @@ pub mod ipv6;
 
 pub mod netapi;
 pub mod netreg;
-#[deprecated(note = "moved to gnrc_pktbuf toplevel module")]
-pub use crate::gnrc_pktbuf as pktbuf;
+#[deprecated(note = "Internally, use gnrc_pktbuf directly")]
+pub(crate) use crate::gnrc_pktbuf as pktbuf;
 
 use riot_sys::{gnrc_netif_iter, gnrc_netif_t};
 

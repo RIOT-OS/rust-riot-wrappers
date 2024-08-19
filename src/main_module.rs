@@ -121,17 +121,6 @@ macro_rules! riot_main {
     };
 }
 
-#[deprecated(note = "Use `riot_main` instead, which takes multiple signatures")]
-#[macro_export]
-macro_rules! riot_main_with_tokens {
-    ($main:ident) => {
-        #[export_name = "main"]
-        pub extern "C" fn c_main() -> i32 {
-            unsafe { <_ as $crate::main::UsableAsMain<_>>::call_main(&$main) }
-        }
-    };
-}
-
 /// A result trait for main methods, analogous to std::process::Termination
 pub trait Termination {
     fn report(self) -> i32;

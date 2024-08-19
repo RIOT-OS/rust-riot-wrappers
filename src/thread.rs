@@ -23,8 +23,7 @@ pub use riot_c::*;
 mod tokenparts;
 #[cfg(doc)]
 pub use tokenparts::TokenParts;
-#[allow(deprecated)]
-pub use tokenparts::{EndToken, InIsr, InThread, StartToken, TerminationToken, ValueInThread};
+pub use tokenparts::{EndToken, InIsr, InThread, StartToken, ValueInThread};
 
 mod stack_stats;
 pub use stack_stats::{StackStats, StackStatsError};

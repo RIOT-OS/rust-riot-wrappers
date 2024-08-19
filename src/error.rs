@@ -25,8 +25,7 @@ pub trait NegativeErrorExt {
 /// manually implemented newtype around isize that'd be used to represent the Result.
 #[derive(Debug, PartialEq, Eq)]
 pub struct NumericError {
-    #[deprecated(note = "Use the .number() method")]
-    pub number: isize,
+    number: isize,
 }
 
 impl NumericError {
@@ -56,13 +55,11 @@ impl NumericError {
             name > 0,
             "Error names are expected to be positive for conversion into negative error numbers."
         );
-        #[allow(deprecated)] // it's deprecated *pub*
         NumericError { number: -name }
     }
 
     /// Numeric value of the error
     pub const fn number(&self) -> isize {
-        #[allow(deprecated)] // it's deprecated *pub*
         self.number
     }
 
@@ -94,7 +91,6 @@ where
         if self >= Self::zero() {
             Ok(self)
         } else {
-            #[allow(deprecated)] // it's deprecated *pub*
             Err(NumericError {
                 number: self.try_into().unwrap_or(-(riot_sys::EOVERFLOW as isize)),
             })

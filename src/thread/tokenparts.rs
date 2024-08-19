@@ -18,9 +18,6 @@ pub struct EndToken {
     _not_send: PhantomData<*const ()>,
 }
 
-#[deprecated(note = "Renamed to EndToken")]
-pub type TerminationToken = EndToken;
-
 /// A [StartToken] that has possibly already lost some of its properties.
 ///
 /// Note that while this item shows up in the documentation, the type is actually hidden and only
@@ -186,11 +183,6 @@ impl<const MQ: bool> TokenParts<true, MQ, true> {
             _not_send: PhantomData,
         }
     }
-
-    #[deprecated(note = "Renamed to can_end")]
-    pub fn termination(self) -> EndToken {
-        self.can_end()
-    }
 }
 
 /// Zero-size statement that the current code is not running in an interrupt
@@ -217,7 +209,6 @@ impl InThread {
     /// Note that this is actually running code; to avoid that, call [`TokenParts::in_thread()`],
     /// which is a purely type-level procedure.
     pub fn new() -> Result<Self, InIsr> {
-        #[allow(deprecated)] // It's deprecatedly pub
         match crate::interrupt::irq_is_in() {
             true => Err(unsafe { InIsr::new_unchecked() }),
             false => Ok(unsafe { InThread::new_unchecked() }),
