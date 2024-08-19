@@ -20,6 +20,8 @@ use pin_project::{pin_project, pinned_drop};
 
 use riot_sys::ztimer_clock_t;
 
+use crate::thread::ValueInThread;
+
 // Useful for working with durations
 const NANOS_PER_SEC: u32 = 1_000_000_000;
 
@@ -36,7 +38,7 @@ pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 #[derive(Copy, Clone, Debug)]
 pub struct Ticks<const HZ: u32>(pub u32);
 
-impl<const HZ: u32> Clock<HZ> {
+impl<const HZ: u32> ValueInThread<Clock<HZ>> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
     ///
     /// Wraps [ztimer_sleep](https://doc.riot-os.org/group__sys__ztimer.html#gade98636e198f2d571c8acd861d29d360)
@@ -52,6 +54,10 @@ impl<const HZ: u32> Clock<HZ> {
     /// *very* short delays.".
     ///
     /// Wraps [ztimer_spin](https://doc.riot-os.org/group__sys__ztimer.html#ga9de3d9e3290746b856bb23eb2dccaa7c)
+    ///
+    /// Note that this would not technically require the self to be a [ValueInThread] (as spinning
+    /// is doable in an ISR), but it's so discouraged that the Rust wrapper takes the position that
+    /// it's best done using a [ValueInThread].
     #[doc(alias = "ztimer_spin")]
     pub fn spin_ticks(&self, duration: u32) {
         unsafe { riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration) };
@@ -76,19 +82,6 @@ impl<const HZ: u32> Clock<HZ> {
         self.sleep_ticks(ticks.try_into().expect("Was just checked manually above"));
     }
 
-    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
-    /// `.await`ed.
-    ///
-    /// Note that time starts running only when this is polled, for otherwise there's no pinned
-    /// Self around.
-    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
-        AsyncSleep::NeverPolled(NascentAsyncSleep {
-            clock: *self,
-            ticks: duration,
-        })
-        .await
-    }
-
     /// Set the given callback to be executed in an interrupt some ticks in the future.
     ///
     /// Then, start the in_thread function from in the thread this is called from (as a regular
@@ -110,6 +103,13 @@ impl<const HZ: u32> Clock<HZ> {
     ///   (Might make sense to do this without an extra function variant: if the callback ignores
     ///   the timer argument and always returns None, that's all in the caller type and probebly
     ///   inlined right away).
+    ///
+    /// While (unless with sleep) nothing would break if this were called from an interrupt
+    /// context, it would not work either: As RIOT uses flat interrupt priorities, any code
+    /// executed in the `in_thread` handler would still be run in the original interrupt, and while
+    /// the configured ZTimer would fire its interrupt during that time, the interrupt would not be
+    /// serviced, and the timer would be removed already by the time the original interrupt
+    /// completes and ZTimer is serviced (finding no actually pending callback).
     pub fn set_during<I: FnOnce() + Send, M: FnOnce() -> R, R>(
         &self,
         callback: I,
@@ -180,6 +180,21 @@ impl<const HZ: u32> Clock<HZ> {
         result
     }
 }
+
+impl<const HZ: u32> Clock<HZ> {
+    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
+    /// `.await`ed.
+    ///
+    /// Note that time starts running only when this is polled, for otherwise there's no pinned
+    /// Self around.
+    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
+        AsyncSleep::NeverPolled(NascentAsyncSleep {
+            clock: *self,
+            ticks: duration,
+        })
+        .await
+    }
+}
 impl Clock<1> {
     /// Get the global second ZTimer clock, ZTIMER_SEC.
     ///
@@ -247,7 +262,7 @@ impl embedded_hal_async::delay::DelayNs for Delay {
     }
 }
 
-impl<const F: u32> embedded_hal::delay::DelayNs for Clock<F> {
+impl<const F: u32> embedded_hal::delay::DelayNs for ValueInThread<Clock<F>> {
     // FIXME: Provide delay_us and delay_ms, at least for the clocks where those fit, to avoid the
     // loops where the provided function wakes up every 4.3s
 
