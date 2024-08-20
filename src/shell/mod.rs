@@ -187,7 +187,7 @@ pub trait CommandList<const BUFSIZE: usize = { riot_sys::SHELL_DEFAULT_BUFSIZE a
     /// The handler will be called every time the command is entered, and is passed the arguments
     /// including its own name in the form of [Args]. Currently, RIOT ignores the return value of
     /// the function.
-    fn and<'a, H, T>(self, name: &'a CStr, desc: &'a CStr, handler: H) -> Command<'a, Self, H, T>
+    fn and<'a, H, T>(self, name: &'a CStr, desc: &'a CStr, handler: H) -> impl CommandList<BUFSIZE>
     where
         H: FnMut(&mut stdio::Stdio, Args<'_>) -> T,
         T: crate::main::Termination,
