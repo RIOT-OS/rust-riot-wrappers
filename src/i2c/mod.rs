@@ -1,6 +1,5 @@
 //! Controlling the I²C bus
 
-pub mod impl_0_2;
 pub mod impl_1;
 
 use riot_sys::i2c_t;
@@ -25,8 +24,3 @@ impl I2CDevice {
         I2CDevice { dev }
     }
 }
-
-#[deprecated(
-    note = "This error type applies to embedded-hal 0.2 only, use it through the impl_0_2 module."
-)]
-pub use impl_0_2::Error;

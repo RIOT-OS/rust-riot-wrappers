@@ -39,14 +39,14 @@ impl<'a> MessageOption for super::MessageOption<'a> {
     }
 }
 
-impl WithSortedOptions for super::PacketBuffer {
+impl<'b> WithSortedOptions for super::PacketBuffer<'b> {
     // valid because gcoap just reads options from the message where they are stored in sequence
 }
 
-impl ReadableMessage for super::PacketBuffer {
+impl<'b> ReadableMessage for super::PacketBuffer<'b> {
     type Code = u8;
-    type OptionsIter<'a> = super::OptionsIterator<'a>;
-    type MessageOption<'a> = super::MessageOption<'a>;
+    type OptionsIter<'a> = super::OptionsIterator<'a, 'b> where Self: 'a;
+    type MessageOption<'a> = super::MessageOption<'a> where Self: 'a;
 
     fn code(&self) -> Self::Code {
         self.get_code_raw()

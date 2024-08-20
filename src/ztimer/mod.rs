@@ -20,6 +20,8 @@ use pin_project::{pin_project, pinned_drop};
 
 use riot_sys::ztimer_clock_t;
 
+use crate::thread::{InThread, ValueInThread};
+
 // Useful for working with durations
 const NANOS_PER_SEC: u32 = 1_000_000_000;
 
@@ -36,7 +38,7 @@ pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 #[derive(Copy, Clone, Debug)]
 pub struct Ticks<const HZ: u32>(pub u32);
 
-impl<const HZ: u32> Clock<HZ> {
+impl<const HZ: u32> ValueInThread<Clock<HZ>> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
     ///
     /// Wraps [ztimer_sleep](https://doc.riot-os.org/group__sys__ztimer.html#gade98636e198f2d571c8acd861d29d360)
@@ -52,6 +54,10 @@ impl<const HZ: u32> Clock<HZ> {
     /// *very* short delays.".
     ///
     /// Wraps [ztimer_spin](https://doc.riot-os.org/group__sys__ztimer.html#ga9de3d9e3290746b856bb23eb2dccaa7c)
+    ///
+    /// Note that this would not technically require the self to be a [ValueInThread] (as spinning
+    /// is doable in an ISR), but it's so discouraged that the Rust wrapper takes the position that
+    /// it's best done using a [ValueInThread].
     #[doc(alias = "ztimer_spin")]
     pub fn spin_ticks(&self, duration: u32) {
         unsafe { riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration) };
@@ -76,19 +82,6 @@ impl<const HZ: u32> Clock<HZ> {
         self.sleep_ticks(ticks.try_into().expect("Was just checked manually above"));
     }
 
-    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
-    /// `.await`ed.
-    ///
-    /// Note that time starts running only when this is polled, for otherwise there's no pinned
-    /// Self around.
-    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
-        AsyncSleep::NeverPolled(NascentAsyncSleep {
-            clock: *self,
-            ticks: duration,
-        })
-        .await
-    }
-
     /// Set the given callback to be executed in an interrupt some ticks in the future.
     ///
     /// Then, start the in_thread function from in the thread this is called from (as a regular
@@ -110,6 +103,13 @@ impl<const HZ: u32> Clock<HZ> {
     ///   (Might make sense to do this without an extra function variant: if the callback ignores
     ///   the timer argument and always returns None, that's all in the caller type and probebly
     ///   inlined right away).
+    ///
+    /// While (unless with sleep) nothing would break if this were called from an interrupt
+    /// context, it would not work either: As RIOT uses flat interrupt priorities, any code
+    /// executed in the `in_thread` handler would still be run in the original interrupt, and while
+    /// the configured ZTimer would fire its interrupt during that time, the interrupt would not be
+    /// serviced, and the timer would be removed already by the time the original interrupt
+    /// completes and ZTimer is serviced (finding no actually pending callback).
     pub fn set_during<I: FnOnce() + Send, M: FnOnce() -> R, R>(
         &self,
         callback: I,
@@ -180,13 +180,41 @@ impl<const HZ: u32> Clock<HZ> {
         result
     }
 }
+
+impl<const HZ: u32> Clock<HZ> {
+    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
+    /// `.await`ed.
+    ///
+    /// Note that time starts running only when this is polled, for otherwise there's no pinned
+    /// Self around.
+    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
+        AsyncSleep::NeverPolled(NascentAsyncSleep {
+            clock: *self,
+            ticks: duration,
+        })
+        .await
+    }
+}
 impl Clock<1> {
     /// Get the global second ZTimer clock, ZTIMER_SEC.
     ///
-    /// This function is only available if the ztimer_sec module is built.
+    /// This function verifies (at a small runtime cost) that the caller is in a thread context.
+    /// This can be avoided by calling `in_thread.promote(Clock::sec_unbound())` on an existing
+    /// [riot_wrappers::thread::InThread] token.
     #[cfg(riot_module_ztimer_sec)]
     #[doc(alias = "ZTIMER_SEC")]
-    pub fn sec() -> Self {
+    pub fn sec() -> ValueInThread<Self> {
+        InThread::new()
+            .expect("Thread-bound ZTimer clock created in ISR")
+            .promote(Self::sec_unbound())
+    }
+
+    /// Get the global second ZTimer clock, ZTIMER_SEC.
+    ///
+    /// The clock is *not* packed in a [ValueInThread], which makes the blocking sleep methods and
+    /// delay implementations unavailable, but works even in interrupts contexts.
+    #[cfg(riot_module_ztimer_sec)]
+    pub fn sec_unbound() -> Self {
         Clock(unsafe { riot_sys::ZTIMER_SEC })
     }
 }
@@ -194,10 +222,23 @@ impl Clock<1> {
 impl Clock<1000> {
     /// Get the global milliseconds ZTimer clock, ZTIMER_MSEC.
     ///
-    /// This function is only available if the ztimer_msec module is built.
+    /// This function verifies (at a small runtime cost) that the caller is in a thread context.
+    /// This can be avoided by calling `in_thread.promote(Clock::msec_unbound())` on an existing
+    /// [riot_wrappers::thread::InThread] token.
     #[cfg(riot_module_ztimer_msec)]
     #[doc(alias = "ZTIMER_MSEC")]
-    pub fn msec() -> Self {
+    pub fn msec() -> ValueInThread<Self> {
+        InThread::new()
+            .expect("Thread-bound ZTimer clock created in ISR")
+            .promote(Self::msec_unbound())
+    }
+
+    /// Get the global milliseconds ZTimer clock, ZTIMER_MSEC.
+    ///
+    /// The clock is *not* packed in a [ValueInThread], which makes the blocking sleep methods and
+    /// delay implementations unavailable, but works even in interrupts contexts.
+    #[cfg(riot_module_ztimer_msec)]
+    pub fn msec_unbound() -> Self {
         Clock(unsafe { riot_sys::ZTIMER_MSEC })
     }
 }
@@ -205,23 +246,24 @@ impl Clock<1000> {
 impl Clock<1000000> {
     /// Get the global microseconds ZTimer clock, ZTIMER_USEC.
     ///
-    /// This function is only available if the ztimer_usec module is built.
+    /// This function verifies (at a small runtime cost) that the caller is in a thread context.
+    /// This can be avoided by calling `in_thread.promote(Clock::usec_unbound())` on an existing
+    /// [riot_wrappers::thread::InThread] token.
     #[cfg(riot_module_ztimer_usec)]
     #[doc(alias = "ZTIMER_USEC")]
-    pub fn usec() -> Self {
+    pub fn usec() -> ValueInThread<Self> {
+        InThread::new()
+            .expect("Thread-bound ZTimer clock created in ISR")
+            .promote(Self::usec_unbound())
+    }
+
+    /// Get the global microseconds ZTimer clock, ZTIMER_USEC.
+    ///
+    /// The clock is *not* packed in a [ValueInThread], which makes the blocking sleep methods and
+    /// delay implementations unavailable, but works even in interrupts contexts.
+    #[cfg(riot_module_ztimer_usec)]
+    pub fn usec_unbound() -> Self {
         Clock(unsafe { riot_sys::ZTIMER_USEC })
-    }
-}
-
-impl embedded_hal_0_2::blocking::delay::DelayMs<u32> for Clock<1000> {
-    fn delay_ms(&mut self, ms: u32) {
-        self.sleep_ticks(ms.into());
-    }
-}
-
-impl embedded_hal_0_2::blocking::delay::DelayUs<u32> for Clock<1000000> {
-    fn delay_us(&mut self, us: u32) {
-        self.sleep_ticks(us);
     }
 }
 
@@ -247,19 +289,21 @@ pub struct Delay;
 impl embedded_hal_async::delay::DelayNs for Delay {
     async fn delay_ns(&mut self, ns: u32) {
         // See struct level documentation
-        Clock::usec().sleep_async(Ticks(ns.div_ceil(1000))).await
+        Clock::usec_unbound()
+            .sleep_async(Ticks(ns.div_ceil(1000)))
+            .await
     }
 
     async fn delay_us(&mut self, us: u32) {
-        Clock::usec().sleep_async(Ticks(us)).await
+        Clock::usec_unbound().sleep_async(Ticks(us)).await
     }
 
     async fn delay_ms(&mut self, us: u32) {
-        Clock::msec().sleep_async(Ticks(us)).await
+        Clock::msec_unbound().sleep_async(Ticks(us)).await
     }
 }
 
-impl<const F: u32> embedded_hal::delay::DelayNs for Clock<F> {
+impl<const F: u32> embedded_hal::delay::DelayNs for ValueInThread<Clock<F>> {
     // FIXME: Provide delay_us and delay_ms, at least for the clocks where those fit, to avoid the
     // loops where the provided function wakes up every 4.3s
 

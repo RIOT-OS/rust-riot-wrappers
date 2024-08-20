@@ -121,17 +121,6 @@ macro_rules! riot_main {
     };
 }
 
-#[deprecated(note = "Use `riot_main` instead, which takes multiple signatures")]
-#[macro_export]
-macro_rules! riot_main_with_tokens {
-    ($main:ident) => {
-        #[export_name = "main"]
-        pub extern "C" fn c_main() -> i32 {
-            unsafe { <_ as $crate::main::UsableAsMain<_>>::call_main(&$main) }
-        }
-    };
-}
-
 /// A result trait for main methods, analogous to std::process::Termination
 pub trait Termination {
     fn report(self) -> i32;
@@ -155,12 +144,12 @@ impl<E: fmt::Debug> Termination for Result<(), E> {
     fn report(self) -> i32 {
         match self {
             Ok(()) => ().report(),
-            Err(err) => Err::<crate::Never, _>(err).report(),
+            Err(err) => Err::<crate::never::Never, _>(err).report(),
         }
     }
 }
 
-impl Termination for crate::Never {
+impl Termination for crate::never::Never {
     fn report(self) -> i32 {
         self
     }
@@ -172,7 +161,7 @@ impl Termination for core::convert::Infallible {
     }
 }
 
-impl<E: fmt::Debug> Termination for Result<crate::Never, E> {
+impl<E: fmt::Debug> Termination for Result<crate::never::Never, E> {
     fn report(self) -> i32 {
         match self {
             Err(err) => {

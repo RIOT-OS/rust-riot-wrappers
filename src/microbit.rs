@@ -6,7 +6,7 @@ use embedded_graphics::{
     drawable::Pixel, geometry::Point, geometry::Size, pixelcolor::BinaryColor, DrawTarget,
 };
 
-use crate::Never;
+use core::convert::Infallible;
 
 /// The 5x5 LED matrix of the micro:bit boards
 ///
@@ -24,9 +24,9 @@ impl LEDs {
 }
 
 impl DrawTarget<BinaryColor> for LEDs {
-    type Error = Never;
+    type Error = Infallible;
 
-    fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), Never> {
+    fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), Infallible> {
         let Pixel(Point { x, y }, color) = pixel;
 
         let setter = match color {

@@ -1,4 +1,4 @@
-use crate::Never;
+use core::convert::Infallible;
 
 pub struct ADCLine(riot_sys::adc_t);
 
@@ -43,9 +43,9 @@ impl embedded_hal_0_2::adc::Channel<ADC> for ADCLine {
 }
 
 impl embedded_hal_0_2::adc::OneShot<ADC, i32, ADCLine> for ADC {
-    type Error = Never;
+    type Error = Infallible;
 
-    fn read(&mut self, pin: &mut ADCLine) -> nb::Result<i32, Never> {
+    fn read(&mut self, pin: &mut ADCLine) -> nb::Result<i32, Infallible> {
         // Sorry, blocking still
         Ok(unsafe { riot_sys::adc_sample(pin.0, self.resolution) })
     }

@@ -353,6 +353,7 @@ pub enum SensorClass {
 #[derive(Copy, Clone, Debug)]
 /// Unit of measurement required to interpret numeric values in a [Phydat] exchanged with a SAUL
 /// device
+#[non_exhaustive]
 pub enum Unit {
     /// Note that this means "data has no physical unit", and is distinct from "No unit given",
     /// which is `Option::<Unit>::None` as opposed to `Some(Unit::None)`.
@@ -393,18 +394,6 @@ pub enum Unit {
 }
 
 impl Unit {
-    // Note that on the C side the code still uses the aliases on the C side -- they're deprecated,
-    // but we'd need to introduce a marker, and given they'll stay deprecated on C for a release,
-    // we can just switch over before they go.
-    #[deprecated(note = "Use the GForce variant instead")]
-    pub const G: Self = Unit::GForce;
-    #[allow(non_upper_case_globals)]
-    #[deprecated(note = "Use the Gram variant instead")]
-    pub const Gr: Self = Unit::Gram;
-    #[allow(non_upper_case_globals)]
-    #[deprecated(note = "Use the Gauss variant instead")]
-    pub const Gs: Self = Unit::Gauss;
-
     fn from_c(input: u8) -> Option<Self> {
         match input as _ {
             riot_sys::UNIT_NONE => Some(Unit::None),
@@ -483,22 +472,6 @@ impl Unit {
             Some(Unit::Cpm3) => riot_sys::UNIT_CPM3,
             None => riot_sys::UNIT_UNDEF,
         }) as _
-    }
-
-    /// String representation of a given unit (e.g. `V` or `m`)
-    #[deprecated(
-        note = "RIOT's mechanism changed; this returns None unconditionally, use .name_owned() instead"
-    )]
-    pub fn name(self) -> Option<&'static str> {
-        None
-    }
-
-    /// Like [`.name()`](Unit::name), but with additional names like "none" or "time".
-    #[deprecated(
-        note = "RIOT's mechanism changed; this returns None unconditionally, use .name_owned() instead"
-    )]
-    pub fn name_verbose(self) -> Option<&'static str> {
-        None
     }
 
     /// String representation of a given unit (e.g. `V`, `m`, `none` or `time`)

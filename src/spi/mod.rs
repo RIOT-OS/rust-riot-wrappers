@@ -1,10 +1,10 @@
-use crate::Never;
+use core::convert::Infallible;
 use embedded_hal_0_2::blocking;
 use riot_sys::{
     spi_acquire, spi_clk_t, spi_cs_t, spi_mode_t, spi_release, spi_t, spi_transfer_bytes,
 };
 
-pub struct SPIDevice(#[deprecated(note = "Use constructor instead")] pub spi_t);
+pub struct SPIDevice(spi_t);
 
 pub struct AcquiredSPI<'a> {
     device: &'a mut SPIDevice,
@@ -65,7 +65,7 @@ impl SPIDevice {
 // }
 
 impl<'a> blocking::spi::Transfer<u8> for AcquiredSPI<'a> {
-    type Error = Never;
+    type Error = Infallible;
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Self::Error> {
         unsafe {

@@ -38,7 +38,6 @@ pub mod error;
 
 mod helpers;
 mod never;
-use never::Never;
 
 /// The identifier of the RIOT board the program is being built for (`RIOT_BOARD` in C).
 #[doc(alias = "RIOT_BOARD")]
@@ -54,12 +53,6 @@ pub const BOARD: &'static str = {
     };
     b
 };
-
-/// Name of the RIOT board that is being used
-#[deprecated(note = "Access BOARD instead")]
-pub const fn board() -> &'static str {
-    BOARD
-}
 
 /// Cast pointers around before passing them in to functions; this is sometimes needed when a
 /// struct is used from bindgen (`riot_sys::*`) but passed to a C2Rust function that uses its own
