@@ -251,6 +251,51 @@ impl<const HZ: u32> Clock<HZ> {
 
         LockedClock(self.clone())
     }
+
+    /// Run a closure and measure the time it takes.
+    ///
+    /// If the time the closure took exceeded the 2³²-1 ticks (the maximum time measurable on that
+    /// clock), None is returned.
+    #[doc(alias = "ztimer_stopwatch")]
+    pub fn time(&self, closure: impl FnOnce()) -> Option<Ticks<HZ>> {
+        self.time_with_result(closure).0
+    }
+
+    /// Like [`Self::time()`], but allowing the closure to return a value.
+    ///
+    /// As an implementation note, this is not using `ztimer_stopwatch` because that can not detect
+    /// overflows; if overflow detection is added to `ztimer_stopwatch` later, the implementation
+    /// can change.
+    pub fn time_with_result<R>(&self, closure: impl FnOnce() -> R) -> (Option<Ticks<HZ>>, R) {
+        // There is a more effient implementation of this than set_during that looks at the result
+        // of ztimer_remove, but I'm lazy today.
+        //
+        // FIXME: Implement it more efficiently.
+
+        let mut fired = false;
+
+        // We're faking being in a thread here because generally, set_during only makes sense in a
+        // thread context. As the closure is being run in an interrupt, we already accept that
+        // blocking for longer than the shortest ZTimer's wrapping time subtly breaks ZTimer --
+        // that's a limitation of ZTimer and our interrupts. When used in an interrupt, this
+        // function does needless work of setting and removing the timer, but it is not wrong to
+        // use it, and if the function being timed doesn't already break ZTimer, the result is
+        // valid.
+        let (before, result, after) = self.set_during(
+            || fired = true,
+            Ticks(u32::MAX),
+            || {
+                let before = self.now();
+                let result = closure();
+                let after = self.now();
+                (before, result, after)
+            },
+        );
+
+        let time = if fired { None } else { Some(after - before) };
+
+        (time, result)
+    }
 }
 
 impl<const HZ: u32> LockedClock<HZ> {

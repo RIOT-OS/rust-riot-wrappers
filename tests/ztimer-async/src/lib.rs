@@ -24,6 +24,8 @@ async fn amain(spawner: embassy_executor::Spawner) {
     let locked = msec.acquire();
 
     println!("Waiting 500 ticks on the msec timer before doing anything else");
+    // Locking and taking before/after is a bit crude, but the `.time()` method is not yet
+    // available for asynchronous closures.
     let before = locked.now();
     msec.sleep_async(Ticks(500)).await;
     let after = locked.now();
