@@ -19,8 +19,21 @@ fn main() -> ! {
 async fn amain(spawner: embassy_executor::Spawner) {
     use riot_wrappers::ztimer::*;
 
+    let msec = Clock::msec();
+
+    let locked = msec.acquire();
+
     println!("Waiting 500 ticks on the msec timer before doing anything else");
-    Clock::msec().sleep_async(Ticks(500)).await;
+    let before = locked.now();
+    msec.sleep_async(Ticks(500)).await;
+    let after = locked.now();
+    println!(
+        "That took us from {:?} to {:?}, which is {} ticks.",
+        before,
+        after,
+        (after - before).0
+    );
+    drop(locked);
     println!("And now for something more complex...");
 
     spawner.spawn(ten_tenths());
