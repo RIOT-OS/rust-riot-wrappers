@@ -136,6 +136,39 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
         ticks: Ticks<HZ>,
         in_thread: M,
     ) -> R {
+        (*self).set_during(callback, ticks, in_thread)
+    }
+}
+
+impl<const HZ: u32> Clock<HZ> {
+    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
+    /// `.await`ed.
+    ///
+    /// Note that time starts running only when this is polled, for otherwise there's no pinned
+    /// Self around.
+    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
+        AsyncSleep::NeverPolled(NascentAsyncSleep {
+            clock: *self,
+            ticks: duration,
+        })
+        .await
+    }
+
+    /// A `ztimer_now()` wrapper that is not public because there needs to be a reason why the
+    /// result makes sense, which can come for example from an acquisition.
+    fn now(&self) -> Timestamp<HZ> {
+        // The `as u32` strips down the 64bit value of the deprecated ZTIMER_NOW64
+        Timestamp(unsafe { riot_sys::inline::ztimer_now(crate::inline_cast_mut(self.0)) } as u32)
+    }
+
+    /// A version of [`ValueInThread<Clock>::set_during`] that relies on this module's knowledge of
+    /// the circumstances to state the validity of its use even without a [`ValueInThread`]
+    fn set_during<I: FnOnce() + Send, M: FnOnce() -> R, R>(
+        &self,
+        callback: I,
+        ticks: Ticks<HZ>,
+        in_thread: M,
+    ) -> R {
         use core::{cell::UnsafeCell, mem::ManuallyDrop};
 
         // This is zero-initialized, which is the more efficient mode for ztimer_t.
@@ -198,28 +231,6 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
         }
 
         result
-    }
-}
-
-impl<const HZ: u32> Clock<HZ> {
-    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
-    /// `.await`ed.
-    ///
-    /// Note that time starts running only when this is polled, for otherwise there's no pinned
-    /// Self around.
-    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
-        AsyncSleep::NeverPolled(NascentAsyncSleep {
-            clock: *self,
-            ticks: duration,
-        })
-        .await
-    }
-
-    /// A `ztimer_now()` wrapper that is not public because there needs to be a reason why the
-    /// result makes sense, which can come for example from an acquisition.
-    fn now(&self) -> Timestamp<HZ> {
-        // The `as u32` strips down the 64bit value of the deprecated ZTIMER_NOW64
-        Timestamp(unsafe { riot_sys::inline::ztimer_now(crate::inline_cast_mut(self.0)) } as u32)
     }
 
     /// Keep the clock being shut down or reset for low power modes
