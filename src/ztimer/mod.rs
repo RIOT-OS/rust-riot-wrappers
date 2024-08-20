@@ -31,12 +31,32 @@ const NANOS_PER_SEC: u32 = 1_000_000_000;
 #[derive(Copy, Clone)]
 pub struct Clock<const HZ: u32>(*mut ztimer_clock_t);
 
+/// A [Clock] that has been acquired using [Clock::acquire()] (which is backed by
+/// [ztimer_acquire]). Times from a single acquired clock can be compared.
+///
+/// While time stamps from that clock are protected against cross-frequency comparison, it is up to
+/// the user to not mix time stamps from different clocks that happen to have the same frequency,
+/// from different times of the timer being locked, and to ensure that wraparounds are considered.
+/// While the former two could be addressed by giving this type and its ticks a brand lifetime, the
+/// wraparound issue would not be addressed by that anyway.
+///
+/// [ztimer_acquire]: (https://doc.riot-os.org/group__sys__ztimer.html#gaaff51039476f11e6969da09493e7ccb0).
+pub struct LockedClock<const HZ: u32>(Clock<HZ>);
+
 /// A duration on a clock of fixed speed
 ///
 /// In memory, these are numbers of ticks. Semantically, these are durations of `self.0 / HZ`
 /// seconds.
 #[derive(Copy, Clone, Debug)]
 pub struct Ticks<const HZ: u32>(pub u32);
+
+/// A time on some clock ticking at a fixed speed
+///
+/// It is up to the user to not compare time stamps from different clocks that tick at the same
+/// speed, to handle wraparounds, and to ensure that the clock stayed acquired all the time between
+/// the time stamps' acquisitions.
+#[derive(Copy, Clone, Debug)]
+pub struct Timestamp<const HZ: u32>(pub u32);
 
 impl<const HZ: u32> ValueInThread<Clock<HZ>> {
     /// Pause the current thread for the duration of ticks in the timer's time scale.
@@ -116,6 +136,39 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
         ticks: Ticks<HZ>,
         in_thread: M,
     ) -> R {
+        (*self).set_during(callback, ticks, in_thread)
+    }
+}
+
+impl<const HZ: u32> Clock<HZ> {
+    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
+    /// `.await`ed.
+    ///
+    /// Note that time starts running only when this is polled, for otherwise there's no pinned
+    /// Self around.
+    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
+        AsyncSleep::NeverPolled(NascentAsyncSleep {
+            clock: *self,
+            ticks: duration,
+        })
+        .await
+    }
+
+    /// A `ztimer_now()` wrapper that is not public because there needs to be a reason why the
+    /// result makes sense, which can come for example from an acquisition.
+    fn now(&self) -> Timestamp<HZ> {
+        // The `as u32` strips down the 64bit value of the deprecated ZTIMER_NOW64
+        Timestamp(unsafe { riot_sys::inline::ztimer_now(crate::inline_cast_mut(self.0)) } as u32)
+    }
+
+    /// A version of [`ValueInThread<Clock>::set_during`] that relies on this module's knowledge of
+    /// the circumstances to state the validity of its use even without a [`ValueInThread`]
+    fn set_during<I: FnOnce() + Send, M: FnOnce() -> R, R>(
+        &self,
+        callback: I,
+        ticks: Ticks<HZ>,
+        in_thread: M,
+    ) -> R {
         use core::{cell::UnsafeCell, mem::ManuallyDrop};
 
         // This is zero-initialized, which is the more efficient mode for ztimer_t.
@@ -179,22 +232,102 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
 
         result
     }
-}
 
-impl<const HZ: u32> Clock<HZ> {
-    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
-    /// `.await`ed.
+    /// Keep the clock being shut down or reset for low power modes
     ///
-    /// Note that time starts running only when this is polled, for otherwise there's no pinned
-    /// Self around.
-    pub async fn sleep_async(&self, duration: Ticks<HZ>) {
-        AsyncSleep::NeverPolled(NascentAsyncSleep {
-            clock: *self,
-            ticks: duration,
-        })
-        .await
+    /// While the clock is locked, its [`LockedClock::now()`] method is available, and its values
+    /// can be compared.
+    #[doc(alias = "ztimer_acquire")]
+    pub fn acquire(&self) -> LockedClock<HZ> {
+        // ztimer_acquire is inline or non-inline depending on ZTIMER_ONDEMAND
+        use riot_sys::inline::*;
+        use riot_sys::*;
+
+        // ztimer_acquire takes a mut even though ztimer itself takes care of synchronization
+        let clock = self.0 as *mut riot_sys::ztimer_clock_t;
+
+        // unsafe: C function can be called at any time
+        unsafe { ztimer_acquire(crate::inline_cast_mut(clock)) };
+
+        LockedClock(self.clone())
+    }
+
+    /// Run a closure and measure the time it takes.
+    ///
+    /// If the time the closure took exceeded the 2³²-1 ticks (the maximum time measurable on that
+    /// clock), None is returned.
+    #[doc(alias = "ztimer_stopwatch")]
+    pub fn time(&self, closure: impl FnOnce()) -> Option<Ticks<HZ>> {
+        self.time_with_result(closure).0
+    }
+
+    /// Like [`Self::time()`], but allowing the closure to return a value.
+    ///
+    /// As an implementation note, this is not using `ztimer_stopwatch` because that can not detect
+    /// overflows; if overflow detection is added to `ztimer_stopwatch` later, the implementation
+    /// can change.
+    pub fn time_with_result<R>(&self, closure: impl FnOnce() -> R) -> (Option<Ticks<HZ>>, R) {
+        // There is a more effient implementation of this than set_during that looks at the result
+        // of ztimer_remove, but I'm lazy today.
+        //
+        // FIXME: Implement it more efficiently.
+
+        let mut fired = false;
+
+        // We're faking being in a thread here because generally, set_during only makes sense in a
+        // thread context. As the closure is being run in an interrupt, we already accept that
+        // blocking for longer than the shortest ZTimer's wrapping time subtly breaks ZTimer --
+        // that's a limitation of ZTimer and our interrupts. When used in an interrupt, this
+        // function does needless work of setting and removing the timer, but it is not wrong to
+        // use it, and if the function being timed doesn't already break ZTimer, the result is
+        // valid.
+        let (before, result, after) = self.set_during(
+            || fired = true,
+            Ticks(u32::MAX),
+            || {
+                let before = self.now();
+                let result = closure();
+                let after = self.now();
+                (before, result, after)
+            },
+        );
+
+        let time = if fired { None } else { Some(after - before) };
+
+        (time, result)
     }
 }
+
+impl<const HZ: u32> LockedClock<HZ> {
+    /// Get the current time value of the clock.
+    #[doc(alias = "ztimer_now")]
+    pub fn now(&self) -> Timestamp<HZ> {
+        self.0.now()
+    }
+}
+
+impl<const HZ: u32> Drop for LockedClock<HZ> {
+    fn drop(&mut self) {
+        // ztimer_release is inline or non-inline depending on ZTIMER_ONDEMAND
+        use riot_sys::inline::*;
+        use riot_sys::*;
+
+        // ztimer_release takes a mut even though ztimer itself takes care of synchronization
+        let clock = self.0 .0 as *mut riot_sys::ztimer_clock_t;
+
+        // unsafe: C function can be called at any time
+        unsafe { ztimer_acquire(crate::inline_cast_mut(clock)) };
+    }
+}
+
+impl<const HZ: u32> core::ops::Sub for Timestamp<HZ> {
+    type Output = Ticks<HZ>;
+
+    fn sub(self, other: Self) -> Ticks<HZ> {
+        Ticks(self.0.wrapping_sub(other.0))
+    }
+}
+
 impl Clock<1> {
     /// Get the global second ZTimer clock, ZTIMER_SEC.
     ///
