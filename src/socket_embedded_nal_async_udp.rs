@@ -122,7 +122,7 @@ macro_rules! implementation_module {
             &self,
             local: $ena_crate::SocketAddr,
         ) -> Result<Self::MultiplyBound, Self::Error> {
-            let mut socket = self.create(Some(local.into()), None, 0)?;
+            let socket = self.create(Some(local.into()), None, 0)?;
 
             Ok(UnconnectedUdpSocket { socket })
         }

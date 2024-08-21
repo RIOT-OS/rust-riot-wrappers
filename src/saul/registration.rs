@@ -14,7 +14,6 @@ use riot_sys::libc;
 
 use super::{Class, Phydat};
 use crate::error::NegativeErrorExt;
-use core::convert::Infallible;
 
 /// The single error read and write operations may produce; corresponds to an `-ECANCELED`.
 /// (-ENOTSUP is expressed by not having support for the operation in the first place, indicated by
