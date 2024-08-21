@@ -11,7 +11,9 @@ fn main() -> ! {
         static_cell::StaticCell::new();
     let executor: &'static mut _ = EXECUTOR.init(embassy_executor_riot::Executor::new());
     executor.run(|spawner| {
-        spawner.spawn(amain(spawner));
+        spawner
+            .spawn(amain(spawner))
+            .expect("Task did not get spawned before");
     })
 }
 
@@ -38,8 +40,12 @@ async fn amain(spawner: embassy_executor::Spawner) {
     drop(locked);
     println!("And now for something more complex...");
 
-    spawner.spawn(ten_tenths());
-    spawner.spawn(five_fifths());
+    spawner
+        .spawn(ten_tenths())
+        .expect("Task did not get spawned before");
+    spawner
+        .spawn(five_fifths())
+        .expect("Task did not get spawned before");
 }
 
 #[embassy_executor::task]
