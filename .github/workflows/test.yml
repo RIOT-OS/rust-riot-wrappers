@@ -1,6 +1,11 @@
 # Ideally this should be replaced with a call out to Murdock; until that is
 # practical, building representative examples.
 
+# Ad RUSTFLAGS=-Dwarnings: While this is generally discouraged (for it means
+# that new Rust versions break CI), in this case we don't get new Rust versions
+# all the time but only on riotdocker updates, and that's a good time to
+# reflect on whether the new warnings make sense or not.
+
 name: test
 
 on:
@@ -58,7 +63,7 @@ jobs:
 
     - name: Build the example
       run: |
-        make all BOARD=${{ matrix.board }} -C RIOT/${{ matrix.example }}
+        RUSTFLAGS=-Dwarnings make all BOARD=${{ matrix.board }} -C RIOT/${{ matrix.example }}
 
   enumerate-wrappers-tests:
     runs-on: ubuntu-latest
@@ -128,7 +133,7 @@ jobs:
         cd ${{ matrix.testdir }}
         if BOARDS=${{ matrix.board }} make info-boards-supported | grep -q .
         then
-          BOARD=${{ matrix.board }} make all
+          BOARD=${{ matrix.board }} RUSTFLAGS=-Dwarnings make all
 
           if [ "native" = "${{ matrix.board }}" ] && make test/available BOARD=native
           then
