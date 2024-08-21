@@ -184,4 +184,10 @@ pub mod led;
 #[cfg(riot_module_auto_init)]
 pub mod auto_init;
 
+// Gated like socket_embedded_nal_async_udp as it is only used there -- expand as needed.
+#[cfg(all(
+    riot_module_sock_udp,
+    riot_module_sock_aux_local,
+    feature = "with_embedded_nal_async"
+))]
 mod async_helpers;
