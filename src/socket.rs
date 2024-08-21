@@ -64,6 +64,8 @@ impl Into<riot_sys::sock_udp_ep_t> for UdpEp {
     }
 }
 
+// Gated to its users to avoid dead code warnings
+#[cfg(any(feature = "with_embedded_nal", feature = "with_embedded_nal_async"))]
 macro_rules! implementation_no_std_net {
     ($nsn_crate:ident) => {
         use super::*;

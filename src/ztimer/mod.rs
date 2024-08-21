@@ -169,7 +169,7 @@ impl<const HZ: u32> Clock<HZ> {
         ticks: Ticks<HZ>,
         in_thread: M,
     ) -> R {
-        use core::{cell::UnsafeCell, mem::ManuallyDrop};
+        use core::cell::UnsafeCell;
 
         // This is zero-initialized, which is the more efficient mode for ztimer_t.
         let mut timer = riot_sys::ztimer_t::default();

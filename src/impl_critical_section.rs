@@ -3,7 +3,7 @@
 
 use critical_section::RawRestoreState;
 
-struct CriticalSection(usize);
+struct CriticalSection;
 critical_section::set_impl!(CriticalSection);
 
 unsafe impl critical_section::Impl for CriticalSection {

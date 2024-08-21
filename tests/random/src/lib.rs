@@ -7,7 +7,7 @@ use riot_wrappers::riot_main;
 riot_main!(main);
 
 fn check_csrng(mut rng: impl rand_core::CryptoRng + rand_core::RngCore) {
-    use rngcheck::{helpers::*, nist::*};
+    use rngcheck::nist::*;
 
     // This is also in https://github.com/ryankurte/rngcheck/pull/3
     struct BitIter<'a, R: rand_core::RngCore> {
