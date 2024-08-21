@@ -36,6 +36,13 @@ fn main() {
         "CONFIG_AUTO_INIT_ENABLE_DEBUG",
     ];
 
+    for marker in BOOLEAN_FLAGS {
+        println!(
+            "cargo::rustc-check-cfg=cfg(marker_{})",
+            marker.to_lowercase()
+        );
+    }
+
     for (def, val) in defines {
         if val != "1" {
             // So far, only processing boolean flags
