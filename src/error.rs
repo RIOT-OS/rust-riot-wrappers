@@ -107,6 +107,7 @@ macro_rules! E {
 
 // See module level comment
 E!(EAGAIN);
+E!(EINVAL);
 E!(ENOMEM);
 E!(ENOSPC);
 E!(EOVERFLOW);

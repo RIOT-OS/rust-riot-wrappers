@@ -20,6 +20,38 @@ use riot_sys::libc;
 use crate::error::{NegativeErrorExt, NumericError};
 use crate::helpers::{PointerToCStr, SliceToCStr};
 
+#[derive(Copy, Clone, Debug)]
+struct NameTooLong;
+#[derive(Copy, Clone, Debug)]
+struct NameContainsIllegalNull;
+
+impl From<NameTooLong> for NumericError {
+    fn from(_: NameTooLong) -> NumericError {
+        crate::error::ENOMEM
+    }
+}
+
+impl From<NameContainsIllegalNull> for NumericError {
+    fn from(_: NameContainsIllegalNull) -> NumericError {
+        crate::error::EINVAL
+    }
+}
+struct NameNullTerminated(heapless::String<{ riot_sys::VFS_NAME_MAX as usize + 1 }>);
+
+impl NameNullTerminated {
+    fn new(name: &str) -> Result<Self, NameTooLong> {
+        let mut buf = heapless::String::new();
+        buf.push_str(name).map_err(|_| NameTooLong)?;
+        buf.push_str("\0").map_err(|_| NameTooLong)?;
+        Ok(NameNullTerminated(buf))
+    }
+
+    fn as_cstr(&self) -> Result<&core::ffi::CStr, NameContainsIllegalNull> {
+        core::ffi::CStr::from_bytes_with_nul(self.0.as_str().as_bytes())
+            .map_err(|_| NameContainsIllegalNull)
+    }
+}
+
 /// A file handle
 #[derive(Debug)]
 pub struct File {
@@ -57,14 +89,10 @@ pub enum SeekFrom {
 impl File {
     /// Open a file in read-only mode.
     pub fn open(path: &str) -> Result<Self, NumericError> {
-        let fileno = unsafe {
-            riot_sys::vfs_open(
-                path as *const str as *const libc::c_char,
-                riot_sys::O_RDONLY as _,
-                0,
-            )
-        }
-        .negative_to_error()?;
+        let path = NameNullTerminated::new(path)?;
+        let fileno =
+            unsafe { riot_sys::vfs_open(path.as_cstr()?.as_ptr(), riot_sys::O_RDONLY as _, 0) }
+                .negative_to_error()?;
         Ok(File {
             fileno,
             _not_send_sync: PhantomData,
@@ -120,11 +148,10 @@ pub struct Dir(riot_sys::vfs_DIR, core::marker::PhantomPinned);
 
 impl Dir {
     pub fn open(dir: &str) -> Result<Self, NumericError> {
+        let dir = NameNullTerminated::new(dir)?;
         let mut dirp = MaybeUninit::uninit();
-        (unsafe {
-            riot_sys::vfs_opendir(dirp.as_mut_ptr(), dir as *const str as *const libc::c_char)
-        })
-        .negative_to_error()?;
+        (unsafe { riot_sys::vfs_opendir(dirp.as_mut_ptr(), dir.as_cstr()?.as_ptr()) })
+            .negative_to_error()?;
         let dirp = unsafe { dirp.assume_init() };
         Ok(Dir(dirp, core::marker::PhantomPinned))
     }
