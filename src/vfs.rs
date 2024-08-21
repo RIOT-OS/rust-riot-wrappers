@@ -90,9 +90,10 @@ impl File {
     /// Open a file in read-only mode.
     pub fn open(path: &str) -> Result<Self, NumericError> {
         let path = NameNullTerminated::new(path)?;
-        let fileno =
-            unsafe { riot_sys::vfs_open(path.as_cstr()?.as_ptr(), riot_sys::O_RDONLY as _, 0) }
-                .negative_to_error()?;
+        let fileno = unsafe {
+            riot_sys::vfs_open(path.as_cstr()?.as_ptr() as _, riot_sys::O_RDONLY as _, 0)
+        }
+        .negative_to_error()?;
         Ok(File {
             fileno,
             _not_send_sync: PhantomData,
@@ -150,7 +151,7 @@ impl Dir {
     pub fn open(dir: &str) -> Result<Self, NumericError> {
         let dir = NameNullTerminated::new(dir)?;
         let mut dirp = MaybeUninit::uninit();
-        (unsafe { riot_sys::vfs_opendir(dirp.as_mut_ptr(), dir.as_cstr()?.as_ptr()) })
+        (unsafe { riot_sys::vfs_opendir(dirp.as_mut_ptr(), dir.as_cstr()?.as_ptr() as _) })
             .negative_to_error()?;
         let dirp = unsafe { dirp.assume_init() };
         Ok(Dir(dirp, core::marker::PhantomPinned))
