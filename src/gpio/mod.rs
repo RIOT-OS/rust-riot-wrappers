@@ -155,6 +155,18 @@ impl OutputGPIO {
     pub fn set_state(&mut self, state: bool) {
         unsafe { gpio_write(self.to_c(), state as _) };
     }
+
+    /// Toggles the pin between high and low.
+    ///
+    /// Unlike [`set_high()`] and [`set_low()`], this is not just an alias of the [embedded-hal
+    /// trait method of the same
+    /// name](https://docs.rs/embedded-hal/latest/embedded_hal/digital/trait.StatefulOutputPin.html#method.toggle):
+    /// RIOT GPIO pins do not implement [`embedded_hal::digital::StatefulOutputPin`] because they
+    /// can not read back their configured state (but *can* toggle by implementation).
+    #[doc(alias = "gpio_toggle")]
+    pub fn toggle(&mut self) {
+        unsafe { gpio_toggle(self.to_c()) };
+    }
 }
 
 /// A [GPIO] configured and usable for input
