@@ -136,7 +136,7 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
         ticks: Ticks<HZ>,
         in_thread: M,
     ) -> R {
-        (*self).set_during(callback, ticks, in_thread)
+        self.into_inner().set_during(callback, ticks, in_thread)
     }
 }
 
