@@ -19,9 +19,9 @@ fn main() {
     ];
     loop {
         for i in 0..=255 {
-            for j in 0..8 {
+            for (j, led) in leds.iter_mut().enumerate() {
                 if (i ^ (i - 1)) & (1 << j) != 0 {
-                    leds[j].toggle().unwrap();
+                    led.toggle().unwrap();
                 }
             }
         }
