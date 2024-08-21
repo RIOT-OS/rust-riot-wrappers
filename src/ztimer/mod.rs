@@ -136,7 +136,7 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
         ticks: Ticks<HZ>,
         in_thread: M,
     ) -> R {
-        (*self).set_during(callback, ticks, in_thread)
+        self.into_inner().set_during(callback, ticks, in_thread)
     }
 }
 
@@ -240,7 +240,9 @@ impl<const HZ: u32> Clock<HZ> {
     #[doc(alias = "ztimer_acquire")]
     pub fn acquire(&self) -> LockedClock<HZ> {
         // ztimer_acquire is inline or non-inline depending on ZTIMER_ONDEMAND
+        #[allow(unused_imports)] // reason: which of these is used depends on ZTIMER_ONDEMAND
         use riot_sys::inline::*;
+        #[allow(unused_imports)] // reason: which of these is used depends on ZTIMER_ONDEMAND
         use riot_sys::*;
 
         // ztimer_acquire takes a mut even though ztimer itself takes care of synchronization
@@ -309,7 +311,9 @@ impl<const HZ: u32> LockedClock<HZ> {
 impl<const HZ: u32> Drop for LockedClock<HZ> {
     fn drop(&mut self) {
         // ztimer_release is inline or non-inline depending on ZTIMER_ONDEMAND
+        #[allow(unused_imports)] // reason: which of these is used depends on ZTIMER_ONDEMAND
         use riot_sys::inline::*;
+        #[allow(unused_imports)] // reason: which of these is used depends on ZTIMER_ONDEMAND
         use riot_sys::*;
 
         // ztimer_release takes a mut even though ztimer itself takes care of synchronization

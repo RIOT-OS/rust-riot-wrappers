@@ -50,7 +50,7 @@ impl crate::thread::InThread {
     /// Using this on an `InThread` token is preferred over the global function, as the function
     /// only returns reliable values when called from a thread context.
     pub fn irq_is_enabled(self) -> bool {
-        unsafe { riot_sys::irq_is_enabled() }
+        irq_is_enabled()
     }
 }
 

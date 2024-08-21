@@ -168,6 +168,7 @@ impl<E: fmt::Debug> Termination for Result<crate::never::Never, E> {
                 println!("Error: {:?}", err);
                 1
             }
+            #[allow(unreachable_patterns)] // reason: RIOT CI's stable is still 1.77
             Ok(never) => never,
         }
     }

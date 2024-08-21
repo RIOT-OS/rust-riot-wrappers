@@ -479,7 +479,7 @@ impl Unit {
     pub fn name_owned<const S: usize>(self) -> Option<heapless::String<S>> {
         let mut result = heapless::String::new();
         // SAFETY: The C API will only write UTF-8 bytes.
-        let mut bytes = unsafe { result.as_mut_vec() };
+        let bytes = unsafe { result.as_mut_vec() };
         // SAFETY: C API promises to write only up to S bytes, will not write NULL byte.
         let len = unsafe {
             riot_sys::phydat_unit_write(

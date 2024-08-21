@@ -9,7 +9,6 @@ mod impl_1;
 use riot_sys::{gpio_clear, gpio_mode_t, gpio_read, gpio_set, gpio_t, gpio_toggle, gpio_write};
 
 use crate::error::NegativeErrorExt;
-use core::convert::Infallible;
 
 /// A Rust representation of RIOT's gpio_t, representing a single pin in no particular
 /// configuration.
@@ -154,6 +153,18 @@ impl OutputGPIO {
 
     pub fn set_state(&mut self, state: bool) {
         unsafe { gpio_write(self.to_c(), state as _) };
+    }
+
+    /// Toggles the pin between high and low.
+    ///
+    /// Unlike [`set_high()`] and [`set_low()`], this is not just an alias of the [embedded-hal
+    /// trait method of the same
+    /// name](https://docs.rs/embedded-hal/latest/embedded_hal/digital/trait.StatefulOutputPin.html#method.toggle):
+    /// RIOT GPIO pins do not implement [`embedded_hal::digital::StatefulOutputPin`] because they
+    /// can not read back their configured state (but *can* toggle by implementation).
+    #[doc(alias = "gpio_toggle")]
+    pub fn toggle(&mut self) {
+        unsafe { gpio_toggle(self.to_c()) };
     }
 }
 

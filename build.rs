@@ -36,6 +36,13 @@ fn main() {
         "CONFIG_AUTO_INIT_ENABLE_DEBUG",
     ];
 
+    for marker in BOOLEAN_FLAGS {
+        println!(
+            "cargo::rustc-check-cfg=cfg(marker_{})",
+            marker.to_lowercase()
+        );
+    }
+
     for (def, val) in defines {
         if val != "1" {
             // So far, only processing boolean flags
@@ -54,5 +61,49 @@ fn main() {
         if BOOLEAN_FLAGS.contains(&def.as_str()) {
             println!("cargo:rustc-cfg=marker_{}", def.to_lowercase());
         }
+    }
+
+    println!("cargo::rustc-check-cfg=cfg(riot_develhelp)");
+
+    // FIXME: This list is currently maintained manually;
+    let known_modules = &[
+        "auto_init",
+        "auto_init_random",
+        "bluetil_ad",
+        "core_msg",
+        "gcoap",
+        "gnrc",
+        "gnrc_icmpv6",
+        "gnrc_pktbuf",
+        "gnrc_udp",
+        "ipv6",
+        "microbit",
+        "nimble_host",
+        "periph_adc",
+        "periph_dac",
+        "periph_gpio",
+        "periph_i2c",
+        "periph_spi",
+        "prng_shaxprng",
+        "pthread",
+        "random",
+        "saul",
+        "shell",
+        "sock",
+        "sock_aux_local",
+        "sock_tcp",
+        "sock_udp",
+        "udp",
+        "vfs",
+        "ws281x",
+        "ztimer",
+        "ztimer_msec",
+        "ztimer_periodic",
+        "ztimer_sec",
+        "ztimer_usec",
+    ];
+
+    for module in known_modules {
+        println!("cargo::rustc-check-cfg=cfg(riot_module_{})", module);
     }
 }
