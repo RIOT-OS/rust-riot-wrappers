@@ -24,7 +24,7 @@ impl UdpStack {
         remote: Option<UdpEp>,
         flags: u16,
     ) -> Result<&'static mut sock_udp_t, NumericError> {
-        let mut socket = (self.static_socket_factory)().ok_or(ENOSPC)?;
+        let socket = (self.static_socket_factory)().ok_or(ENOSPC)?;
         Ok(unsafe {
             riot_sys::sock_udp_create(
                 socket.as_mut_ptr(),
@@ -316,7 +316,7 @@ macro_rules! implementation_module {
     }
     impl ReceiveIntoArgs<'_> {
         unsafe extern "C" fn callback(
-            sock: *mut sock_udp_t,
+            _sock: *mut sock_udp_t,
             flags: riot_sys::sock_async_flags_t,
             arg: *mut riot_sys::libc::c_void,
         ) {

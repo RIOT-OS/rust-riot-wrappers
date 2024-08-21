@@ -7,6 +7,7 @@ use crate::error::NumericError;
 
 /// Thin wrapper around NumericError that can render and satisfies all conversion requirements
 #[derive(Debug)]
+#[allow(dead_code)] // reason: It's indeed just for Debug
 pub struct Error(NumericError);
 
 impl From<NumericError> for Error {

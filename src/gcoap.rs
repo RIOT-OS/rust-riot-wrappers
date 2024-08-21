@@ -179,7 +179,7 @@ where
         let h = riot_sys::coap_request_ctx_get_context(context) as *mut H;
 
         let h = &mut *h;
-        let mut pb = PacketBuffer {
+        let pb = PacketBuffer {
             pkt: &mut *pkt,
             buf,
             len: len.try_into().unwrap(),
