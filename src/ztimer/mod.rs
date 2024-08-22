@@ -63,8 +63,8 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
     ///
     /// Wraps [ztimer_sleep](https://doc.riot-os.org/group__sys__ztimer.html#gade98636e198f2d571c8acd861d29d360)
     #[doc(alias = "ztimer_sleep")]
-    pub fn sleep_ticks(&self, duration: u32) {
-        unsafe { riot_sys::ztimer_sleep(self.0, duration) };
+    pub fn sleep(&self, duration: Ticks<HZ>) {
+        unsafe { riot_sys::ztimer_sleep(self.0, duration.0) };
     }
 
     /// Keep the current thread in a busy loop until the duration of ticks in the timer's tim scale
@@ -79,11 +79,12 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
     /// is doable in an ISR), but it's so discouraged that the Rust wrapper takes the position that
     /// it's best done using a [ValueInThread].
     #[doc(alias = "ztimer_spin")]
-    pub fn spin_ticks(&self, duration: u32) {
-        unsafe { riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration) };
+    pub fn spin(&self, duration: Ticks<HZ>) {
+        unsafe { riot_sys::ztimer_spin(crate::inline_cast_mut(self.0), duration.0) };
     }
 
-    /// Pause the current thread for the given duration.
+    /// Pause the current thread for the given duration, possibly exceeding values expressible in
+    /// [Ticks<HZ>].
     ///
     /// The duration is converted into ticks (rounding up), and overflows are caught by sleeping
     /// multiple times.
@@ -92,14 +93,16 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
     /// seconds on the microseconds timer would not overflow the timer's interface's u32, but the
     /// same multiple-sleeps trick may need to be employed by the implementation, *and* would keep
     /// the system from entering deeper sleep modes).
-    pub fn sleep(&self, duration: core::time::Duration) {
+    pub fn sleep_extended(&self, duration: core::time::Duration) {
         // Convert to ticks, rounding up as per Duration documentation
         let mut ticks = (duration * HZ - core::time::Duration::new(0, 1)).as_secs() + 1;
         while ticks > u32::MAX.into() {
-            self.sleep_ticks(u32::MAX);
+            self.sleep(Ticks(u32::MAX));
             ticks -= u64::from(u32::MAX);
         }
-        self.sleep_ticks(ticks.try_into().expect("Was just checked manually above"));
+        self.sleep(Ticks(
+            ticks.try_into().expect("Was just checked manually above"),
+        ));
     }
 
     /// Set the given callback to be executed in an interrupt some ticks in the future.
@@ -461,7 +464,7 @@ impl<const F: u32> embedded_hal::delay::DelayNs for ValueInThread<Clock<F>> {
             // ticks have some uncertainty on their own anyway.
 
             let ticks = (ns as u64) * (F as u64) / (NANOS_PER_SEC as u64);
-            self.sleep_ticks(ticks as u32);
+            self.sleep(Ticks(ticks as u32));
         }
     }
 }
