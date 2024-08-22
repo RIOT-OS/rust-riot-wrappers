@@ -12,7 +12,7 @@ fn main() {
 
     println!("Waiting 500 ticks on the msec timer before doing anything else");
     let duration = msec.time(|| {
-        msec.sleep_ticks(500);
+        msec.sleep(Ticks(500));
     });
     let duration =
         duration.expect("That should not have taken so long that the milliseconds overflowed");
