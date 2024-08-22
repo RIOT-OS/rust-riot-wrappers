@@ -14,6 +14,9 @@
 
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
+use core::pin::Pin;
+
+use pin_project::{pin_project, pinned_drop};
 
 use riot_sys::libc;
 
@@ -141,39 +144,106 @@ impl Drop for File {
     }
 }
 
+/// A place where a [Dir] can be stored
+///
+/// See [`Dir::open()`] for why this is necessary.
+///
+/// As for its implementation, this is built from an Option rather than a bare MaybeUninit because
+/// if the created Dir is leaked and then the DirSlot is dropped, the DirSlot needs to know whether
+/// or not to do any cleanup.
+///
+/// ## Invariants
+///
+/// This module maintains that the MaybeUninit is always initialized outside of its own functions,
+/// and that no panicing functions are called while it is uninit.
+#[derive(Default)]
+#[pin_project(PinnedDrop)]
+pub struct DirSlot(
+    #[pin] Option<MaybeUninit<riot_sys::vfs_DIR>>,
+    core::marker::PhantomPinned,
+);
+
+impl DirSlot {
+    /// Cleanly replace any Some with None.
+    fn close(mut self: Pin<&mut Self>) {
+        if let Some(mut dir) = self.as_mut().project().0.as_pin_mut() {
+            // unsafe: dir was initialized per invariants, so it's OK to call the function.
+            // The return value is ignored because we can't do anything about it.
+            unsafe { riot_sys::vfs_closedir(dir.as_mut_ptr()) };
+        }
+        // unsafe: The MaybeUninit is uninitialized now thanks to closedir, and is thus free to be
+        // replaced.
+        *{ unsafe { Pin::into_inner_unchecked(self.project().0) } } = None;
+    }
+}
+
+#[pinned_drop]
+impl PinnedDrop for DirSlot {
+    fn drop(self: Pin<&mut Self>) {
+        self.close();
+    }
+}
+
 /// A directory in the file system
 ///
 /// The directory can be iterated over, producing directory entries one by one.
-#[repr(transparent)]
-pub struct Dir(riot_sys::vfs_DIR, core::marker::PhantomPinned);
+///
+/// ## Invariants
+///
+/// While this is active, the inner [DirSlot] always contains Some (and, in particular, per its
+/// invariants, its content is initialized).
+pub struct Dir<'a>(Pin<&'a mut DirSlot>);
 
-impl Dir {
-    pub fn open(dir: &str) -> Result<Self, NumericError> {
-        let dir = NameNullTerminated::new(dir)?;
-        let mut dirp = MaybeUninit::uninit();
-        (unsafe { riot_sys::vfs_opendir(dirp.as_mut_ptr(), dir.as_cstr()?.as_ptr() as _) })
-            .negative_to_error()?;
-        let dirp = unsafe { dirp.assume_init() };
-        Ok(Dir(dirp, core::marker::PhantomPinned))
+impl<'d> Dir<'d> {
+    /// Open a directory
+    ///
+    /// Unlike files (which are plain numeric file handles in RIOT), an open directory is a data
+    /// structure, and depending on the underlying file system may be a linked list. Therefore, we
+    /// can not return the open directory (and move it in the course of that), but need its place
+    /// to be pre-pinned. A simple `pin!(&mut Default::default())` will to to get a suitable
+    /// `slot`.
+    pub fn open<'name>(
+        name: &'name str,
+        mut slot: Pin<&'d mut DirSlot>,
+    ) -> Result<Self, NumericError> {
+        slot.as_mut().close();
+        let name = NameNullTerminated::new(name)?;
+        let dir = { unsafe { Pin::into_inner_unchecked(slot.as_mut().project().0) } }
+            .insert(MaybeUninit::uninit());
+        match (unsafe { riot_sys::vfs_opendir(dir.as_mut_ptr(), name.as_cstr()?.as_ptr() as _) })
+            .negative_to_error()
+        {
+            Ok(_) => (),
+            Err(e) => {
+                slot.0 = None;
+                return Err(e);
+            }
+        };
+        Ok(Dir(slot))
     }
 }
 
-impl Drop for Dir {
+impl Drop for Dir<'_> {
     fn drop(&mut self) {
-        unsafe { riot_sys::vfs_closedir(&mut self.0) };
+        // This is not required for soundness, but helps keep the number of open directories low on
+        // file systems where that matters.
+        self.0.as_mut().close();
     }
 }
 
-impl Iterator for Dir {
-    type Item = Dirent;
+impl<'d> Iterator for Dir<'d> {
+    type Item = Dirent<'d>;
 
-    fn next(&mut self) -> Option<Dirent> {
+    fn next(&mut self) -> Option<Dirent<'d>> {
         let mut ent = MaybeUninit::uninit();
-        let ret = (unsafe { riot_sys::vfs_readdir(&mut self.0, ent.as_mut_ptr()) })
+        let Some(mut dir) = self.0.as_mut().project().0.as_pin_mut() else {
+            unreachable!("Dir always has Some in it slot");
+        };
+        let ret = (unsafe { riot_sys::vfs_readdir(dir.as_mut_ptr(), ent.as_mut_ptr()) })
             .negative_to_error()
             .ok()?;
         if ret > 0 {
-            Some(Dirent(unsafe { ent.assume_init() }))
+            Some(Dirent(unsafe { ent.assume_init() }, PhantomData))
         } else {
             None
         }
@@ -183,9 +253,9 @@ impl Iterator for Dir {
 /// Directory entry inside a file
 ///
 /// The entry primarily indicates the file's name.
-pub struct Dirent(riot_sys::vfs_dirent_t);
+pub struct Dirent<'d>(riot_sys::vfs_dirent_t, PhantomData<&'d ()>);
 
-impl Dirent {
+impl Dirent<'_> {
     /// Name of the file
     ///
     /// This will panic if the file name is not encoded in UTF-8.
