@@ -88,7 +88,12 @@ impl GPIO {
     /// Create a GPIO from its port and pin numbers
     ///
     /// ```
+    /// # #![no_std]
+    /// # #![no_main]
+    /// # fn f() {
+    /// use riot_wrappers::gpio::GPIO;
     /// let pin_c8 = GPIO::from_port_and_pin(3, 8);
+    /// # }
     /// ```
     ///
     /// See [from_c] for safety constraints.

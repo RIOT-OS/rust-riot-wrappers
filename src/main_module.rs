@@ -91,7 +91,8 @@ impl<F: Fn(StartToken) -> ((), EndToken)> UsableAsMain<[u8; 3]> for F {
 ///
 /// ```
 /// # #![no_std]
-/// # use riot_wrappers::riot_main;
+/// # #![no_main]
+/// use riot_wrappers::riot_main;
 /// riot_main!(main);
 ///
 /// fn main() {

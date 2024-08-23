@@ -171,16 +171,14 @@ pub trait MessageSemantics: Sized {
     ///
     /// ```
     /// # #![no_std]
-    /// # #![feature(start)]
-    /// # #[start]
-    /// # fn main(_argc: isize, _argv: *const *const u8) -> isize {
-    /// # use riot_wrappers::msg::v2::*;
-    /// # let message_semantics = unsafe { NoConfiguredMessages::new() };
+    /// # #![no_main]
+    /// # fn f() {
+    /// use riot_wrappers::msg::v2::*;
+    /// # let message_semantics = NoConfiguredMessages; // FIXME: constructing this should not be possible publicly
     /// type NumberReceived = ReceivePort<u32, 1>;
     /// type BoolReceived = ReceivePort<bool, 2>;
     /// let (message_semantics, receive_num, send_num): (_, NumberReceived, _) = message_semantics.split_off();
     /// let (message_semantics, receive_bool, send_bool): (_, BoolReceived, _) = message_semantics.split_off();
-    /// # 0
     /// # }
     /// ```
     ///
