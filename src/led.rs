@@ -7,6 +7,7 @@ use core::convert::Infallible;
 /// The preferred interface for turning a LED on and off is [switch_hal::OutputSwitch].
 ///
 /// LEDs are accessible safely; any not implemented on a board are silently ignored.
+#[derive(Debug)]
 pub struct LED<const I: u8>(());
 
 /// The indicated LED is not present on the current board.
