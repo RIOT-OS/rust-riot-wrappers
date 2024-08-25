@@ -34,6 +34,7 @@ jobs:
       with:
         repository: RIOT-OS/RIOT
         path: RIOT
+    # common steps end here
     - name: Patch .cargo/config.toml to use current checkout
       run: |
         set -x
@@ -59,7 +60,6 @@ jobs:
             cargo tree --manifest-path $MANIF
             echo "::endgroup::"
         done
-    # common steps end here
 
     - name: Build the example
       run: |
@@ -91,7 +91,7 @@ jobs:
         board: [native, sltb001a, samr21-xpro, stk3700]
         testdir: ${{ fromJSON(needs.enumerate-wrappers-tests.outputs.list) }}
     steps:
-    # common steps start here
+    # common steps start here (kept in sync even though we wouldn't need to patch RIOT's .cargo/config.toml)
     - name: Check out riot-wrappers
       uses: actions/checkout@v3
     - name: Check out RIOT
@@ -99,32 +99,14 @@ jobs:
       with:
         repository: RIOT-OS/RIOT
         path: RIOT
-    - name: Patch .cargo/config.toml to use current checkout
-      run: |
-        set -x
-        cd RIOT
-        rm -f .cargo/config.toml
-        mkdir -p .cargo # Keep working if RIOT ever decides it doesn't need overrides any more
-        echo '[patch.crates-io]' >> .cargo/config.toml
-        echo 'riot-wrappers = { path = "../", version = "*" }' >> .cargo/config.toml
-        echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
-    - name: Pull cargo updates
-      # No sense in running this in parallel -- this will download the index
-      # and all relevant crates once, and after that, just make some notes in Cargo.lock
-      run: |
-        set -x
-        # It is important to cd in early, for otherwise the patch.crates-io
-        # will not catch on during the update
-        cd RIOT
-        for MANIF in $(find -name Cargo.toml)
-        do
-            echo "::group::Updating ${MANIF}"
-            cargo update -p riot-sys -p riot-wrappers --aggressive --manifest-path $MANIF
-            cargo fetch --manifest-path $MANIF
-            cargo tree --manifest-path $MANIF
-            echo "::endgroup::"
-        done
     # common steps end here
+
+    - name: Patch local .cargo/config.toml to use current checkout
+      run: |
+        mkdir .cargo
+        echo '[patch.crates-io]' >> .cargo/config.toml
+        echo 'riot-wrappers = { path = ".", version = "*" }' >> .cargo/config.toml
+        echo 'riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }' >> .cargo/config.toml
 
     - name: Build and run test
       run: |
