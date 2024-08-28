@@ -86,6 +86,12 @@ impl<'a> MinimalWritableMessage for super::ResponseMessage<'a> {
         self.payload_mut_with_len(data.len())?.copy_from_slice(data);
         Ok(())
     }
+
+    #[inline]
+    #[allow(refining_impl_trait_reachable)]
+    fn promote_to_mutable_writable_message(&mut self) -> Option<&mut Self> {
+        Some(self)
+    }
 }
 
 impl<'a> MutableWritableMessage for super::ResponseMessage<'a> {
