@@ -22,7 +22,7 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
         unsafe {
             riot_sys::core_panic(
                 riot_sys::core_panic_t_PANIC_GENERAL_ERROR,
-                cstr::cstr!("RUST PANIC").as_ptr() as _,
+                c"RUST PANIC".as_ptr() as _,
             )
         };
     } else {

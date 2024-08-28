@@ -155,7 +155,7 @@ where
     /// [coap_handler::Handler], you can wrap it in [crate::coap_handler::GcoapHandler] to for adaptation.
     pub fn new_catch_all(handler: &'a mut H) -> Self {
         Self::new(
-            cstr::cstr!("/"),
+            c"/",
             riot_sys::COAP_GET
                 | riot_sys::COAP_POST
                 | riot_sys::COAP_PUT
