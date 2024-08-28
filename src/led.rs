@@ -28,7 +28,7 @@ impl<const I: u8> LED<I> {
     /// It is not an error if this board does not have a LED with that number; the resulting struct
     /// will be available but its methods have no effect.
     pub const fn new_unchecked() -> Self {
-        assert!(I < 8, "RIOT only defines LED0..7");
+        const { assert!(I < 8, "RIOT only defines LED0..7") };
         Self(())
     }
 

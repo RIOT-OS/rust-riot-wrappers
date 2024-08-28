@@ -154,10 +154,12 @@ impl<const MS: bool, const FS: bool> TokenParts<MS, true, FS> {
         self,
         f: F,
     ) -> ! {
-        assert!(
-            N.count_ones() == 1,
-            "Message queue sizes need to be powers of 2"
-        );
+        const {
+            assert!(
+                N.count_ones() == 1,
+                "Message queue sizes need to be powers of 2"
+            )
+        };
         let mut queue: MaybeUninit<[riot_sys::msg_t; N]> = MaybeUninit::uninit();
         // unsafe: All requirements of the C function are satisfied
         unsafe { riot_sys::msg_init_queue(queue.as_mut_ptr() as _, N as _) };
