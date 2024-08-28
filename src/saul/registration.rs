@@ -195,7 +195,7 @@ where
     ) -> Self {
         Registration {
             reg: riot_sys::saul_reg_t {
-                next: 0 as _,
+                next: core::ptr::null_mut(),
                 dev: device as *const _ as *mut _,
                 name: name.map(|n| n.as_ptr() as _).unwrap_or(core::ptr::null()),
                 driver: &driver.driver as *const _,

@@ -215,7 +215,7 @@ impl<M: Mode> Pktsnip<M> {
         // unsafe: C API, and requirement on a Pktsnip that typed snips follow that type's
         // conventions
         let ptr = unsafe { riot_sys::gnrc_ipv6_get_header(self.ptr) };
-        if ptr == 0 as _ {
+        if ptr.is_null() {
             None
         } else {
             // unsafe: Header is a transparent wrapper around the actual ipv6_hdr_t, and the

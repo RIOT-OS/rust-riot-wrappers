@@ -80,7 +80,7 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
                 clock.0,
                 timer.as_mut_ptr(),
                 Some(Self::callback),
-                0 as _,
+                core::ptr::null_mut(),
                 ticks.0,
             );
             timer.assume_init()
