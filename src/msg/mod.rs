@@ -198,10 +198,12 @@ where
 {
     pub fn new(type_: u16, value: T) -> Self {
         use core::mem::size_of;
-        assert!(
-            size_of::<T>() <= size_of::<*mut libc::c_void>(),
-            "Type too large to send"
-        );
+        const {
+            assert!(
+                size_of::<T>() <= size_of::<*mut libc::c_void>(),
+                "Type too large to send"
+            )
+        };
         ContainerMsg {
             message: msg_t {
                 type_,

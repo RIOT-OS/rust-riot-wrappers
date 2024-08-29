@@ -54,6 +54,24 @@ pub const BOARD: &'static str = {
     b
 };
 
+#[inline]
+const fn assert_same_layout<A, B>() {
+    const {
+        assert!(
+            // assert_eq does not work in const yet as of 1.80.1
+            core::mem::size_of::<A>() == core::mem::size_of::<B>(),
+            "Incompatible pointers between c2rust and bindgen",
+            // const_format_args does not support that yet -- but the top line of the error spells
+            // out the types.
+            // "Incompatible pointers between c2rust and bindgen: {} has size {}, {} has size {}",
+            // core::any::type_name::<A>(),
+            // core::mem::size_of::<A>(),
+            // core::any::type_name::<B>(),
+            // core::mem::size_of::<B>(),
+        )
+    };
+}
+
 /// Cast pointers around before passing them in to functions; this is sometimes needed when a
 /// struct is used from bindgen (`riot_sys::*`) but passed to a C2Rust function that uses its own
 /// definition (`riot_sys::inline::*`).
@@ -67,14 +85,14 @@ pub const BOARD: &'static str = {
 /// becomes a no-op.
 #[inline]
 fn inline_cast<A, B>(input: *const A) -> *const B {
-    assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
+    assert_same_layout::<A, B>();
     input as _
 }
 
 /// `*mut` analogon to [inline_cast]
 #[inline]
 fn inline_cast_mut<A, B>(input: *mut A) -> *mut B {
-    assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
+    assert_same_layout::<A, B>();
     input as _
 }
 
@@ -82,7 +100,7 @@ fn inline_cast_mut<A, B>(input: *mut A) -> *mut B {
 #[inline]
 #[allow(unused)]
 unsafe fn inline_cast_ref<A, B>(input: &A) -> &B {
-    assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
+    assert_same_layout::<A, B>();
     core::mem::transmute(input)
 }
 
@@ -90,7 +108,7 @@ unsafe fn inline_cast_ref<A, B>(input: &A) -> &B {
 #[inline]
 #[allow(unused)]
 unsafe fn inline_cast_ref_mut<A, B>(input: &mut A) -> &mut B {
-    assert_eq!(core::mem::size_of::<A>(), core::mem::size_of::<B>());
+    assert_same_layout::<A, B>();
     core::mem::transmute(input)
 }
 

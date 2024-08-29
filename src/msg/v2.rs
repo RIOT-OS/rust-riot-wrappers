@@ -197,27 +197,31 @@ pub trait MessageSemantics: Sized {
         ReceivePort<NewType, NEW_TYPENO>,
         SendPort<NewType, NEW_TYPENO>,
     ) {
-        // Should ideally be a static assert. Checks probably happen at build time anyway due to
-        // const propagation, but the panic only triggers at runtime :-(
+        // Should ideally be a static assert (but that depends on const trait methods). Checks
+        // probably happen at build time anyway due to const propagation, but the panic only
+        // triggers at runtime :-(
         assert!(
             !self.typeno_is_known(NEW_TYPENO),
             "Type number is already in use for this thread."
         );
 
-        // Similarly static -- better err out early
-        assert!(
-            core::mem::size_of::<NewType>()
-                <= core::mem::size_of::<riot_sys::msg_t__bindgen_ty_1>(),
-            "Type is too large to be transported in a message"
-        );
+        const {
+            assert!(
+                core::mem::size_of::<NewType>()
+                    <= core::mem::size_of::<riot_sys::msg_t__bindgen_ty_1>(),
+                "Type is too large to be transported in a message"
+            )
+        };
 
         // ... and the alignment must suffice because the data is moved in and outthrough a &mut
         // SomethingTransparent<T>
-        assert!(
-            core::mem::align_of::<NewType>()
-                <= core::mem::align_of::<riot_sys::msg_t__bindgen_ty_1>(),
-            "Type has stricter alignment requirements than the message content"
-        );
+        const {
+            assert!(
+                core::mem::align_of::<NewType>()
+                    <= core::mem::align_of::<riot_sys::msg_t__bindgen_ty_1>(),
+                "Type has stricter alignment requirements than the message content"
+            )
+        };
 
         (
             Processing {
