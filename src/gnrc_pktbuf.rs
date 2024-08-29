@@ -201,7 +201,7 @@ impl<'a> Pktsnip<Shared> {
         // unsafe: The C functions justify the new type
         unsafe {
             let new = riot_sys::gnrc_pktbuf_start_write(self.to_ptr());
-            if new == 0 as _ {
+            if new.is_null() {
                 Err(NotEnoughSpace)
             } else {
                 Ok(Pktsnip::<Writable>::from_ptr(new))

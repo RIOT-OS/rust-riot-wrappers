@@ -47,7 +47,7 @@ impl Netif {
 
     #[doc(alias = "gnrc_netif_get_by_pid")]
     pub fn by_pid(pid: KernelPID) -> Option<Self> {
-        const NULL: *mut riot_sys::gnrc_netif_t = 0 as _;
+        const NULL: *mut riot_sys::gnrc_netif_t = core::ptr::null_mut();
         // Not using as_ref: We can't guarantee that even for the short period between we're making
         // it into a reference and casting it back to a pointer again, it is not used by anyone
         // else

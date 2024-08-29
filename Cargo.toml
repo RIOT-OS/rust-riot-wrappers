@@ -28,6 +28,8 @@ mutex-trait = "0.2"
 
 bare-metal = "1"
 
+# Only used for shell, where a macro is described to take a string literal and
+# in the macro implementation turns it into a CStr.
 cstr = "^0.2.11"
 
 heapless = "^0.8"
