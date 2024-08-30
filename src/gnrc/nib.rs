@@ -91,6 +91,19 @@ impl ArState {
 }
 
 impl NcEntry {
+    /// Iterate over the Neighbor Cache.
+    #[doc(alias = "gnrc_ipv6_nib_nc_iter")]
+    pub fn all() -> impl Iterator<Item = Self> {
+        // If we add anything like all_nc_entries_on_interface():
+        // // Interfaces are positive numbers; MAX is clearly out of range and allows us to have an easier
+        // // input type
+        // let interface = interface.map(|i| {
+        //     riot_sys::libc::c_uint::try_from(usize::from(i)).unwrap_or(riot_sys::libc::c_uint::MAX)
+        // });
+
+        any_nc_query(0)
+    }
+
     pub fn l2addr(&self) -> &[u8] {
         &self.0.l2addr[..self.0.l2addr_len as usize]
     }
@@ -139,19 +152,6 @@ impl NcEntry {
         });
         result
     }
-}
-
-/// Iterate over the Neighbor Cache.
-#[doc(alias = "gnrc_ipv6_nib_nc_iter")]
-pub fn all_nc_entries() -> impl Iterator<Item = NcEntry> {
-    // If we add anything like all_nc_entries_on_interface():
-    // // Interfaces are positive numbers; MAX is clearly out of range and allows us to have an easier
-    // // input type
-    // let interface = interface.map(|i| {
-    //     riot_sys::libc::c_uint::try_from(usize::from(i)).unwrap_or(riot_sys::libc::c_uint::MAX)
-    // });
-
-    any_nc_query(0)
 }
 
 struct NcIterator {
