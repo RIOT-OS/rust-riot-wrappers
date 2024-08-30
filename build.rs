@@ -74,6 +74,7 @@ fn main() {
         "gcoap",
         "gnrc",
         "gnrc_icmpv6",
+        "gnrc_ipv6_nib",
         "gnrc_pktbuf",
         "gnrc_udp",
         "ipv6",

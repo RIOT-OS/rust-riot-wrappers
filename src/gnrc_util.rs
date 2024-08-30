@@ -11,9 +11,7 @@ use crate::thread::KernelPID;
 
 #[cfg(riot_module_gnrc_udp)]
 use riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UDP as GNRC_NETTYPE_UDP;
-use riot_sys::{
-    gnrc_netif_hdr_t, gnrc_nettype_t_GNRC_NETTYPE_NETIF as GNRC_NETTYPE_NETIF, udp_hdr_t,
-};
+use riot_sys::{gnrc_netif_hdr_t, gnrc_nettype_t_GNRC_NETTYPE_NETIF as GNRC_NETTYPE_NETIF};
 
 /// Trait of data structures that store all the information needed to respond to a Pktsnip in some
 /// way; the data (typically address and port information) is copied into the trait implementation
@@ -110,7 +108,7 @@ impl<N: RoundtripData> RoundtripData for UDPRoundtripDataFull<N> {
         let (src, dst) = incoming
             .search_type(GNRC_NETTYPE_UDP)
             .map(|s| {
-                let hdr: &udp_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
+                let hdr: &riot_sys::udp_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
                 (
                     u16::from_be_bytes(unsafe { (*hdr).src_port.u8_ }),
                     u16::from_be_bytes(unsafe { (*hdr).dst_port.u8_ }),

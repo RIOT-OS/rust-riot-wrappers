@@ -122,6 +122,12 @@ jobs:
             echo
             echo "Testing ${D}"
             echo
+
+            if make BOARD=native info-modules |grep -q netdev_tap; then
+              # Seems we can't have tap interfaces on GitHub actions, aborting.
+              echo "Board requires tap interface, skipping."
+              exit 0
+            fi
             make all test BOARD=native
           fi
         else

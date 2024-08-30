@@ -5,6 +5,8 @@ pub mod ipv6;
 
 pub mod netapi;
 pub mod netreg;
+#[cfg(riot_module_gnrc_ipv6_nib)]
+pub mod nib;
 #[deprecated(note = "Internally, use gnrc_pktbuf directly")]
 pub(crate) use crate::gnrc_pktbuf as pktbuf;
 
