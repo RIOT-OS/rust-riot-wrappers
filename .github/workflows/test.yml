@@ -124,11 +124,9 @@ jobs:
             echo
 
             if make BOARD=native info-modules |grep -q netdev_tap; then
-              apt-get update
-              apt-get install -y iproute2
-              # Not setting up any particular addresses; tests don't expect any
-              # route so far.
-              ip tuntap add dev tap0 mode tap
+              # Seems we can't have tap interfaces on GitHub actions, aborting.
+              echo "Board requires tap interface, skipping."
+              exit 0
             fi
             make all test BOARD=native
           fi
