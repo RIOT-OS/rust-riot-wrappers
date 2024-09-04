@@ -23,7 +23,7 @@ impl<const I: u8> LED<I> {
         Self::new_unchecked()
     }
 
-    /// Accesses the LED numbered `I`.
+    /// Accesses the LED numbered `I` as `LED::<I>::new_unchecked()`.
     ///
     /// It is not an error if this board does not have a LED with that number; the resulting struct
     /// will be available but its methods have no effect.
@@ -32,7 +32,7 @@ impl<const I: u8> LED<I> {
         Self(())
     }
 
-    /// Accesses the LED numbered `I`.
+    /// Accesses the LED numbered `I` as `LED::<I>::new_checked()?`.
     ///
     /// An LED is returned if present on the board, which is known at build time.
     pub const fn new_checked() -> Result<Self, LedNotPresent> {
