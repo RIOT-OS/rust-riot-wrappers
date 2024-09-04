@@ -1,3 +1,15 @@
+# Changes in 0.9.1
+
+* gnrc::nib: New module for GNRC neighbor information.
+
+* LED: Differentiate constructors, deprecate `::new()`.
+
+* Internally use `const { }` and other recent Rust idioms suich as `c""`.
+
+* Update dependencies: Rust to 1.79 and the coap-message crate (implementing message upgrading).
+
+* Extend tests.
+
 # Changes in 0.9.0
 
 ## Breaking changes
