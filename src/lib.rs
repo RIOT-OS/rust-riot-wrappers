@@ -138,6 +138,9 @@ pub mod random;
 #[cfg(riot_module_periph_spi)]
 pub mod spi;
 
+#[cfg(riot_module_periph_uart)]
+pub mod uart;
+
 #[cfg(riot_module_periph_adc)]
 pub mod adc;
 
