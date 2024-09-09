@@ -1,6 +1,10 @@
 //! Components for interacting with IPv6 messages on GNRC
 
 use core::mem::MaybeUninit;
+#[cfg(any(feature = "with_embedded_nal", feature = "with_embedded_nal_async"))]
+pub use no_std_net::{Ipv6Addr, SocketAddr};
+#[cfg(not(any(feature = "with_embedded_nal", feature = "with_embedded_nal_async")))]
+pub use core::net::{Ipv6Addr, SocketAddr};
 
 use riot_sys::{ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
 
