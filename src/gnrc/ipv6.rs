@@ -2,7 +2,7 @@
 
 use core::mem::MaybeUninit;
 
-use riot_sys::{ipv6_addr_from_str, ipv6_addr_t, kernel_pid_t};
+use riot_sys::{ipv6_addr_t, kernel_pid_t};
 
 use super::pktbuf::{Mode, NotEnoughSpace, Pktsnip, Writable};
 use crate::error::{NegativeErrorExt, NumericError};
@@ -55,74 +55,47 @@ impl<'a, const MAX: usize> core::iter::IntoIterator for &'a AddrList<MAX> {
     }
 }
 
+/// An IPv6 address
+///
+/// This is strictly equivalent and convertible with a [core::net::Ipv6Addr], but can not be
+/// guaranteed the same memory layout (mostly alignment).
+///
+/// Method implementations mixedly use what RIOT offers and what Rust's standard library offers,
+/// depending on what is easiest to use, trusting that the compiler will elide the memory copying
+/// that is required for conversion in case the copy is not necessary for alignment purposes.
 #[repr(transparent)] // which allows the AddrList addresss to be passed to gnrc_netif_ipv6_addrs_get
 #[derive(Copy, Clone)]
 pub struct Address {
     inner: ipv6_addr_t,
 }
 
-// When no_std_net / embedded_nal is present, it may be a good idea to run through there (or allow
-// configuration to optimize which route to take for best deduplication of code)
-impl ::core::str::FromStr for Address {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // It'd be nice to use std::net::Address::from_str, but the parser is generic over
-        // families (maybe at some point we'll need that here too, but not now), and it's in std
-        // rather then core for reasons I can't really follow.
-
-        let s = s.as_bytes();
-
-        let mut with_null = [0u8; 32 + 7 + 1]; // 32 nibbles + 7 colons + null byte
-        if s.len() > with_null.len() - 1 {
-            // Obviously too long to be a valid plain address
-            return Err(());
-        }
-        with_null[..s.len()].copy_from_slice(s);
-
-        let mut inner: MaybeUninit<ipv6_addr_t> = MaybeUninit::uninit();
-
-        let conversion_result = unsafe {
-            ipv6_addr_from_str(
-                inner.as_mut_ptr(),
-                core::ffi::CStr::from_bytes_with_nul_unchecked(&with_null).as_ptr() as _,
-            )
-        };
-
-        match conversion_result as usize {
-            0 => Err(()),
-            _ => Ok(Self {
-                inner: unsafe { inner.assume_init() },
-            }),
+impl From<&core::net::Ipv6Addr> for Address {
+    fn from(addr: &core::net::Ipv6Addr) -> Self {
+        Self {
+            inner: ipv6_addr_t { u8_: addr.octets() },
         }
     }
 }
 
-// When no_std_net / embedded_nal is present, it may be a good idea to run through there.
+impl From<&Address> for core::net::Ipv6Addr {
+    fn from(addr: &Address) -> Self {
+        // unsafe: All fields are equivalently initialized
+        core::net::Ipv6Addr::from(unsafe { addr.inner.u8_ })
+    }
+}
+
+impl ::core::str::FromStr for Address {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok((&core::net::Ipv6Addr::from_str(s).map_err(|_| ())?).into())
+    }
+}
+
 impl ::core::fmt::Debug for Address {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        let as_u8 = self.raw();
-        write!(
-            f,
-            "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:\
-             {:02x}{:02x}:{:02x}{:02x}",
-            as_u8[0],
-            as_u8[1],
-            as_u8[2],
-            as_u8[3],
-            as_u8[4],
-            as_u8[5],
-            as_u8[6],
-            as_u8[7],
-            as_u8[8],
-            as_u8[9],
-            as_u8[10],
-            as_u8[11],
-            as_u8[12],
-            as_u8[13],
-            as_u8[14],
-            as_u8[15],
-        )
+        let converted = core::net::Ipv6Addr::from(self);
+        write!(f, "{:?}", converted)
     }
 }
 
