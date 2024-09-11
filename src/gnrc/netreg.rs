@@ -1,3 +1,13 @@
+//! Registrations inside GNRC
+//!
+//! This module is split depending on the method of information passing: Methods that use the
+//! classical message based information passing are placed directly here for the time being.
+//! Callback based registration is available in the [callback] module, and is easier to use once
+//! accepting that the callbacks need to be available statically.
+
+#[cfg(riot_module_gnrc_netapi_callbacks)]
+pub mod callback;
+
 #[cfg(feature = "with_msg_v2")]
 use core::mem::MaybeUninit;
 
@@ -24,6 +34,8 @@ type PktsnipPort = crate::msg::v2::SendPort<
 /// thereof -- not that anything could still be recombined after that, but at least it could be
 /// used once more (with the risk that messages from the old registration arrive in the new one,
 /// which is wrong correctness-wise but safe because it'll still be a pointer to a pktsnip).
+///
+/// Any API rewrite would also replace the nettype/demux_ctx pair with a [FullDemuxContext].
 #[cfg(feature = "with_msg_v2")]
 pub fn register_for_messages<F: FnOnce() -> crate::never::Never>(
     grant: PktsnipPort,
@@ -46,4 +58,40 @@ pub fn register_for_messages<F: FnOnce() -> crate::never::Never>(
         .unwrap();
 
     f()
+}
+
+/// A combination of a GNRC net type and a demux context, as used in GNRC registrations.
+pub struct FullDemuxContext {
+    nettype: riot_sys::gnrc_nettype_t,
+    demux_ctx: u32,
+}
+
+impl<'a> core::fmt::Debug for FullDemuxContext {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        // We could spare ourselves the trouble of manual implementation by storing nettype as
+        // NetType, but that won't help with the demux_ctx == DEMUX_CTX_ALL case
+        let mut stru = f.debug_struct("PktsnipPart");
+        let mut stru = stru.field("nettype", &crate::gnrc::NetType(self.nettype));
+
+        if self.demux_ctx == riot_sys::GNRC_NETREG_DEMUX_CTX_ALL {
+            stru = stru.field("demux_ctx", &"all contexts");
+        } else {
+            stru = stru.field("demux_ctx", &format_args!("{:02x?}", self.demux_ctx));
+        }
+
+        stru.finish()
+    }
+}
+
+impl FullDemuxContext {
+    pub fn new_raw(nettype: riot_sys::gnrc_nettype_t, demux_ctx: u32) -> Self {
+        Self { nettype, demux_ctx }
+    }
+
+    pub fn new_icmpv6_echo(type_: super::icmpv6::EchoType) -> Self {
+        Self {
+            nettype: riot_sys::gnrc_nettype_t_GNRC_NETTYPE_ICMPV6,
+            demux_ctx: u32::from(type_),
+        }
+    }
 }
