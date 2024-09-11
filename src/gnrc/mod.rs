@@ -15,6 +15,51 @@ use riot_sys::{gnrc_netif_iter, gnrc_netif_t};
 use crate::thread::KernelPID;
 use core::iter::Iterator;
 
+// Could be made public on the long run, but will need proper constructors and is_... functions.
+// Right now, this is just for pretty-printing.
+pub(crate) struct NetType(pub(crate) riot_sys::gnrc_nettype_t);
+
+impl core::fmt::Debug for NetType {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        match self.0 {
+            // To be updated from the gnrc_nettype_t enum definition on demand
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_TX_SYNC => write!(f, "TX_SYNC"),
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_NETIF => write!(f, "NETIF"),
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UNDEF => write!(f, "undefined"),
+            #[cfg(riot_module_gnrc_nettype_gomach)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_GOMACH => write!(f, "GOMACH"),
+            #[cfg(riot_module_gnrc_nettype_lwmac)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_LWMAC => write!(f, "LWMAC"),
+            #[cfg(riot_module_gnrc_nettype_custom)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_CUSTOM => write!(f, "CUSTOM"),
+            #[cfg(riot_module_gnrc_nettype_sixlowpan)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_SIXLOWPAN => write!(f, "SIXLOWPAN"),
+            #[cfg(riot_module_gnrc_nettype_ipv6)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_IPV6 => write!(f, "IPV6"),
+            #[cfg(riot_module_gnrc_nettype_ipv6_ext)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_IPV6_EXT => write!(f, "IPV6_EXT"),
+            #[cfg(riot_module_gnrc_nettype_icmpv6)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_ICMPV6 => write!(f, "ICMPV6"),
+            #[cfg(riot_module_gnrc_nettype_ccn)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_CCN => write!(f, "CCN"),
+            #[cfg(riot_module_gnrc_nettype_ccn)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_CCN_CHUNK => write!(f, "CCN_CHUNK"),
+            #[cfg(riot_module_gnrc_nettype_ndn)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_NDN => write!(f, "NDN"),
+            #[cfg(riot_module_gnrc_nettype_tcp)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_TCP => write!(f, "TCP"),
+            #[cfg(riot_module_gnrc_nettype_udp)]
+            riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UDP => write!(f, "UDP"),
+            x if riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UNDEF < x
+                && x < riot_sys::gnrc_nettype_t_GNRC_NETTYPE_NUMOF =>
+            {
+                write!(f, "unknown ({})", x)
+            }
+            x => write!(f, "invalid ({})", x),
+        }
+    }
+}
+
 struct NetifIter {
     current: *const gnrc_netif_t,
 }

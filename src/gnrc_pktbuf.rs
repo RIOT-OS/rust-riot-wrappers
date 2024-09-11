@@ -12,10 +12,18 @@ use riot_sys::{
 #[derive(Debug)]
 pub struct NotEnoughSpace;
 
-#[derive(Debug)]
 pub struct PktsnipPart<'a> {
     pub data: &'a [u8],
     pub type_: gnrc_nettype_t,
+}
+
+impl<'a> core::fmt::Debug for PktsnipPart<'a> {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        f.debug_struct("PktsnipPart")
+            .field("type_", &crate::gnrc::NetType(self.type_))
+            .field("data", &format_args!("{:02x?}", self.data))
+            .finish()
+    }
 }
 
 pub struct SnipIter<'a> {
