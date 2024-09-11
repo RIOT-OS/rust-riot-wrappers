@@ -18,9 +18,9 @@ use crate::error::NegativeErrorExt;
 // pointer; dropping it decrements the refcount. (Otherwise we'd leak packets).
 // What we drop here is what the netreg registration should consume: An owned (or lifetimed, if
 // we move the handling into a closure) permission to send data to the indicated thread.
-#[cfg(feature = "with_msg_v2")]
+#[cfg(all(feature = "with_msg_v2", riot_module_gnrc_pktbuf))]
 type PktsnipPort = crate::msg::v2::SendPort<
-    super::pktbuf::Pktsnip<super::pktbuf::Shared>,
+    crate::gnrc_pktbuf::Pktsnip<crate::gnrc_pktbuf::Shared>,
     { riot_sys::GNRC_NETAPI_MSG_TYPE_RCV as _ },
 >;
 
@@ -36,7 +36,7 @@ type PktsnipPort = crate::msg::v2::SendPort<
 /// which is wrong correctness-wise but safe because it'll still be a pointer to a pktsnip).
 ///
 /// Any API rewrite would also replace the nettype/demux_ctx pair with a [FullDemuxContext].
-#[cfg(feature = "with_msg_v2")]
+#[cfg(all(feature = "with_msg_v2", riot_module_gnrc_pktbuf))]
 pub fn register_for_messages<F: FnOnce() -> crate::never::Never>(
     grant: PktsnipPort,
     nettype: riot_sys::gnrc_nettype_t,
@@ -88,6 +88,7 @@ impl FullDemuxContext {
         Self { nettype, demux_ctx }
     }
 
+    #[cfg(riot_module_gnrc_nettype_icmpv6)]
     pub fn new_icmpv6_echo(type_: super::icmpv6::EchoType) -> Self {
         Self {
             nettype: riot_sys::gnrc_nettype_t_GNRC_NETTYPE_ICMPV6,

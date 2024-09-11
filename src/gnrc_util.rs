@@ -6,7 +6,7 @@
 
 #[cfg(riot_module_ipv6)]
 use crate::gnrc::ipv6;
-use crate::gnrc::pktbuf::{NotEnoughSpace, Pktsnip, Shared};
+use crate::gnrc_pktbuf::{NotEnoughSpace, Pktsnip, Shared};
 use crate::thread::KernelPID;
 
 #[cfg(riot_module_gnrc_udp)]

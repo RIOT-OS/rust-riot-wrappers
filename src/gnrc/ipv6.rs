@@ -4,8 +4,8 @@ use core::mem::MaybeUninit;
 
 use riot_sys::{ipv6_addr_t, kernel_pid_t};
 
-use super::pktbuf::{Mode, NotEnoughSpace, Pktsnip, Writable};
 use crate::error::{NegativeErrorExt, NumericError};
+use crate::gnrc_pktbuf::{Mode, NotEnoughSpace, Pktsnip, Writable};
 
 impl super::Netif {
     pub fn ipv6_addrs(
