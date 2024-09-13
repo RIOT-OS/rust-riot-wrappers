@@ -1,3 +1,6 @@
+// FIXME: Some protocol specific (eg. UDP) accessors are still in there, move them to gnrc::...
+// instead.
+
 use core::convert::TryInto;
 use core::iter::Iterator;
 use core::marker::PhantomData;
@@ -153,6 +156,7 @@ impl<M: Mode> Pktsnip<M> {
 
     // Coercing gnrc_netif_hdr_build into the same interface as udp_ and ipv6_ until I find out why
     // it's different.
+    #[deprecated(note = "Use netif_hdr_build_with instead")]
     pub fn netif_hdr_build(
         self,
         src: Option<&[u8]>,

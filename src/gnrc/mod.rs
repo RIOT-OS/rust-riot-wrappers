@@ -2,6 +2,7 @@
 pub mod icmpv6;
 #[cfg(riot_module_ipv6)]
 pub mod ipv6;
+pub mod netif;
 
 pub mod netapi;
 pub mod netreg;
