@@ -156,7 +156,7 @@ impl<M: Mode> Pktsnip<M> {
 
     // Coercing gnrc_netif_hdr_build into the same interface as udp_ and ipv6_ until I find out why
     // it's different.
-    #[deprecated(note = "Use netif_hdr_build_with instead")]
+    #[deprecated(note = "Use netif_hdr_builder instead")]
     pub fn netif_hdr_build(
         self,
         src: Option<&[u8]>,

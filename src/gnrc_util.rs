@@ -44,15 +44,15 @@ impl RoundtripData for NetifRoundtripData {
     }
 
     fn wrap(self, payload: Pktsnip<Shared>) -> Result<Pktsnip<Shared>, NotEnoughSpace> {
-        match self.pid {
-            None => Ok(payload),
+        Ok(match self.pid {
+            None => payload,
             Some(pid) => payload
-                .netif_hdr_build_with(|h| {
-                    h.set_if_pid(pid);
-                })
-                // Erase exclusiveness
-                .map(|snip| snip.into()),
-        }
+                .netif_hdr_builder()
+                .without_link_layer_addresses()
+                .with_if_pid(pid)
+                .finish()?
+                .into(),
+        })
     }
 }
 
