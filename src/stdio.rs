@@ -7,12 +7,12 @@ use crate::error::NegativeErrorExt;
 
 /// Handle for RIOT's stdio
 ///
-/// This unit struct can be instanciated anywhere, is serviced without any guaranteed
+/// This unit struct can be instantiated anywhere, is serviced without any guaranteed
 /// synchronization.
 ///
 /// The [dbg] and [println] macros are offered for convenience, and often provide an easier way to
 /// write to this.
-// Is it OK that everyone can instanciate this at any time just so? Probably yes, because the
+// Is it OK that everyone can instantiate this at any time just so? Probably yes, because the
 // uart_stdio documentation says nothing about limitations on when to call this.
 pub struct Stdio {}
 

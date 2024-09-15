@@ -198,7 +198,7 @@ impl core::fmt::Display for Phydat {
 ///
 /// Both for the class in general and for its details, Option is used to represent undefined /
 /// unknown values, which are used as a wildcard in queries and as an indicator of unknown /
-/// unspported types in introspection.
+/// unsupported types in introspection.
 #[derive(Copy, Clone, Debug)]
 pub enum Class {
     Actuator(Option<ActuatorClass>),

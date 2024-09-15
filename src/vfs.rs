@@ -5,7 +5,7 @@
 //!
 //! ## Panics
 //!
-//! This module violently asserts that file names are UTF-8 encoded (a condition easily satisified
+//! This module violently asserts that file names are UTF-8 encoded (a condition easily satisfied
 //! if only ASCII file names are used).
 //!
 //! ## Incomplete
@@ -155,7 +155,7 @@ impl Drop for File {
 /// ## Invariants
 ///
 /// This module maintains that the MaybeUninit is always initialized outside of its own functions,
-/// and that no panicing functions are called while it is uninit.
+/// and that no panicking functions are called while it is uninit.
 #[derive(Default)]
 #[pin_project(PinnedDrop)]
 pub struct DirSlot(

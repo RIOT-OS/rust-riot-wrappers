@@ -26,7 +26,7 @@ use embedded_nal::{SocketAddr, TcpClientStack, TcpFullStack};
 /// more makes it fail at setup time.
 ///
 /// To use it as an implementation of TcpFullStack, it needs to be pinned, eg. by
-/// `pin_utils::pin_mut!(stack)`, and later passed as mutable refernce to the pinned item.
+/// `pin_utils::pin_mut!(stack)`, and later passed as mutable reference to the pinned item.
 ///
 /// Note that while it would be perfectly feasible to count the number of open connection and allow
 /// this to be dropped when all connections are closed, this will only be implemented once there is

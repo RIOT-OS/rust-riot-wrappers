@@ -15,7 +15,7 @@ pub enum DACError {
 }
 
 impl DACLine {
-    /// Creates and intializes a new [`DACLine`].
+    /// Creates and initializes a new [`DACLine`].
     ///
     /// The `index` indicates which dac device from the current board should be used.
     /// For information on how many such devices are available for this board please

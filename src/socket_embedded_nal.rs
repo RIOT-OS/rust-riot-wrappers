@@ -15,7 +15,7 @@ use embedded_nal::SocketAddr;
 /// Using this is not trivial, as RIOT needs its sockets pinned to memory for their lifetime.
 /// Without a heap allocator, this is achieved by allocating all the required UDP sockets in a
 /// stack object. To ensure that it is not moved, sockets on it can only be created in (and live
-/// only for the duration of) a the `run` callback, which gives the actual implemtation of
+/// only for the duration of) a the `run` callback, which gives the actual implementation of
 /// UdpClientStack.
 ///
 /// The number of UDP sockets allocated is configurable using the UDPCOUNT const generic.
@@ -57,7 +57,7 @@ impl<const UDPCOUNT: usize> Stack<UDPCOUNT> {
 }
 
 pub struct UdpSocket<'a> {
-    // This indirection -- not having the sock_udp_t inside UdpSocket -- is necessary becasue the
+    // This indirection -- not having the sock_udp_t inside UdpSocket -- is necessary because the
     // way they are created (embedded-nal .socket()) produces owned values and needs owned values
     // later -- while what we'd prefer would be producing owned values and needing pinned ones.
     //
@@ -85,7 +85,7 @@ impl<'a> UdpSocket<'a> {
         self.socket.as_mut().map(|s| &mut **s as _)
     }
 
-    /// If there is an actuall socket in here, close it
+    /// If there is an actual socket in here, close it
     fn close(&mut self) {
         if let Some(socket) = self.socket.take() {
             unsafe { riot_sys::sock_udp_close(&mut *socket) };

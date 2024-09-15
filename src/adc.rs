@@ -29,7 +29,7 @@ impl ADCLine {
 
 /// A configured representation of the single operating-system level ADC that RIOT exposes via its
 /// ADC API. The individual ADC lines are addressed as ADCLine structs and can be used uniformly
-/// with the (any) ADC struct. The differenes between the hardware ADCs are as hidden to the
+/// with the (any) ADC struct. The differences between the hardware ADCs are as hidden to the
 /// embedded_hal API as they are hidden to RIOT applications.
 pub struct ADC {
     pub resolution: riot_sys::adc_res_t,

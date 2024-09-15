@@ -147,7 +147,7 @@ impl KernelPID {
     fn thread(&self) -> Result<*const riot_sys::thread_t, NoSuchThread> {
         // unsafe: C function's "checked" precondition met by type constraint on PID validity
         let t = unsafe { riot_sys::thread_get_unchecked(self.0) };
-        // .as_ref() would have the null check built in, but we can't build a shared refernce out
+        // .as_ref() would have the null check built in, but we can't build a shared reference out
         // of this, only ever access its fields with volatility.
         if t == 0 as *mut _ {
             Err(NoSuchThread)
