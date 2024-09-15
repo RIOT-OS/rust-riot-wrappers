@@ -1,5 +1,3 @@
-extern crate shlex;
-
 use std::env;
 
 fn main() {
