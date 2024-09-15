@@ -1,0 +1,5 @@
+[licenses]
+version = 2
+allow = ["Apache-2.0", "BSD-3-Clause", "ISC", "LGPL-2.1", "MIT", "Unicode-DFS-2016"]
+private = { ignore = true }
+confidence-threshold = 1.0

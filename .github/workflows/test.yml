@@ -146,8 +146,14 @@ jobs:
     - name: Run cargo-fmt
       run: cargo fmt --check
 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
   all-done:
-    needs: [rustfmt, wrappers-tests, examples-and-tests]
+    needs: [rustfmt, wrappers-tests, examples-and-tests, audit]
     # It'd suffice to just do "needs", but GitHub actions insist to have steps
     runs-on: ubuntu-latest
     steps:
