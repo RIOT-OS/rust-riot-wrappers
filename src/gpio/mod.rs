@@ -96,7 +96,7 @@ impl GPIO {
     /// # }
     /// ```
     ///
-    /// See [Self::from_c()] for safety constraints.
+    /// See [.from_c()][Self::from_c()] for safety constraints.
     pub fn from_port_and_pin(port: u32, pin: u32) -> Option<Self> {
         Self::from_c(unsafe { riot_sys::macro_GPIO_PIN(port, pin) })
     }
