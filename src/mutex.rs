@@ -1,6 +1,6 @@
 //! Data-carrying mutex built using RIOT's [mutex] module
 //!
-//! This roughly mimicks [std::sync::Mutex].
+//! This roughly mimics [std::sync::Mutex].
 //!
 //! [mutex]: https://doc.riot-os.org/group__core__sync__mutex.html
 //! [std::sync::mutex]: https://doc.rust-lang.org/std/sync/struct.Mutex.html
@@ -15,8 +15,8 @@ use core::cell::UnsafeCell;
 /// A mutual exclusion primitive useful for protecting shared data
 ///
 /// Unlike the [std::sync::Mutex], this has no concept of poisoning, so waiting for mutexes in
-/// paniced (and thus locked) threads will lock the accessing thread as well. This is because RIOT
-/// threds don't unwind Rust code. As a consequence, the mutex interface is different from the
+/// panicked (and thus locked) threads will lock the accessing thread as well. This is because RIOT
+/// threads don't unwind Rust code. As a consequence, the mutex interface is different from the
 /// standard library's.
 ///
 /// Several methods (into_inner, get_mut) are not implemented until they're actually needed.
@@ -71,12 +71,12 @@ impl<T> Mutex<T> {
     /// reference for the complete lifetime of the mutex is produced, without the usual mechanisms
     /// that'd free the mutex later.
     ///
-    /// This is an easy way to get a &'static mut refence in RIOT. Its downsides (compared to
+    /// This is an easy way to get a &'static mut reference in RIOT. Its downsides (compared to
     /// cortex-m-rt's entry mechanisms) are:
     ///
     /// * It has runtime storage cost (one mutex_t)
     /// * It has runtime processing cost (primarily the accompanying unwrap which the compiler
-    ///   can't know to optimze out)
+    ///   can't know to optimize out)
     /// * It needs a good default value (can be mitigated with MaybeUninit)
     ///
     /// but then again, it's easy.

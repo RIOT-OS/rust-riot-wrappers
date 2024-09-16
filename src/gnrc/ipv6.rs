@@ -63,7 +63,7 @@ impl<'a, const MAX: usize> core::iter::IntoIterator for &'a AddrList<MAX> {
 /// Method implementations mixedly use what RIOT offers and what Rust's standard library offers,
 /// depending on what is easiest to use, trusting that the compiler will elide the memory copying
 /// that is required for conversion in case the copy is not necessary for alignment purposes.
-#[repr(transparent)] // which allows the AddrList addresss to be passed to gnrc_netif_ipv6_addrs_get
+#[repr(transparent)] // which allows the AddrList address to be passed to gnrc_netif_ipv6_addrs_get
 #[derive(Copy, Clone)]
 pub struct Address {
     inner: ipv6_addr_t,
@@ -192,7 +192,7 @@ impl<M: Mode> Pktsnip<M> {
             None
         } else {
             // unsafe: Header is a transparent wrapper around the actual ipv6_hdr_t, and the
-            // ipv6_hdr_t itself is valid as per Pktsnip reqirements
+            // ipv6_hdr_t itself is valid as per Pktsnip requirements
             Some(unsafe { &*(ptr as *const Header) })
         }
     }

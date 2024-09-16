@@ -1,6 +1,6 @@
 //! Experimental area for GNRC utility functions
 //!
-//! These are implemented direclty in Rust and do not wrap any RIOT libraries, but seem useful at
+//! These are implemented directly in Rust and do not wrap any RIOT libraries, but seem useful at
 //! least for the purpose of the author's experiments. It may turn out that they'd make nice
 //! additions to the RIOT API, or are completely misguided.
 

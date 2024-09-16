@@ -146,10 +146,15 @@ jobs:
     - name: Run cargo-fmt
       run: cargo fmt --check
 
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crate-ci/typos@master
+
   all-done:
-    needs: [rustfmt, wrappers-tests, examples-and-tests]
+    needs: [rustfmt, wrappers-tests, examples-and-tests, typos]
     # It'd suffice to just do "needs", but GitHub actions insist to have steps
     runs-on: ubuntu-latest
     steps:
     - run: echo "All done"
-

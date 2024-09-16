@@ -40,7 +40,7 @@ impl AutoInitModule {
     }
 }
 
-// unsafe: The items do not publicly expose anything, so just referncing them from anywhere does no
+// unsafe: The items do not publicly expose anything, so just referencing them from anywhere does no
 // harm. (Actual usage happens through XFA from C).
 unsafe impl Sync for AutoInitModule {}
 

@@ -53,7 +53,7 @@ pub struct ReceivePort<TYPE: Send, const TYPENO: u16> {
     // because it contains a statement about the current thread.
     //
     // (The alternative would be to brand the ReceivePort to the thread, but that only works well
-    // once there is a per-thread brand, eg. created along the mechansim described in the
+    // once there is a per-thread brand, eg. created along the mechanism described in the
     // NoConfiguredMessages::new TBD).
     _not_send: PhantomData<*const ()>,
 }
@@ -62,7 +62,7 @@ pub struct ReceivePort<TYPE: Send, const TYPENO: u16> {
 
 /// Object through which messages of a precise type can be sent to a precise thread.
 ///
-/// Unlike the ReceivePort, the SendPort is Send and Sync by addign the runtime information of the
+/// Unlike the ReceivePort, the SendPort is Send and Sync by adding the runtime information of the
 /// destination Kernel PID to it. That process / thread is guaranteed to be live (might have
 /// crashed to a non-unwinding panic but not been reused) by the construction of SendPort: A
 /// SendPort can only be created when the indicated thread gives the appropriate guarantees.
@@ -188,7 +188,7 @@ pub trait MessageSemantics: Sized {
     /// message.
     ///
     /// The conditions for these panics should be evaluatable at build time (i.e. not be part of
-    /// optimized code); over time these will hopfully become static assertion errors.
+    /// optimized code); over time these will hopefully become static assertion errors.
     // No override should be necessary for this, not even for internal impls (see sealing above)
     fn split_off<NewType: Send, const NEW_TYPENO: u16>(
         self,
@@ -312,7 +312,7 @@ impl MessageSemantics for NoConfiguredMessages {
         false
     }
 
-    /// Panicing because if a thread receives unknown messages, it may for the same reason receive
+    /// Panicking because if a thread receives unknown messages, it may for the same reason receive
     /// mistyped messages, and that'd be a safety violation that's better shown in the most visible
     /// way.
     ///
