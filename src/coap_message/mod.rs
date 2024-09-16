@@ -1,5 +1,7 @@
-//! This module implements [coap_message::ReadableMessage] for, and a wrapper that provides
-//! [coap_message::WritableMessage] around RIOT's coap_pkt_t.
+//! This module implements [coap_message::ReadableMessage](coap_message_0_3::ReadableMessage) for,
+//! and a wrapper that provides
+//! [coap_message::MutableWritableMessage](coap_message_0_3::MutableWritableMessage)
+//! around, RIOT's coap_pkt_t.
 
 mod impl_0_3;
 

@@ -105,7 +105,7 @@ mod slice_to_cstr {
 
     /// Error from [SliceToCStr::to_cstr].
     ///
-    /// This will become [core::ffi:FromBytesUntilNulError] once that's stable, and may be changed
+    /// This will become [core::ffi::c_str::FromBytesUntilNulError] once that's stable, and may be changed
     /// without a breaking release even though it's technically a breaking change. (At this point, that
     /// type will be `pub use`d here and deprecated).
     #[derive(Debug)]

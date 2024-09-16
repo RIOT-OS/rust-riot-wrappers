@@ -79,17 +79,13 @@ where
     _phantom: core::marker::PhantomData<(DEV, DRIV)>,
 }
 
-/// This flipped from *mut phydat_t to *const in https://github.com/RIOT-OS/RIOT/pull/18043
-pub(crate) type WritePhydatPointer =
-    <riot_sys::saul_write_t as crate::helpers::ReturnTypeExtractor>::Arg2Type;
-
 // While the old supported RIOT version has a `saul_notsup` and the new has
 // `saul_{read,write}_notsup`, it's easier to just implement our own. After the 2022.07 release
 // they can go away again, and users go with riot_sys::saul_[...]_notsup
 extern "C" fn saul_read_notsup(_dev: *const libc::c_void, _dat: *mut riot_sys::phydat_t) -> i32 {
     -(riot_sys::ENOTSUP as i32)
 }
-extern "C" fn saul_write_notsup(_dev: *const libc::c_void, _dat: WritePhydatPointer) -> i32 {
+extern "C" fn saul_write_notsup(_dev: *const libc::c_void, _dat: *const riot_sys::phydat_t) -> i32 {
     -(riot_sys::ENOTSUP as i32)
 }
 
@@ -131,7 +127,10 @@ where
         }
     }
 
-    unsafe extern "C" fn write_raw(dev: *const libc::c_void, data: WritePhydatPointer) -> i32 {
+    unsafe extern "C" fn write_raw(
+        dev: *const libc::c_void,
+        data: *const riot_sys::phydat_t,
+    ) -> i32 {
         let device = &*(dev as *const DEV);
         let device = device.into();
         let data = *data;

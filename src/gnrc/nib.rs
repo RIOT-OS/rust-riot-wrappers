@@ -6,7 +6,7 @@ pub struct NcEntry(riot_sys::gnrc_ipv6_nib_nc_t);
 /// Neighbor Unreachability Detection state
 ///
 /// See
-/// https://doc.riot-os.org/group__net__gnrc__ipv6__nib__nc.html
+/// [the nib_nc documentation](https://doc.riot-os.org/group__net__gnrc__ipv6__nib__nc.html)
 /// for more detailed semantics
 // FIXME can we pull doc from riot_sys?
 #[derive(Debug)]
@@ -54,7 +54,7 @@ impl NudState {
 /// 6LoWPAN address registration (6Lo-AR) state
 ///
 /// See
-/// https://doc.riot-os.org/group__net__gnrc__ipv6__nib__nc.html
+/// [the nib_nc documentation](https://doc.riot-os.org/group__net__gnrc__ipv6__nib__nc.html)
 /// for more detailed semantics
 // FIXME can we pull doc from riot_sys?
 #[derive(Debug)]

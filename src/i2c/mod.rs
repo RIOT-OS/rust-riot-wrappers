@@ -8,7 +8,7 @@ use riot_sys::i2c_t;
 ///
 /// [I2C implementation]: http://doc.riot-os.org/group__drivers__periph__i2c.html
 ///
-/// Actual transactions on this are performed through the [mbedded_hal_0_2::blocking::i2c] traits
+/// Actual transactions on this are performed through the [embedded_hal_0_2::blocking::i2c] traits
 /// implemented by this.
 #[derive(Debug)]
 pub struct I2CDevice {
