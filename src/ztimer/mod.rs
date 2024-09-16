@@ -84,7 +84,7 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
     }
 
     /// Pause the current thread for the given duration, possibly exceeding values expressible in
-    /// [Ticks<HZ>].
+    /// [`Ticks<HZ>`].
     ///
     /// The duration is converted into ticks (rounding up), and overflows are caught by sleeping
     /// multiple times.
@@ -144,7 +144,7 @@ impl<const HZ: u32> ValueInThread<Clock<HZ>> {
 }
 
 impl<const HZ: u32> Clock<HZ> {
-    /// Similar to [`sleep_ticks()`], but this does not block but creates a future to be
+    /// Similar to [`.sleep()`], but this does not block but creates a future to be
     /// `.await`ed.
     ///
     /// Note that time starts running only when this is polled, for otherwise there's no pinned
@@ -340,7 +340,7 @@ impl Clock<1> {
     ///
     /// This function verifies (at a small runtime cost) that the caller is in a thread context.
     /// This can be avoided by calling `in_thread.promote(Clock::sec_unbound())` on an existing
-    /// [riot_wrappers::thread::InThread] token.
+    /// [crate::thread::InThread] token.
     #[cfg(riot_module_ztimer_sec)]
     #[doc(alias = "ZTIMER_SEC")]
     pub fn sec() -> ValueInThread<Self> {
@@ -364,7 +364,7 @@ impl Clock<1000> {
     ///
     /// This function verifies (at a small runtime cost) that the caller is in a thread context.
     /// This can be avoided by calling `in_thread.promote(Clock::msec_unbound())` on an existing
-    /// [riot_wrappers::thread::InThread] token.
+    /// [crate::thread::InThread] token.
     #[cfg(riot_module_ztimer_msec)]
     #[doc(alias = "ZTIMER_MSEC")]
     pub fn msec() -> ValueInThread<Self> {
@@ -388,7 +388,7 @@ impl Clock<1000000> {
     ///
     /// This function verifies (at a small runtime cost) that the caller is in a thread context.
     /// This can be avoided by calling `in_thread.promote(Clock::usec_unbound())` on an existing
-    /// [riot_wrappers::thread::InThread] token.
+    /// [crate::thread::InThread] token.
     #[cfg(riot_module_ztimer_usec)]
     #[doc(alias = "ZTIMER_USEC")]
     pub fn usec() -> ValueInThread<Self> {

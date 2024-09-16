@@ -152,7 +152,8 @@ where
     ///
     /// Note that the taken Handler is a Gcoap [Handler] (which is there really only in case anyone
     /// wants extremely fine-grained control of what gcoap does); if you have a
-    /// [coap_handler::Handler], you can wrap it in [crate::coap_handler::GcoapHandler] to for adaptation.
+    /// [coap_handler_0_2::Handler], you can wrap it in [crate::coap_handler::v0_2::GcoapHandler]
+    /// to for adaptation.
     pub fn new_catch_all(handler: &'a mut H) -> Self {
         Self::new(
             c"/",

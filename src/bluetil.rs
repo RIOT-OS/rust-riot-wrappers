@@ -52,7 +52,7 @@ impl<const L: usize> Ad<heapless::Vec<u8, L>> {
     /// Construct a bluetil_ad_t that represent the current vec state
     ///
     /// This is not unsafe in itself, but usually used with functions that are, and when they
-    /// write into the buffer, it needs the unsafe [Vec::set_len] to propagate that write.
+    /// write into the buffer, it needs the unsafe [heapless::Vec::set_len] to propagate that write.
     fn build(&self) -> bluetil_ad_t {
         bluetil_ad_t {
             buf: self.0.as_ptr() as _,

@@ -3,7 +3,7 @@
 //! ## Tokens
 //!
 //! Some thread creation mechanisms (currently only
-//! [`riot_main_with_tokens!`](crate::riot_main_with_tokens!) and not those in here) are "with
+//! [`riot_main!`](crate::riot_main!) and not those in here) are "with
 //! tokens". With these, the zero-sized type [StartToken] is used to pass along the information
 //! that the execution is currently happening in a thread, and more importantly that some
 //! operations doable only once per thread (eg. setting up a message queue) have not yet happed.

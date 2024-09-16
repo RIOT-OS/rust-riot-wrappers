@@ -1,5 +1,7 @@
 //! Tools used internally to create futures more easily
 
+use core::future::Future;
+
 /// A trait similar to Future that is practical to implement for the typical RIOT situations where
 /// a waker needs to be converted into a function and argument pointer.
 ///
@@ -12,7 +14,7 @@
 /// While this can legally be implemented without unsafe, practical use will require unsafe, and
 /// that requires sticking to the rules:
 ///
-/// * Whenever [poll()] is called, do whatever the future needs to do after having been awoken. If
+/// * Whenever [.poll()] is called, do whatever the future needs to do after having been awoken. If
 ///   this returns [core::task::Poll::Pending] (and the future wants to be polled ever again), it
 ///   must then pass on the `arg` to some RIOT callback setter together with a static function of a
 ///   suitable signature. Conventionally, that function is called `Self::callback()`.
@@ -32,7 +34,7 @@ pub(crate) trait RiotStyleFuture {
     fn poll(&mut self, arg: *mut riot_sys::libc::c_void) -> core::task::Poll<Self::Output>;
 }
 
-/// Wrapper that makes a [core::future::Future] out of a [RiotStyleFuture] (see there for usage)
+/// Wrapper that makes a [Future] out of a [RiotStyleFuture] (see there for usage)
 // FIXME: I'm not sure the presence and absence of #[pin] is right about these ones, but anyway,
 // given they're not pub, and this module is what captures the unsafety guarantees (assisted by the
 // requirements on RiotStyleFuture), this should be no worse than manually safe-declaring any
@@ -62,7 +64,7 @@ impl<A: RiotStyleFuture> RiotStylePollStruct<A> {
         f.waker.take().map(|w| w.wake());
     }
 }
-impl<A: RiotStyleFuture> core::future::Future for RiotStylePollStruct<A> {
+impl<A: RiotStyleFuture> Future for RiotStylePollStruct<A> {
     type Output = A::Output;
     fn poll(
         mut self: core::pin::Pin<&mut Self>,

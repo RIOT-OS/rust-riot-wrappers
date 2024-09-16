@@ -1,7 +1,7 @@
 //! Access to [RIOT's GPIO pins](http://doc.riot-os.org/group__drivers__periph__gpio.html)
 //!
 //! The various configured GPIO types ([InputGPIO], [OutputGPIO], [InOutGPIO]) can be used through
-//! the [embedded_hal::digital::v2] traits. As recommended for infallible types, they also
+//! the [embedded_hal::digital] traits. As recommended for infallible types, they also
 //! provide identically named direct methods, which (for input pins) also work on shared reference.
 
 mod impl_1;
@@ -96,7 +96,7 @@ impl GPIO {
     /// # }
     /// ```
     ///
-    /// See [from_c] for safety constraints.
+    /// See [.from_c()] for safety constraints.
     pub fn from_port_and_pin(port: u32, pin: u32) -> Option<Self> {
         Self::from_c(unsafe { riot_sys::macro_GPIO_PIN(port, pin) })
     }
@@ -162,7 +162,7 @@ impl OutputGPIO {
 
     /// Toggles the pin between high and low.
     ///
-    /// Unlike [`set_high()`] and [`set_low()`], this is not just an alias of the [embedded-hal
+    /// Unlike [`.set_high()`] and [`.set_low()`], this is not just an alias of the [embedded-hal
     /// trait method of the same
     /// name](https://docs.rs/embedded-hal/latest/embedded_hal/digital/trait.StatefulOutputPin.html#method.toggle):
     /// RIOT GPIO pins do not implement [`embedded_hal::digital::StatefulOutputPin`] because they
