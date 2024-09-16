@@ -10,7 +10,8 @@ pub use creation::{scope, spawn, CountedThread, CountingThreadScope};
 
 /// Wrapper around a valid (not necessarily running, but in-range) [riot_sys::kernel_pid_t] that
 /// provides access to thread details and signaling.
-// Possible optimization: Make this NonZero
+// Possible optimization: Make this NonZero (especially now that there are const checks for this in
+// the NonZero conversion anyway)
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct KernelPID(pub(crate) raw::kernel_pid_t);
 
@@ -217,6 +218,16 @@ impl Into<raw::kernel_pid_t> for &KernelPID {
 impl Into<raw::kernel_pid_t> for KernelPID {
     fn into(self) -> raw::kernel_pid_t {
         self.0
+    }
+}
+
+impl From<KernelPID> for core::num::NonZero<u16> {
+    fn from(pid: KernelPID) -> Self {
+        const { assert!(KERNEL_PID_FIRST > 0) };
+        const { assert!(KERNEL_PID_LAST > 0) };
+        const { assert!(core::mem::size_of::<riot_sys::kernel_pid_t>() == core::mem::size_of::<u16>()) };
+        // unsafe: self.0 is checked to be within first..=last
+        unsafe { core::num::NonZero::new_unchecked(pid.0 as u16) }
     }
 }
 
