@@ -14,7 +14,7 @@ use core::future::Future;
 /// While this can legally be implemented without unsafe, practical use will require unsafe, and
 /// that requires sticking to the rules:
 ///
-/// * Whenever [.poll()] is called, do whatever the future needs to do after having been awoken. If
+/// * Whenever [Self::poll()] is called, do whatever the future needs to do after having been awoken. If
 ///   this returns [core::task::Poll::Pending] (and the future wants to be polled ever again), it
 ///   must then pass on the `arg` to some RIOT callback setter together with a static function of a
 ///   suitable signature. Conventionally, that function is called `Self::callback()`.
