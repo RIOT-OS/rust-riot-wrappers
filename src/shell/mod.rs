@@ -9,7 +9,7 @@
 //!   show up in shells created through Rust without explicit inclusion.
 //!
 //! * Use [new] to start building a [CommandList]. This can have full closures as commands, but
-//!   these are available only when the shell is then started throught the CommandList's run
+//!   these are available only when the shell is then started through the CommandList's run
 //!   methods.
 //!
 //! ## Note on complexity of this module
@@ -373,7 +373,7 @@ impl<const BUFSIZE: usize> CommandList<BUFSIZE> for CommandListEnd {
 /// Start a blank list of commands
 ///
 /// This returns an empty command list that can be run as is (to expose RIOT's built-in shell
-/// commnads), or as a starting point for adding more commands using its [`CommandList::and`]
+/// commands), or as a starting point for adding more commands using its [`CommandList::and`]
 /// builder.
 pub fn new() -> impl CommandList {
     CommandListEnd
@@ -388,7 +388,7 @@ pub fn new() -> impl CommandList {
 /// closure from something that's only a plain function call in C are unavailable.
 ///
 /// The modname identifier needs to be provided as a name that can be used for a private module
-/// created by the macro. Tne name literal is the command name as matched by the shell, with the
+/// created by the macro. The name literal is the command name as matched by the shell, with the
 /// descr literal shown next to it when running `help`. The fun is a local function of static
 /// lifetime that gets executed whenever the shell command is invoked.
 ///

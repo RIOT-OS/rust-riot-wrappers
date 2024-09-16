@@ -1,3 +1,6 @@
+// FIXME: Some protocol specific (eg. UDP) accessors are still in there, move them to gnrc::...
+// instead.
+
 use core::convert::TryInto;
 use core::iter::Iterator;
 use core::marker::PhantomData;
@@ -12,10 +15,18 @@ use riot_sys::{
 #[derive(Debug)]
 pub struct NotEnoughSpace;
 
-#[derive(Debug)]
 pub struct PktsnipPart<'a> {
     pub data: &'a [u8],
     pub type_: gnrc_nettype_t,
+}
+
+impl<'a> core::fmt::Debug for PktsnipPart<'a> {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        f.debug_struct("PktsnipPart")
+            .field("type_", &crate::gnrc::NetType(self.type_))
+            .field("data", &format_args!("{:02x?}", self.data))
+            .finish()
+    }
 }
 
 pub struct SnipIter<'a> {
@@ -101,7 +112,7 @@ impl<M: Mode> Pktsnip<M> {
         }
     }
 
-    // This is like a wrapper around gnrc_pktsnip_search_type, but gien how simple that function
+    // This is like a wrapper around gnrc_pktsnip_search_type, but given how simple that function
     // is, wrapping it to correct lifetimes would be more verbose than just re-implementing it.
     pub fn search_type(&self, type_: gnrc_nettype_t) -> Option<PktsnipPart> {
         self.iter_snips().filter(|x| x.type_ == type_).next()
@@ -145,6 +156,7 @@ impl<M: Mode> Pktsnip<M> {
 
     // Coercing gnrc_netif_hdr_build into the same interface as udp_ and ipv6_ until I find out why
     // it's different.
+    #[deprecated(note = "Use netif_hdr_builder instead")]
     pub fn netif_hdr_build(
         self,
         src: Option<&[u8]>,

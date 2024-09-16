@@ -235,7 +235,7 @@ impl TrackedThread {
         self.pid
     }
 
-    /// Like status of a KernelPID, but infallible: this returnes Stopped if the PID has been
+    /// Like status of a KernelPID, but infallible: this returns Stopped if the PID has been
     /// re-used after our thread has stopped.
     // FIXME: This can probably be simplified a lot by just looking into the TCB if it were
     // obtained reliably

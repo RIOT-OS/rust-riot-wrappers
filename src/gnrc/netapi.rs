@@ -1,6 +1,8 @@
+#![cfg(riot_module_gnrc_pktbuf)]
+
 use riot_sys::gnrc_nettype_t;
 
-use crate::gnrc::pktbuf::{Pktsnip, Shared};
+use crate::gnrc_pktbuf::{Pktsnip, Shared};
 
 /// Dispatch a packet to all listeners of the given nettype and demux context.
 ///

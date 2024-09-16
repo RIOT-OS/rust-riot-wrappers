@@ -178,7 +178,7 @@ impl<const HZ: u32> Clock<HZ> {
         let mut timer = riot_sys::ztimer_t::default();
 
         // FIXME: If we were worried about what this does during unwind, we might put a Drop on a
-        // type around this. (But currenlty, Rust on RIOT does not unwind).
+        // type around this. (But currently, Rust on RIOT does not unwind).
         //
         // As this is later put into timer.arg, this will need to stay put now (but we can't
         // directly Pin<&mut> it because we need ownership for the FnOnce)
@@ -272,7 +272,7 @@ impl<const HZ: u32> Clock<HZ> {
     /// overflows; if overflow detection is added to `ztimer_stopwatch` later, the implementation
     /// can change.
     pub fn time_with_result<R>(&self, closure: impl FnOnce() -> R) -> (Option<Ticks<HZ>>, R) {
-        // There is a more effient implementation of this than set_during that looks at the result
+        // There is a more efficient implementation of this than set_during that looks at the result
         // of ztimer_remove, but I'm lazy today.
         //
         // FIXME: Implement it more efficiently.
@@ -410,7 +410,7 @@ impl Clock<1000000> {
 #[cfg(all(feature = "embedded-hal-async", riot_module_ztimer_usec))]
 /// Struct that provides the [embedded_hal_async::delay::DelayNs] trait
 ///
-/// Unlike the [Clock] structs that can be instanciated for any ZTimer clock, this is clock
+/// Unlike the [Clock] structs that can be instantiated for any ZTimer clock, this is clock
 /// independent, because the embedded HAL trait offers delay methods that are provided through
 /// different global clocks.
 ///

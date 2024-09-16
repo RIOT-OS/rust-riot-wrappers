@@ -121,7 +121,6 @@ pub mod thread;
 // internally cfg-gated as it has a no-op implementation
 #[cfg(riot_module_gcoap)]
 pub mod gcoap;
-#[cfg(riot_module_gnrc)]
 pub mod gnrc;
 // Note that this can also exist without gnrc
 #[cfg(riot_module_gnrc_pktbuf)]

@@ -18,7 +18,7 @@ impl From<EchoType> for u32 {
     }
 }
 
-use super::pktbuf::{NotEnoughSpace, Pktsnip, Writable};
+use crate::gnrc_pktbuf::{NotEnoughSpace, Pktsnip, Writable};
 
 impl<'a> Pktsnip<Writable> {
     #[doc(alias = "gnrc_icmpv6_echo_build")]

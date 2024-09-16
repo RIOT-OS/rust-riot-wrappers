@@ -1,17 +1,16 @@
 //! Experimental area for GNRC utility functions
 //!
-//! These are implemented direclty in Rust and do not wrap any RIOT libraries, but seem useful at
+//! These are implemented directly in Rust and do not wrap any RIOT libraries, but seem useful at
 //! least for the purpose of the author's experiments. It may turn out that they'd make nice
 //! additions to the RIOT API, or are completely misguided.
 
 #[cfg(riot_module_ipv6)]
 use crate::gnrc::ipv6;
-use crate::gnrc::pktbuf::{NotEnoughSpace, Pktsnip, Shared};
+use crate::gnrc_pktbuf::{NotEnoughSpace, Pktsnip, Shared};
 use crate::thread::KernelPID;
 
 #[cfg(riot_module_gnrc_udp)]
 use riot_sys::gnrc_nettype_t_GNRC_NETTYPE_UDP as GNRC_NETTYPE_UDP;
-use riot_sys::{gnrc_netif_hdr_t, gnrc_nettype_t_GNRC_NETTYPE_NETIF as GNRC_NETTYPE_NETIF};
 
 /// Trait of data structures that store all the information needed to respond to a Pktsnip in some
 /// way; the data (typically address and port information) is copied into the trait implementation
@@ -37,26 +36,22 @@ pub struct NetifRoundtripData {
 
 impl RoundtripData for NetifRoundtripData {
     fn from_incoming(incoming: &Pktsnip<Shared>) -> Option<Self> {
-        Some(Self {
-            pid: incoming.search_type(GNRC_NETTYPE_NETIF).map(|s| {
-                let netif_hdr: &gnrc_netif_hdr_t = unsafe { &*(s.data.as_ptr() as *const _) };
-                KernelPID::new(netif_hdr.if_pid).unwrap()
-            }),
+        let header = incoming.netif_get_header()?;
+        Some(NetifRoundtripData {
+            pid: header.if_pid(),
         })
     }
 
     fn wrap(self, payload: Pktsnip<Shared>) -> Result<Pktsnip<Shared>, NotEnoughSpace> {
-        match self.pid {
-            None => Ok(payload),
-            Some(pid) => unsafe {
-                let mut netif = payload.netif_hdr_build(None, None)?;
-
-                let data: &mut gnrc_netif_hdr_t = ::core::mem::transmute(netif.data_mut().as_ptr());
-                data.if_pid = pid.into();
-
-                Ok(netif.into())
-            },
-        }
+        Ok(match self.pid {
+            None => payload,
+            Some(pid) => payload
+                .netif_hdr_builder()
+                .without_link_layer_addresses()
+                .with_if_pid(pid)
+                .finish()?
+                .into(),
+        })
     }
 }
 
