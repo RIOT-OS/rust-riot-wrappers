@@ -1,4 +1,5 @@
 //! Components acting on the netif pktsnip layer
+#![cfg(riot_module_gnrc_pktbuf)]
 
 // FIXME: Move some of mod.rs in here
 
