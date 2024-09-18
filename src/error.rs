@@ -1,5 +1,9 @@
 //! Common error handling components for the RIOT operating system
 //!
+//! Most fallible operations in the wrappers produce a [NumericError], which is a slightly more
+//! precise wrapper around a negative integer. The [NegativeErrorExt::negative_to_error()] trait
+//! method can be used to produce such errors when creating wrappers around C functions.
+//!
 //! ## Constants
 //!
 //! Several commonly used errors are provided as constants rather than requiring the use of
@@ -8,6 +12,8 @@
 //! the list).
 
 use core::convert::TryInto;
+use core::ffi::CStr;
+use core::num::NonZero;
 
 pub trait NegativeErrorExt {
     type Out;
@@ -25,7 +31,9 @@ pub trait NegativeErrorExt {
 /// manually implemented newtype around isize that'd be used to represent the Result.
 #[derive(Debug, PartialEq, Eq)]
 pub struct NumericError {
-    number: isize,
+    // The NonZero doesn't cover the full desired range, but at least Result<(), NumericError> can
+    // be lean.
+    number: NonZero<isize>,
 }
 
 impl NumericError {
@@ -55,12 +63,17 @@ impl NumericError {
             name > 0,
             "Error names are expected to be positive for conversion into negative error numbers."
         );
-        NumericError { number: -name }
+        // Can be an `.unwrap()` once feature(const_trait_impl) is stabilized
+        let number = match NonZero::new(name) {
+            Some(n) => n,
+            _ => panic!("Error names are expected to be positive for conversion into negative error numbers.")
+        };
+        NumericError { number }
     }
 
     /// Numeric value of the error
     pub const fn number(&self) -> isize {
-        self.number
+        self.number.get()
     }
 
     /// Convert the error into an [nb::Error] that is [nb::Error::WouldBlock] if the error is
@@ -71,15 +84,33 @@ impl NumericError {
         }
         nb::Error::Other(self)
     }
+
+    fn string(&self) -> Option<&'static CStr> {
+        #[cfg(all(riot_module_tiny_strerror, not(riot_module_tiny_strerror_minimal)))]
+        // unsafe: According to C API
+        // number cast: Disagreements on the numeric error size
+        // string cast: Disagreements on the signedness of char
+        return Some(unsafe {
+            CStr::from_ptr(riot_sys::tiny_strerror(-self.number.get() as _) as _)
+        });
+
+        #[cfg(not(all(riot_module_tiny_strerror, not(riot_module_tiny_strerror_minimal))))]
+        return None;
+    }
 }
 
-// Would be nice, but there's no strerror
-//
-// impl core::fmt::Display for NumericError {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-//         write!(f, "Error {} ({})", self.number(), ...)
-//     }
-// }
+impl core::fmt::Display for NumericError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        if let Some(s) = self.string() {
+            write!(f, "Error {} ({})", self.number(), s.to_str().unwrap())?;
+        } else {
+            write!(f, "Error {}", self.number())?;
+        }
+        Ok(())
+    }
+}
+
+impl core::error::Error for NumericError {}
 
 impl<T> NegativeErrorExt for T
 where
@@ -91,9 +122,12 @@ where
         if self >= Self::zero() {
             Ok(self)
         } else {
-            Err(NumericError {
-                number: self.try_into().unwrap_or(-(riot_sys::EOVERFLOW as isize)),
-            })
+            Err(self
+                .try_into()
+                .ok()
+                .and_then(NonZero::new)
+                .map(|number| NumericError { number })
+                .unwrap_or(EOVERFLOW))
         }
     }
 }
