@@ -103,13 +103,12 @@ where
         if self >= Self::zero() {
             Ok(self)
         } else {
-            Err(NumericError {
-                number: self
-                    .try_into()
-                    .ok()
-                    .and_then(NonZero::new)
-                    .unwrap_or(NonZero::new(-(riot_sys::EOVERFLOW as isize)).unwrap()),
-            })
+            Err(self
+                .try_into()
+                .ok()
+                .and_then(NonZero::new)
+                .map(|number| NumericError { number })
+                .unwrap_or(EOVERFLOW))
         }
     }
 }
