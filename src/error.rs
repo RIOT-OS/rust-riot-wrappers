@@ -1,5 +1,9 @@
 //! Common error handling components for the RIOT operating system
 //!
+//! Most fallible operations in the wrappers produce a [NumericError], which is a slightly more
+//! precise wrapper around a negative integer. The [NegativeErrorExt::negative_to_error()] trait
+//! method can be used to produce such errors when creating wrappers around C functions.
+//!
 //! ## Constants
 //!
 //! Several commonly used errors are provided as constants rather than requiring the use of
