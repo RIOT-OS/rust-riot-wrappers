@@ -12,6 +12,7 @@
 //! the list).
 
 use core::convert::TryInto;
+use core::ffi::CStr;
 use core::num::NonZero;
 
 pub trait NegativeErrorExt {
@@ -83,15 +84,33 @@ impl NumericError {
         }
         nb::Error::Other(self)
     }
+
+    fn string(&self) -> Option<&'static CStr> {
+        #[cfg(all(riot_module_tiny_strerror, not(riot_module_tiny_strerror_minimal)))]
+        // unsafe: According to C API
+        // number cast: Disagreements on the numeric error size
+        // string cast: Disagreements on the signedness of char
+        return Some(unsafe {
+            CStr::from_ptr(riot_sys::tiny_strerror(-self.number.get() as _) as _)
+        });
+
+        #[cfg(not(all(riot_module_tiny_strerror, not(riot_module_tiny_strerror_minimal))))]
+        return None;
+    }
 }
 
-// Would be nice, but there's no strerror
-//
-// impl core::fmt::Display for NumericError {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-//         write!(f, "Error {} ({})", self.number(), ...)
-//     }
-// }
+impl core::fmt::Display for NumericError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        if let Some(s) = self.string() {
+            write!(f, "Error {} ({})", self.number(), s.to_str().unwrap())?;
+        } else {
+            write!(f, "Error {}", self.number())?;
+        }
+        Ok(())
+    }
+}
+
+impl core::error::Error for NumericError {}
 
 impl<T> NegativeErrorExt for T
 where
