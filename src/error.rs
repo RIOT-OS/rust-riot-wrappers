@@ -12,6 +12,7 @@
 //! the list).
 
 use core::convert::TryInto;
+use core::num::NonZero;
 
 pub trait NegativeErrorExt {
     type Out;
@@ -29,7 +30,9 @@ pub trait NegativeErrorExt {
 /// manually implemented newtype around isize that'd be used to represent the Result.
 #[derive(Debug, PartialEq, Eq)]
 pub struct NumericError {
-    number: isize,
+    // The NonZero doesn't cover the full desired range, but at least Result<(), NumericError> can
+    // be lean.
+    number: NonZero<isize>,
 }
 
 impl NumericError {
@@ -59,12 +62,17 @@ impl NumericError {
             name > 0,
             "Error names are expected to be positive for conversion into negative error numbers."
         );
-        NumericError { number: -name }
+        // Can be an `.unwrap()` once feature(const_trait_impl) is stabilized
+        let number = match NonZero::new(name) {
+            Some(n) => n,
+            _ => panic!("Error names are expected to be positive for conversion into negative error numbers.")
+        };
+        NumericError { number }
     }
 
     /// Numeric value of the error
     pub const fn number(&self) -> isize {
-        self.number
+        self.number.get()
     }
 
     /// Convert the error into an [nb::Error] that is [nb::Error::WouldBlock] if the error is
@@ -96,7 +104,11 @@ where
             Ok(self)
         } else {
             Err(NumericError {
-                number: self.try_into().unwrap_or(-(riot_sys::EOVERFLOW as isize)),
+                number: self
+                    .try_into()
+                    .ok()
+                    .and_then(NonZero::new)
+                    .unwrap_or(NonZero::new(-(riot_sys::EOVERFLOW as isize)).unwrap()),
             })
         }
     }
