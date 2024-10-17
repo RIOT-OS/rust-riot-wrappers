@@ -30,7 +30,7 @@ type PktsnipPort = crate::msg::v2::SendPort<
 ///
 /// It might be convenient for this to return at some point (in case of short-lived network
 /// services). Deregistration could be done and everything returned alright -- but the grant would
-/// still be lost. This could be mitigated by accepting a 'static PktsnipPort or a clonable version
+/// still be lost. This could be mitigated by accepting a 'static PktsnipPort or a cloneable version
 /// thereof -- not that anything could still be recombined after that, but at least it could be
 /// used once more (with the risk that messages from the old registration arrive in the new one,
 /// which is wrong correctness-wise but safe because it'll still be a pointer to a pktsnip).

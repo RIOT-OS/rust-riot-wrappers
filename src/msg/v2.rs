@@ -74,7 +74,7 @@ pub struct ReceivePort<TYPE: Send, const TYPENO: u16> {
 /// share a shared reference), it would be possible to create a version of the SendPort
 /// that counts its clones at runtime and can only be returned when all of them are recombined, or
 /// just to create a version that can be cloned at will but never recombined any more. (One way to
-/// do the latter would be to add a const boolean type parameter "CLONED"; a `.clonable(self) ->
+/// do the latter would be to add a const boolean type parameter "CLONED"; a `.cloneable(self) ->
 /// Self` would switch that from false to true, and then copy and clone would be implemented for
 /// the result, whereas recombination would only be implemented for the CLONED = false version).
 pub struct SendPort<TYPE: Send, const TYPENO: u16> {
