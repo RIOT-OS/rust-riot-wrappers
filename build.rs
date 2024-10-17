@@ -117,4 +117,53 @@ fn main() {
     for module in known_modules {
         println!("cargo::rustc-check-cfg=cfg(riot_module_{})", module);
     }
+
+    // As a means of last resort, we emulate cfg(accessible(::path::to::thing)), as a
+    // workaround for https://github.com/rust-lang/rust/issues/64797
+    //
+    // This is sometimes necessary when some C API compatible change (eg. renaming a field with a
+    // deprecated union while introducing a proper accessor, as done in
+    // https://github.com/RIOT-OS/RIOT/pull/20900) leads to changes in bindgen and c2rust outputs.
+    //
+    // This is similar to the markers that were previously used in riot-sys. We access files
+    // directly to avoid going through `links=` (see also
+    // <https://github.com/RIOT-OS/rust-riot-sys/pull/38>). This
+    //
+    // * limits the impact of source changes (this way, only changs to relevant headerst trigger
+    //   a rebuild of riot-wrappers), and
+    // * removes the need for lock-stepping riot-sys and riot-wrappers.
+    //
+    // The downside of the tighter coupling with the paths in RIOT is reduced by keeping things
+    // local and the stabiity structure: All these access checks can be removed once riot-wrappers
+    // stops supporting a RIOT version that has the symbol unconditionally, without any concern for
+    // compatibility between crates (as the cfgs are just internal).
+
+    let riotbase: std::path::PathBuf = env::var("RIOTBASE")
+        .expect("No RIOTBASE set, can not inspect source files for symbol presence.")
+        .into();
+    println!("cargo:rerun-if-env-changed=RIOTBASE");
+
+    let emulate_accessible = [
+        // It's a static inline function and riot-sys currently only gives the file for the bindgen
+        // output, not the c2rust output. Using coap_build_udp_hdr presence as a stand-in.
+        //
+        // Remove this after a release including coap_pkt_set_code
+        // <https://github.com/RIOT-OS/riot/issues/20900> has been published.
+        (
+            &"inline_coap_pkt_set_code",
+            &"sys/include/net/nanocoap.h",
+            &"coap_pkt_set_code",
+        ),
+    ];
+
+    for (rust_name, header_file, header_search_string) in emulate_accessible {
+        let header_file = riotbase.join(header_file);
+        println!("cargo:rerun-if-changed={}", header_file.display());
+        let header_code =
+            std::fs::read_to_string(&header_file).expect("Failed to read header file");
+        println!("cargo:rustc-check-cfg=cfg(accessible_riot_sys_{rust_name})");
+        if header_code.contains(header_search_string) {
+            println!("cargo:rustc-cfg=accessible_riot_sys_{rust_name}");
+        }
+    }
 }
