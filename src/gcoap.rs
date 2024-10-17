@@ -380,7 +380,16 @@ impl<'b> PacketBuffer<'b> {
     }
 
     pub fn set_code_raw(&mut self, code: u8) {
-        unsafe { (*(*self.pkt).hdr).code = code };
+        #[cfg(accessible_riot_sys_inline_coap_pkt_set_code)]
+        {
+            unsafe {
+                riot_sys::inline::coap_pkt_set_code(crate::inline_cast_ref_mut(self.pkt), code)
+            };
+        }
+        #[cfg(not(accessible_riot_sys_inline_coap_pkt_set_code))]
+        {
+            unsafe { (*(*self.pkt).hdr).code = code };
+        }
     }
 
     /// Return the total number of bytes in the message, given that `payload_used` bytes were
