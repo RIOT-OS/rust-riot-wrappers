@@ -1,0 +1,20 @@
+[package]
+name = "riot-wrappers-test-uart"
+version = "0.1.0"
+authors = ["Bennet Hattesen <bennet.hattesen@haw-hamburg.de>"]
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+riot-wrappers = { path = "../..", features = [
+    "set_panic_handler",
+    "panic_handler_format",
+] }
+embedded-io = "0.6.1"
+static_cell = "2.1.0"
