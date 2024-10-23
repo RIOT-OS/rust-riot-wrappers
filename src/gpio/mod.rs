@@ -188,11 +188,11 @@ impl InputGPIO {
     }
 
     pub fn is_high(&self) -> bool {
-        unsafe { gpio_read(self.to_c()) != 0 }
+        unsafe { i32::from(gpio_read(self.to_c())) != 0 }
     }
 
     pub fn is_low(&self) -> bool {
-        unsafe { gpio_read(self.to_c()) == 0 }
+        !self.is_high()
     }
 }
 
@@ -223,10 +223,10 @@ impl InOutGPIO {
     }
 
     pub fn is_high(&self) -> bool {
-        unsafe { gpio_read(self.to_c()) != 0 }
+        unsafe { i32::from(gpio_read(self.to_c())) != 0 }
     }
 
     pub fn is_low(&self) -> bool {
-        unsafe { gpio_read(self.to_c()) == 0 }
+        !self.is_high()
     }
 }
