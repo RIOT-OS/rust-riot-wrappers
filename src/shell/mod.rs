@@ -433,11 +433,17 @@ macro_rules! static_command {
             // thus static, and the_function is static by construction as well)
             unsafe impl Sync for StaticCommand {}
 
+            // Starting with https://github.com/RIOT-OS/RIOT/pull/20958 shell commands will be an
+            // array of the struct
+            #[link_section = ".roxfa.shell_commands_xfa_v2.5"]
+            #[export_name = concat!("shell_commands_xfa_v2_5_", stringify!($modname))]
             static THE_STRUCT: StaticCommand = StaticCommand($crate::riot_sys::shell_command_t {
                 name: $crate::cstr::cstr!($name).as_ptr() as _,
                 desc: $crate::cstr::cstr!($descr).as_ptr() as _,
                 handler: Some(the_function),
             });
+            // Before https://github.com/RIOT-OS/RIOT/pull/20958 shell commands was an array of
+            // pointers. We provide both and let the linker perform garbage collection.
             #[link_section = ".roxfa.shell_commands_xfa.5"]
             #[export_name = concat!("shell_commands_xfa_5_", stringify!($modname))]
             static THE_POINTER: &StaticCommand = &THE_STRUCT;
