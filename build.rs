@@ -95,6 +95,7 @@ fn main() {
         "periph_gpio",
         "periph_i2c",
         "periph_spi",
+        "periph_uart",
         "prng_shaxprng",
         "pthread",
         "random",
