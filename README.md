@@ -3,7 +3,7 @@ System](https://riot-os.org/)'s C API exposed by riot-sys and
 makes an attempt to provide idiomatic Rust wrappers (eg. implementing
 embedded-hal for peripherals, implementing fmt::Write for stdio) around those.
 
-The [crate documentation](https://rustdoc.etonomy.org/riot_wrappers/) outlines which
+The [crate documentation](https://doc.riot-os.org/rustdoc/latest/riot_wrappers/) outlines which
 modules are available, and which other crates' traits they implement.
 
 For a newcomer's starting point, see [RIOT's documentation on using it with Rust].
