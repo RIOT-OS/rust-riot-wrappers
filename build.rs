@@ -113,6 +113,8 @@ fn main() {
         "sock_aux_local",
         "sock_tcp",
         "sock_udp",
+        "tiny_strerror",
+        "tiny_strerror_minimal",
         "udp",
         "vfs",
         "ws281x",
