@@ -140,6 +140,9 @@ pub mod spi;
 #[cfg(riot_module_periph_adc)]
 pub mod adc;
 
+#[cfg(riot_module_periph_dac)]
+pub mod dac;
+
 #[cfg(riot_module_ztimer)]
 pub mod ztimer;
 
@@ -205,3 +208,6 @@ pub mod auto_init;
     feature = "with_embedded_nal_async"
 ))]
 mod async_helpers;
+
+#[cfg(riot_module_periph_uart)]
+pub mod uart;
