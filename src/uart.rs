@@ -20,11 +20,9 @@ pub enum UartDeviceError {
 impl UartDeviceError {
     /// Converts the given `c_int` into the matching Enum representation
     fn from_c(n: NumericError) -> Self {
-        const _ENODEV: isize = -(ENODEV as isize);
-        const _ENOTSUP: isize = -(ENOTSUP as isize);
-        match n.number {
-            _ENODEV => Self::InvalidDevice,
-            _ENOTSUP => Self::UnsupportedConfig,
+        match n {
+            crate::error::ENODEV => Self::InvalidDevice,
+            crate::error::ENOTSUP => Self::UnsupportedConfig,
             _ => Self::Other,
         }
     }
