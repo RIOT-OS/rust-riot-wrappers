@@ -126,7 +126,7 @@ impl UartDevice {
     /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<RMain>` where `RMain` is the value returned by the scoped main function
     /// or a `Err<UartDeviceStatus>` containing the error
     ///
-    /// This is the scoped version of [`new()`] that can be used if you want to use short-lived callbacks, such as
+    /// This is the scoped version of [`new_with_static_cb()`] that can be used if you want to use short-lived callbacks, such as
     /// closures or anything containing references. The UartDevice is deconfigured when the internal main function
     /// terminates. A common pattern around this kind of scoped functions is that `main` contains the application's
     /// main loop, and never terminates (in which case the clean-up code is eliminated during compilation).
