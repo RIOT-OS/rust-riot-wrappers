@@ -122,7 +122,6 @@ impl UartDevice {
         .map_err(UartDeviceError::from_c)
     }
 
-
     /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<RMain>` where `RMain` is the value returned by the scoped main function
     /// or a `Err<UartDeviceStatus>` containing the error
     ///
@@ -141,7 +140,7 @@ impl UartDevice {
     /// ```
     /// use riot_wrappers::uart::UartDevice;
     /// let mut cb = |new_data| {
-    ///     //do something here with the received data
+    ///     println!("Received {:02x}", new_data);
     /// };
     /// let mut scoped_main = |self_: &mut UartDevice| loop {
     ///    self_.write(b"Hello from UART")
@@ -204,7 +203,7 @@ impl UartDevice {
     /// ```
     /// use riot_wrappers::uart::UartDevice;
     /// static mut CB: fn(u8) = |new_data| {
-    ///     //do something here with the received data
+    ///     println!("Received {:02x}", new_data);
     /// };
     /// let mut uart = UartDevice::new_with_static_cb(0, 115200, unsafe { &mut CB })
     ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
@@ -307,36 +306,6 @@ impl UartDevice {
         crate::gpio::GPIO::from_c(unsafe { uart_pin_tx(self.dev) })
     }
 
-    /// Configure the function that will be called when a start condition is detected
-    /// This will not enable / disable the generation of the RX start interrupt
-    /// # Arguments
-    /// * `user_fxopt` - The user defined callback function that gets called when a start condition is detected
-    #[cfg(riot_module_periph_uart_rxstart_irq)]
-    pub fn rxstart_irq_configure<F>(&mut self, user_fxopt: &'a mut F)
-    where
-        F: FnMut() + Send + 'static,
-    {
-        unsafe {
-            uart_rxstart_irq_configure(
-                dev,
-                Self::rxstart_callback::<F>,
-                user_fxopt as *mut _ as *mut c_void,
-            )
-        };
-    }
-
-    /// Enable the RX start interrupt
-    #[cfg(riot_module_periph_uart_rxstart_irq)]
-    pub fn rxstart_irq_enable(&mut self) {
-        unsafe { uart_rxstart_irq_enable(self.dev) };
-    }
-
-    /// Disable the RX start interrupt
-    #[cfg(riot_module_periph_uart_rxstart_irq)]
-    pub fn rxstart_irq_disable(&mut self) {
-        unsafe { uart_rxstart_irq_disable(self.dev) };
-    }
-
     /// This is the callback that gets called directly from the kernel if new data from the `UART` is received
     /// # Arguments
     /// * `user_callback` - The address pointing to the user defined callback
@@ -346,17 +315,6 @@ impl UartDevice {
         F: FnMut(u8) + 'scope,
     {
         (*(user_callback as *mut F))(data); // We cast the void* back to the closure and call it
-    }
-
-    /// This is the callback that gets called directly from the kernel when a start condition is detected
-    /// # Arguments
-    /// * `user_callback` - The address pointing to the user defined callback
-    #[cfg(riot_module_periph_uart_rxstart_irq)]
-    unsafe extern "C" fn rxstart_callback<F>(user_callback: *mut c_void)
-    where
-        F: FnMut() + 'scope,
-    {
-        (*(user_callback as *mut F))(); // We cast the void* back to the closure and call it
     }
 }
 
