@@ -15,6 +15,3 @@ panic = "abort"
 riot-wrappers = { path = "../..", features = [ "set_panic_handler" ] }
 riot-sys = "*"
 embedded-hal = "0.2.4"
-
-[patch.crates-io]
-riot-sys = { git = "https://github.com/RIOT-OS/rust-riot-sys" }
