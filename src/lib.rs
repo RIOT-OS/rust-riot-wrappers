@@ -208,3 +208,6 @@ pub mod auto_init;
     feature = "with_embedded_nal_async"
 ))]
 mod async_helpers;
+
+#[cfg(riot_module_periph_uart)]
+pub mod uart;
