@@ -2,6 +2,8 @@
 
 *tl;dr: Open issues. PR early, PR small. Tests are good. Callback lifetimes are hard.*
 
+<!-- This text is aimed at people who already decided they want to contribute; let's keep it concise, acknowledging that they probably have some experience in software development. -->
+
 ## Contribution guidelines
 
 General [RIOT contribution guidelines](https://github.com/RIOT-OS/RIOT/blob/master/CONTRIBUTING.md) apply,
