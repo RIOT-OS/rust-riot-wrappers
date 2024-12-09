@@ -79,6 +79,8 @@ and profit from better integration.
 Code conventions
 ----------------
 
+There is a [contributing guide](CONTRIBUTING.md) for this repository.
+
 In older pieces of code (predating the use of C2Rust), static inline RIOT functions
 or expanded macros are used. To keep track of them, comments in the shape of
 ``EXPANDED ${FILE}:${LINE}`` are set (referring to line numbers in RIOT commit 6b96f69b).
