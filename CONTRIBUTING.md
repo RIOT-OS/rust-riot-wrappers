@@ -16,7 +16,8 @@ with some
 
 * and alterations:
 
-    * RIOT has no coding conventions for Rust; instead, common Rust conventions apply.
+    * RIOT has no coding conventions for Rust;
+      instead, [common Rust conventions](https://doc.rust-lang.org/stable/style-guide/) apply.
       Public items should be documented,
       and code should be `cargo fmt` before each commit.
 
