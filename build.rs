@@ -100,7 +100,6 @@ fn main() {
         "periph_uart_hw_fc",
         "periph_uart_modecfg",
         "periph_uart_nonblocking",
-        "periph_uart periph_uart_modecfg",
         "periph_uart_reconfigure",
         "periph_uart_rxstart_irq",
         "periph_uart_tx_ondemand",
