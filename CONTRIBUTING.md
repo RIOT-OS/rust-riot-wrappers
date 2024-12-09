@@ -1,5 +1,7 @@
 **Contributions are welcome.**
 
+*tl;dr: Open issues. PR early, PR small. Tests are good. Callback lifetimes are hard.*
+
 ## Contribution guidelines
 
 General [RIOT contribution guidelines](https://github.com/RIOT-OS/RIOT/blob/master/CONTRIBUTING.md) apply,
