@@ -2,7 +2,7 @@
 
 use riot_wrappers::println;
 use riot_wrappers::riot_main;
-use riot_wrappers::uart;
+use riot_wrappers::uart::UartDevice;
 
 riot_main!(main);
 
