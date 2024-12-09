@@ -46,8 +46,14 @@ impl<'b> WithSortedOptions for super::PacketBuffer<'b> {
 
 impl<'b> ReadableMessage for super::PacketBuffer<'b> {
     type Code = u8;
-    type OptionsIter<'a> = super::OptionsIterator<'a, 'b> where Self: 'a;
-    type MessageOption<'a> = super::MessageOption<'a> where Self: 'a;
+    type OptionsIter<'a>
+        = super::OptionsIterator<'a, 'b>
+    where
+        Self: 'a;
+    type MessageOption<'a>
+        = super::MessageOption<'a>
+    where
+        Self: 'a;
 
     fn code(&self) -> Self::Code {
         self.get_code_raw()
