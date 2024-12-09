@@ -94,34 +94,43 @@ impl StopBits {
 
 /// This struct contains the `UART` device and handles all operation regarding it
 ///
+/// The lifetime `'cb` indicates how long a registered callback on the device lives; for many
+/// cases, that is `'static`.
+///
 /// [UART implementation]: https://doc.riot-os.org/group__drivers__periph__uart.html
 #[derive(Debug)]
-pub struct UartDevice {
+pub struct UartDevice<'cb> {
     dev: uart_t,
+    _phantom: core::marker::PhantomData<&'cb ()>,
 }
 
-impl UartDevice {
+impl<'cb> UartDevice<'cb> {
     /// Unsafety: To use this safely, the caller must ensure that the returned Self is destructed before &'scope mut F becomes unavailable.
-    unsafe fn construct_uart<'scope, F>(
+    unsafe fn construct_uart<F>(
         index: usize,
         baud: u32,
-        user_callback: &'scope mut F,
+        user_callback: &'cb mut F,
     ) -> Result<Self, UartDeviceError>
     where
-        F: FnMut(u8) + Send + 'scope,
+        F: FnMut(u8) + Send + 'cb,
     {
         let dev = macro_UART_DEV(index as c_uint);
         uart_init(
             dev,
             baud,
-            Some(Self::new_data_callback::<'scope, F>),
+            Some(Self::new_data_callback::<F>),
             user_callback as *mut _ as *mut c_void,
         )
         .negative_to_error()
-        .map(|_| Self { dev })
+        .map(|_| Self {
+            dev,
+            _phantom: Default::default(),
+        })
         .map_err(UartDeviceError::from_c)
     }
+}
 
+impl UartDevice<'static> {
     /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<RMain>` where `RMain` is the value returned by the scoped main function
     /// or a `Err<UartDeviceStatus>` containing the error
     ///
@@ -148,18 +157,18 @@ impl UartDevice {
     /// let mut uart = UartDevice::new_scoped(0, 115200, &mut cb, scoped_main)
     ///    .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// ```
-    pub fn new_scoped<'scope, F, Main, RMain>(
+    pub fn new_scoped<F, Main, RMain>(
         index: usize,
         baud: u32,
-        user_callback: &'scope mut F,
+        user_callback: &mut F,
         main: Main,
     ) -> Result<RMain, UartDeviceError>
     where
-        F: FnMut(u8) + Send + 'scope,
-        Main: FnOnce(&mut Self) -> RMain,
+        F: FnMut(u8) + Send,
+        Main: for<'brand> FnOnce(&mut UartDevice<'brand>) -> RMain,
     {
         // This possibly relies on Rust code in RIOT to not unwind.
-        let mut self_ = unsafe { Self::construct_uart(index, baud, user_callback) }?;
+        let mut self_ = unsafe { UartDevice::construct_uart(index, baud, user_callback) }?;
         let result = (main)(&mut self_);
         drop(self_);
         Ok(result)
@@ -185,7 +194,10 @@ impl UartDevice {
             let dev = macro_UART_DEV(index as c_uint);
             uart_init(dev, baud, None, ptr::null_mut())
                 .negative_to_error()
-                .map(|_| Self { dev })
+                .map(|_| Self {
+                    dev,
+                    _phantom: Default::default(),
+                })
                 .map_err(UartDeviceError::from_c)
         }
     }
@@ -229,7 +241,9 @@ impl UartDevice {
     {
         unsafe { Self::construct_uart(index, baud, user_callback) }
     }
+}
 
+impl<'cb> UartDevice<'cb> {
     /// Sets the mode according to the given parameters
     /// Should the parameters be invalid, the function returns a Err<UartDeviceStatus::UnsupportedConfig>
     /// # Arguments
@@ -320,15 +334,15 @@ impl UartDevice {
     /// # Arguments
     /// * `user_callback` - The address pointing to the user defined callback
     /// * `data` - The newly received data from the `UART`  
-    unsafe extern "C" fn new_data_callback<'scope, F>(user_callback: *mut c_void, data: u8)
+    unsafe extern "C" fn new_data_callback<F>(user_callback: *mut c_void, data: u8)
     where
-        F: FnMut(u8) + 'scope,
+        F: FnMut(u8) + 'cb,
     {
         (*(user_callback as *mut F))(data); // We cast the void* back to the closure and call it
     }
 }
 
-impl Drop for UartDevice {
+impl<'cb> Drop for UartDevice<'cb> {
     /// The `drop` method resets the `UART`, removes the interrupt and tries
     /// to reset the `GPIO` pins if possible
     fn drop(&mut self) {
