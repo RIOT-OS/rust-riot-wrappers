@@ -201,11 +201,21 @@ impl UartDevice {
     ///
     /// # Examples
     /// ```
+    /// #![feature(type_alias_impl_trait)]
     /// use riot_wrappers::uart::UartDevice;
-    /// static mut CB: fn(u8) = |new_data| {
-    ///     println!("Received {:02x}", new_data);
-    /// };
-    /// let mut uart = UartDevice::new_with_static_cb(0, 115200, unsafe { &mut CB })
+    /// use static_cell::StaticCell;
+    /// static LATEST_BYTE: StaticCell<Option<u8>> = StaticCell::new();
+    /// let latest_byte = LATEST_BYTE.init(None);
+    /// mod tait {
+    ///     // `type_alias_impl_trait` requires uniqueness of a defining use within a module
+    ///     pub type Cb = impl FnMut(u8) + Send;
+    ///     pub fn build_callback(latest_byte: &'static mut Option<u8>) -> Cb {
+    ///         |byte| {*latest_byte = Some(byte)}
+    ///     }
+    /// }
+    /// static CB: StaticCell<tait::Cb> = StaticCell::new();
+    /// let mut cb = CB.init(tait::build_callback(latest_byte));
+    /// let mut uart = UartDevice::new_with_static_cb(0, 115200, cb)
     ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART");
     /// ```
