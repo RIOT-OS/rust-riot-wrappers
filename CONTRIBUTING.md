@@ -11,6 +11,10 @@ with some
       Attempting to implement all features of a particular RIOT subsystem easily gets caught in long iterations of review.
       Try wrapping a minimal viable version first, and let's take it from there.
 
+    * Let's **verify concepts early**.
+      Opening an issue before larger changes, creating them as draft PRs or discussing it on [our Matrix channel](https://matrix.to/#/#riot-os:matrix.org)
+      are all convenient ways to do that.
+
     * New features should come with tests, at least on a coarse granularity.
       Tests in [`./tests/`](tests) are automatically picked up by CI.
 
