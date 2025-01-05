@@ -1,3 +1,4 @@
+#[cfg(riot_module_ztimer_usec)]
 pub mod for_embedded_hal_1;
 
 use core::convert::Infallible;
