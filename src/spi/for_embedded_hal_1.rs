@@ -12,8 +12,6 @@
 //! authors](https://docs.rs/embedded-hal/latest/embedded_hal/spi/index.html#for-hal-authors); not
 //! all those are followed here:
 //!
-//! * "HALs **must** implement SpiBus: This is an open FIXME item, which is conditional on a better
-//!   understanding of what a RIOT SPI device really means.
 //! * "HALS **must not** add infrastructure for sharing at the `SpiBus` level": RIOT already has
 //!   that infrastructure; users don't have a guarantee on exclusive, but that's not even SPI
 //!   specific: For all it's worth, the SPI hardware can be multiplexed into (say) I2C hardware,
@@ -25,36 +23,45 @@ use crate::error::{NegativeErrorExt, NumericError};
 use core::convert::Infallible;
 use embedded_hal::spi::{ErrorType, Mode, Operation, SpiDevice};
 
-/// A RIOT SPI device combined with its CS pin, complete with mode and clock configuration.
-pub struct SPIDevice {
+/// A RIOT SPI device combined with complete with mode and clock configuration, but no particular
+/// CS pin.
+///
+/// Note that while this implements [`embedded-hal::SpiBus`], it is not exclusive (because no
+/// peripheral in RIOT is); when accessed while another "owner" uses it, operations only start when
+/// the other party is done.
+pub struct SPIBus {
     bus: riot_sys::spi_t,
-    cs: riot_sys::spi_cs_t,
     mode: riot_sys::spi_mode_t,
     clk: riot_sys::spi_clk_t,
 }
 
-impl SPIDevice {
+/// A RIOT SPI device combined with its CS pin, complete with mode and clock configuration.
+pub struct SPIDevice {
+    bus: SPIBus,
+    cs: riot_sys::spi_cs_t,
+}
+
+impl SPIBus {
     /// Creates a new SPI device, given its RIOT bus number (equivalent to running
-    /// `SPI_DEV(number)`) and its CS GPIO pin.
+    /// `SPI_DEV(number)`).
     ///
     /// By default, the clock speed is set to the lowest speed supported by the hardware, and the
     /// mode is set to SPI mode number 0 (the most common one).
-    #[cfg(riot_module_periph_gpio)]
-    pub fn from_number_and_cs_pin(
-        number: u32,
-        cs: crate::gpio::GPIO,
-    ) -> Result<Self, NumericError> {
+    pub fn from_number(number: u32) -> Self {
         // SAFETY: This is designed to be called with any number. (Whether the device is then valid
         // will show later).
         let bus = unsafe { riot_sys::macro_SPI_DEV(number) };
-        let cs = cs.to_c();
-        (unsafe { riot_sys::spi_init_cs(bus, cs) }).negative_to_error()?;
-        Ok(Self {
+        Self {
             bus,
-            cs,
             mode: riot_sys::spi_mode_t_SPI_MODE_0,
             clk: riot_sys::spi_clk_t_SPI_CLK_100KHZ,
-        })
+        }
+    }
+
+    /// Convenience alias for [`SPIDevice::new()`] for builder style construction.
+    #[cfg(riot_module_periph_gpio)]
+    pub fn with_cs(self, cs: crate::gpio::GPIO) -> Result<SPIDevice, NumericError> {
+        SPIDevice::new(self, cs)
     }
 
     // This family of speed setters is deliberately by-function, because this can easily be kept
@@ -114,6 +121,16 @@ impl SPIDevice {
     }
 }
 
+impl SPIDevice {
+    /// and its CS GPIO pin
+    #[cfg(riot_module_periph_gpio)]
+    pub fn new(bus: SPIBus, cs: crate::gpio::GPIO) -> Result<Self, NumericError> {
+        let cs = cs.to_c();
+        (unsafe { riot_sys::spi_init_cs(bus.bus, cs) }).negative_to_error()?;
+        Ok(Self { bus, cs })
+    }
+}
+
 impl ErrorType for SPIDevice {
     type Error = core::convert::Infallible;
 }
@@ -124,81 +141,85 @@ impl SpiDevice for SPIDevice {
     // that is done.
 
     fn transaction(&mut self, ops: &mut [Operation<'_, u8>]) -> Result<(), Infallible> {
-        unsafe { riot_sys::spi_acquire(self.bus, self.cs, self.mode, self.clk) };
-        let len = ops.len();
-        for (index, op) in ops.iter_mut().enumerate() {
-            let cont = index != len - 1;
-            match op {
-                Operation::Read(bytes) => unsafe {
-                    riot_sys::spi_transfer_bytes(
-                        self.bus,
-                        self.cs,
-                        cont,
-                        core::ptr::null(),
-                        bytes.as_mut_ptr() as _,
-                        bytes.len().try_into().expect("usize and size_t match"),
-                    );
-                },
-                Operation::Write(bytes) => unsafe {
-                    riot_sys::spi_transfer_bytes(
-                        self.bus,
-                        self.cs,
-                        cont,
-                        bytes.as_ptr() as _,
-                        core::ptr::null_mut(),
-                        bytes.len().try_into().expect("usize and size_t match"),
-                    );
-                },
-                Operation::Transfer(read, write) => unsafe {
-                    use core::cmp::{max, min};
-                    // Or would this be expressed more easily as the 3 cases "same length", "one
-                    // longer" and "the other longer"?
-                    let first_part = min(read.len(), write.len());
-                    let second_part = max(read.len(), write.len()) - first_part;
-                    riot_sys::spi_transfer_bytes(
-                        self.bus,
-                        self.cs,
-                        cont || (second_part > 0),
-                        write.as_ptr() as _,
-                        read.as_mut_ptr() as _,
-                        first_part.try_into().expect("usize and size_t match"),
-                    );
-                    if second_part > 0 {
-                        riot_sys::spi_transfer_bytes(
-                            self.bus,
-                            self.cs,
-                            cont,
-                            if write.len() == first_part {
-                                core::ptr::null()
-                            } else {
-                                write[first_part..].as_ptr() as _
-                            },
-                            if read.len() == first_part {
-                                core::ptr::null_mut()
-                            } else {
-                                read[first_part..].as_mut_ptr() as _
-                            },
-                            second_part.try_into().expect("usize and size_t match"),
-                        );
-                    }
-                },
-                Operation::TransferInPlace(bytes) => unsafe {
-                    riot_sys::spi_transfer_bytes(
-                        self.bus,
-                        self.cs,
-                        cont,
-                        bytes.as_ptr() as _,
-                        bytes.as_mut_ptr() as _,
-                        bytes.len().try_into().expect("usize and size_t match"),
-                    );
-                },
-                Operation::DelayNs(time) => {
-                    crate::ztimer::Clock::usec().sleep(crate::ztimer::Ticks(time.div_ceil(1000)));
-                }
-            }
-        }
-        // SAFETY: as per C API.
-        unsafe { riot_sys::spi_release(self.bus) };
+        transaction(&self.bus, self.cs, ops);
         Ok(())
     }
+}
+
+fn transaction(bus: &SPIBus, cs: riot_sys::spi_cs_t, ops: &mut [Operation<'_, u8>]) {
+    unsafe { riot_sys::spi_acquire(bus.bus, cs, bus.mode, bus.clk) };
+    let len = ops.len();
+    for (index, op) in ops.iter_mut().enumerate() {
+        let cont = index != len - 1;
+        match op {
+            Operation::Read(bytes) => unsafe {
+                riot_sys::spi_transfer_bytes(
+                    bus.bus,
+                    cs,
+                    cont,
+                    core::ptr::null(),
+                    bytes.as_mut_ptr() as _,
+                    bytes.len().try_into().expect("usize and size_t match"),
+                );
+            },
+            Operation::Write(bytes) => unsafe {
+                riot_sys::spi_transfer_bytes(
+                    bus.bus,
+                    cs,
+                    cont,
+                    bytes.as_ptr() as _,
+                    core::ptr::null_mut(),
+                    bytes.len().try_into().expect("usize and size_t match"),
+                );
+            },
+            Operation::Transfer(read, write) => unsafe {
+                use core::cmp::{max, min};
+                // Or would this be expressed more easily as the 3 cases "same length", "one
+                // longer" and "the other longer"?
+                let first_part = min(read.len(), write.len());
+                let second_part = max(read.len(), write.len()) - first_part;
+                riot_sys::spi_transfer_bytes(
+                    bus.bus,
+                    cs,
+                    cont || (second_part > 0),
+                    write.as_ptr() as _,
+                    read.as_mut_ptr() as _,
+                    first_part.try_into().expect("usize and size_t match"),
+                );
+                if second_part > 0 {
+                    riot_sys::spi_transfer_bytes(
+                        bus.bus,
+                        cs,
+                        cont,
+                        if write.len() == first_part {
+                            core::ptr::null()
+                        } else {
+                            write[first_part..].as_ptr() as _
+                        },
+                        if read.len() == first_part {
+                            core::ptr::null_mut()
+                        } else {
+                            read[first_part..].as_mut_ptr() as _
+                        },
+                        second_part.try_into().expect("usize and size_t match"),
+                    );
+                }
+            },
+            Operation::TransferInPlace(bytes) => unsafe {
+                riot_sys::spi_transfer_bytes(
+                    bus.bus,
+                    cs,
+                    cont,
+                    bytes.as_ptr() as _,
+                    bytes.as_mut_ptr() as _,
+                    bytes.len().try_into().expect("usize and size_t match"),
+                );
+            },
+            Operation::DelayNs(time) => {
+                crate::ztimer::Clock::usec().sleep(crate::ztimer::Ticks(time.div_ceil(1000)));
+            }
+        }
+    }
+    // SAFETY: as per C API.
+    unsafe { riot_sys::spi_release(bus.bus) };
 }

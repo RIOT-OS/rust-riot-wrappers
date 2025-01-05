@@ -22,10 +22,14 @@ fn main() {
     };
 
     let cs = riot_wrappers::gpio::GPIO::from_port_and_pin(cs.0, cs.1).unwrap();
-    let mut spi = riot_wrappers::spi::for_embedded_hal_1::SPIDevice::from_number_and_cs_pin(spi, cs).unwrap()
-        // arbitrary parameters
-        .with_speed_1mhz()
-        .with_mode(embedded_hal::spi::MODE_2);
+    let mut spi =
+        riot_wrappers::spi::for_embedded_hal_1::SPIBus::from_number(spi)
+            // arbitrary parameters
+            .with_speed_1mhz()
+            .with_mode(embedded_hal::spi::MODE_2)
+            // and we don't really need a CS pin, but so far only tested this way
+            .with_cs(cs)
+            .unwrap();
 
     println!("Plain transfer in place:");
     let mut buf = [0, 0, 0x12, 0x34];
@@ -52,13 +56,19 @@ fn main() {
         Operation::Read(&mut readbuf2),
     ];
     let Ok(()) = spi.transaction(&mut operations);
-    println!("Wrote [0; 300], read into {:?} and {:?}", readbuf1, readbuf2);
+    println!(
+        "Wrote [0; 300], read into {:?} and {:?}",
+        readbuf1, readbuf2
+    );
 
     println!("Plain transfer in place:");
     let writebuf = [0, 0];
     let mut readbuf = [0xff; 10];
     let Ok(()) = spi.transfer(&mut readbuf, &writebuf);
-    println!("In mixed transfer, wrote [0; 2], and continued reading into {:?}.", readbuf);
+    println!(
+        "In mixed transfer, wrote [0; 2], and continued reading into {:?}.",
+        readbuf
+    );
 
     println!("Tests done.");
 }
