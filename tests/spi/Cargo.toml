@@ -13,3 +13,4 @@ panic = "abort"
 [dependencies]
 riot-wrappers = { path = "../..", features = [ "set_panic_handler", "panic_handler_format" ] }
 embedded-hal = "1"
+embedded-hal-bus = "0.2.0"
