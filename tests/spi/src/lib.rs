@@ -16,21 +16,30 @@ fn main() {
     //
     // Boards should only be added if the attached peripherals are safe to use, no matter what gets
     // written there.
-    let (spi, cs) = match riot_wrappers::BOARD {
+    let (spi_num, cs_num) = match riot_wrappers::BOARD {
         "particle-xenon" => (0, (0, 31)),
         _ => panic!("No "),
     };
 
-    let cs = riot_wrappers::gpio::GPIO::from_port_and_pin(cs.0, cs.1).unwrap();
-    let mut spi =
-        riot_wrappers::spi::for_embedded_hal_1::SPIBus::from_number(spi)
+    let cs = riot_wrappers::gpio::GPIO::from_port_and_pin(cs_num.0, cs_num.1).unwrap();
+    let spi =
+        riot_wrappers::spi::for_embedded_hal_1::SPIBus::from_number(spi_num)
             // arbitrary parameters
             .with_speed_1mhz()
-            .with_mode(embedded_hal::spi::MODE_2)
-            // and we don't really need a CS pin, but so far only tested this way
+            .with_mode(embedded_hal::spi::MODE_2);
+
+    println!("Testing with hardware CS");
+    // It is not guaranteed that this is really hardware CS; could just as well be performed by
+    // RIOT internally.
+    let mut spi_with_hard_cs = spi
             .with_cs(cs)
             .unwrap();
+    test_on_device(&mut spi_with_hard_cs);
 
+    println!("Tests done.");
+}
+
+fn test_on_device<D: SpiDevice<Error = core::convert::Infallible>>(spi: &mut D) {
     println!("Plain transfer in place:");
     let mut buf = [0, 0, 0x12, 0x34];
     println!("Writing {:?}, …", buf);
@@ -69,6 +78,4 @@ fn main() {
         "In mixed transfer, wrote [0; 2], and continued reading into {:?}.",
         readbuf
     );
-
-    println!("Tests done.");
 }
