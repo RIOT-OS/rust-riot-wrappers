@@ -159,7 +159,7 @@ impl<TYPE: Send, const TYPENO: u16> core::fmt::Debug for SendPort<TYPE, TYPENO> 
 /// Trait for types that indicate the current thread's readiness to receive some set of messages
 ///
 /// In a sense, a MessageSemantics is factory for mutually nonconflicting [ReceivePort]s, and a
-/// tracker of what was alerady issued.
+/// tracker of what was already issued.
 // TBD: seal? can still unseal later.
 pub trait MessageSemantics: Sized {
     // TBD: Would be great to be const
