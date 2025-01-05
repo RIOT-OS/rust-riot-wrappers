@@ -21,7 +21,7 @@
 
 use crate::error::{NegativeErrorExt, NumericError};
 use core::convert::Infallible;
-use embedded_hal::spi::{ErrorType, Mode, Operation, SpiDevice};
+use embedded_hal::spi::{ErrorType, Mode, Operation, SpiBus, SpiDevice};
 
 /// A RIOT SPI device combined with complete with mode and clock configuration, but no particular
 /// CS pin.
@@ -118,6 +118,66 @@ impl SPIBus {
             },
             ..self
         }
+    }
+}
+
+impl ErrorType for SPIBus {
+    type Error = core::convert::Infallible;
+}
+
+// To avoid re-implementing everything and especially the split transfer logic, this is hooking
+// into the transaction function, which is largely modeled after SpiDevice's API.
+//
+// This may or may not be efficient depending on what the compiler inlines, but really, if you want
+// efficient, go with SpiDevice anyway for hardware CS. Another downside of this approach is that
+// it means that ZTimer is a dependency even when not using SpiDevice; sticking with it for overall
+// simplicity.
+impl SpiBus for SPIBus {
+    fn read(
+        &mut self,
+        words: &mut [u8],
+    ) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+        transaction(
+            &self,
+            riot_sys::inline::GPIO_UNDEF.try_into().unwrap(),
+            &mut [Operation::Read(words)],
+        );
+        Ok(())
+    }
+    fn write(&mut self, words: &[u8]) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+        transaction(
+            &self,
+            riot_sys::inline::GPIO_UNDEF.try_into().unwrap(),
+            &mut [Operation::Write(words)],
+        );
+        Ok(())
+    }
+    fn transfer(
+        &mut self,
+        read: &mut [u8],
+        write: &[u8],
+    ) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+        transaction(
+            &self,
+            riot_sys::inline::GPIO_UNDEF.try_into().unwrap(),
+            &mut [Operation::Transfer(read, write)],
+        );
+        Ok(())
+    }
+    fn transfer_in_place(
+        &mut self,
+        words: &mut [u8],
+    ) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+        transaction(
+            &self,
+            riot_sys::inline::GPIO_UNDEF.try_into().unwrap(),
+            &mut [Operation::TransferInPlace(words)],
+        );
+        Ok(())
+    }
+    fn flush(&mut self) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+        // See also comment on `SpiDevice for SPIDevice`
+        Ok(())
     }
 }
 
