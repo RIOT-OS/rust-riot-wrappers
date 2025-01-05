@@ -1,3 +1,5 @@
+pub mod for_embedded_hal_1;
+
 use core::convert::Infallible;
 use embedded_hal_0_2::blocking;
 use riot_sys::{
