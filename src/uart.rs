@@ -8,7 +8,7 @@ use crate::error::{NegativeErrorExt, NumericError};
 use riot_sys::libc::{c_uint, c_void};
 use riot_sys::*;
 
-/// This enum representatives the status returned by various `UART`-functions
+/// Error representing the status returned by various `UART`-functions.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum UartDeviceError {
@@ -27,6 +27,7 @@ impl From<NumericError> for UartDeviceError {
     }
 }
 
+/// Number of data bits configured for a UART.
 #[cfg(riot_module_periph_uart_modecfg)]
 #[derive(Debug)]
 #[non_exhaustive]
@@ -49,6 +50,7 @@ impl DataBits {
     }
 }
 
+/// Kind of parity bit configured for a UART.
 #[cfg(riot_module_periph_uart_modecfg)]
 #[derive(Debug)]
 #[non_exhaustive]
@@ -73,6 +75,7 @@ impl Parity {
     }
 }
 
+/// Number of stop bits configured for a UART.
 #[cfg(riot_module_periph_uart_modecfg)]
 #[derive(Debug)]
 #[non_exhaustive]
@@ -91,12 +94,10 @@ impl StopBits {
     }
 }
 
-/// This struct contains the `UART` device and handles all operation regarding it
+/// This struct contains the `UART` device and handles all operation regarding it.
 ///
 /// The lifetime `'cb` indicates how long a registered callback on the device lives; for many
 /// cases, that is `'static`.
-///
-/// [UART implementation]: https://doc.riot-os.org/group__drivers__periph__uart.html
 #[derive(Debug)]
 pub struct UartDevice<'cb> {
     dev: uart_t,
@@ -104,7 +105,11 @@ pub struct UartDevice<'cb> {
 }
 
 impl<'cb> UartDevice<'cb> {
-    /// Unsafety: To use this safely, the caller must ensure that the returned Self is destructed before &'scope mut F becomes unavailable.
+    /// Creates a UART with an arbitrary lifetime.
+    ///
+    /// # Unsafety
+    ///
+    /// To use this safely, the caller must ensure that the returned Self is reliably destructed before &'cb mut F becomes unavailable.
     unsafe fn construct_uart<F>(
         index: usize,
         baud: u32,
@@ -129,19 +134,22 @@ impl<'cb> UartDevice<'cb> {
 }
 
 impl UartDevice<'static> {
-    /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<RMain>` where `RMain` is the value returned by the scoped main function
-    /// or a `Err<UartDeviceStatus>` containing the error
+    /// Initializes the given `UART`, and runs a `main` function while it is configured.
+    ///
+    /// Returns a Result with rather `Ok<RMain>` where `RMain` is the value returned by the scoped main function
+    /// or a `Err<UartDeviceStatus>` containing the error.
     ///
     /// This is the scoped version of [`new_with_static_cb()`] that can be used if you want to use short-lived callbacks, such as
-    /// closures or anything containing references. The UartDevice is deconfigured when the internal main function
+    /// closures or anything containing references. The `UartDevice` is deconfigured when the internal main function
     /// terminates. A common pattern around this kind of scoped functions is that `main` contains the application's
     /// main loop, and never terminates (in which case the clean-up code is eliminated during compilation).
+    ///
     /// # Arguments
     ///
-    /// * `dev` - The index of the hardware device
-    /// * `baud` - The used baud rate
-    /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
-    /// * `main` The mainloop that is executed inside the wrapper
+    /// * `dev` – The index of the hardware device
+    /// * `baud` – The used baud rate
+    /// * `user_callback` – The user defined callback that gets called from the os whenever new data is received from the `UART`
+    /// * `main` – The main loop that is executed inside the wrapper
     ///
     /// # Examples
     /// ```
@@ -172,19 +180,21 @@ impl UartDevice<'static> {
         Ok(result)
     }
 
-    /// Tries to initialize the given `UART`. Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
-    /// `Err<UartDeviceStatus>` containing the error. As the name implies, the created `UART` device can <b>ONLY</b> send data
+    /// Initialize the given `UART`; as the name implies, the created `UART` device can <b>ONLY</b> send data.
+    ///
+    /// Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
+    /// `Err<UartDeviceStatus>` containing the error.
     ///
     /// # Arguments
     ///
-    /// * `dev` - The index of the hardware device
-    /// * `baud` - The used baud rate
+    /// * `dev` – The index of the hardware device
+    /// * `baud` – The used baud rate
     ///
     /// # Examples
     /// ```
     /// use riot_wrappers::uart::UartDevice;
     /// let mut uart = UartDevice::new_without_rx(0, 115200)
-    /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
+    ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));
     /// uart.write(b"Hello from UART");
     /// ```
     pub fn new_without_rx(index: usize, baud: u32) -> Result<Self, UartDeviceError> {
@@ -198,14 +208,16 @@ impl UartDevice<'static> {
         }
     }
 
-    /// Tries to initialize the given `UART` with a static callback. Returns a Result with rather `Ok<Self>` if the UART
-    /// was initialized successfully or a `Err<UartDeviceStatus>` containing the error
+    /// Initialize the given `UART` with a static callback.
+    ///
+    /// Returns a Result with rather `Ok<Self>` if the UART was initialized successfully or a
+    /// `Err<UartDeviceStatus>` containing the error.
     ///
     /// # Arguments
     ///
-    /// * `dev` - The index of the hardware device
-    /// * `baud` - The used baud rate
-    /// * `user_callback` The user defined callback that gets called from the os whenever new data is received from the `UART`
+    /// * `dev` – The index of the hardware device
+    /// * `baud` – The used baud rate
+    /// * `user_callback` – The user defined callback that gets called from the os whenever new data is received from the `UART`
     ///
     /// # Examples
     /// ```
@@ -240,8 +252,10 @@ impl UartDevice<'static> {
 }
 
 impl<'cb> UartDevice<'cb> {
-    /// Sets the mode according to the given parameters
+    /// Sets the mode according to the given parameters.
+    ///
     /// Should the parameters be invalid, the function returns a Err<UartDeviceStatus::UnsupportedConfig>
+    ///
     /// # Arguments
     /// * `data_bits` - Number of data bits in a UART frame
     /// * `parity` - Parity mode
@@ -251,9 +265,9 @@ impl<'cb> UartDevice<'cb> {
     /// ```
     /// use riot_wrappers::uart::{DataBits, Parity, StopBits, UartDevice};
     /// let mut uart = UartDevice::new_without_rx(0, 115200)
-    /// .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));   
+    ///     .unwrap_or_else(|e| panic!("Error initializing UART: {e:?}"));   
     /// uart.set_mode(DataBits::Eight, Parity::None, StopBits::One)   
-    /// .unwrap_or_else(|e| panic!("Error setting UART mode: {e:?}"));
+    ///     .unwrap_or_else(|e| panic!("Error setting UART mode: {e:?}"));
     /// ```
     #[cfg(riot_module_periph_uart_modecfg)]
     pub fn set_mode(
@@ -269,7 +283,7 @@ impl<'cb> UartDevice<'cb> {
         }
     }
 
-    /// Transmits the given data via the `UART`-device
+    /// Transmits the given data via the `UART`-device.
     ///
     /// # Examples
     /// ```
@@ -284,16 +298,18 @@ impl<'cb> UartDevice<'cb> {
         }
     }
 
-    /// Turns on the power from the `UART-Device`
+    /// Turns on the power from the `UART-Device`.
     pub fn power_on(&mut self) {
         unsafe { uart_poweron(self.dev) };
     }
 
-    /// Turns off the power from the `UART-Device`
+    /// Turns off the power from the `UART-Device`.
     pub fn power_off(&mut self) {
         unsafe { uart_poweroff(self.dev) };
     }
 
+    /// Undoes the effects of [.deinit_pins()][Self::deinit_pins].
+    ///
     /// This function normally does not need to be called. But in some case, the pins on the `UART`
     /// might be shared with some other functionality (like `GPIO`). In this case, it is necessary
     /// to give the user the possibility to init the pins again.
@@ -302,26 +318,34 @@ impl<'cb> UartDevice<'cb> {
         uart_init_pins(self.dev);
     }
 
-    /// Change the pins back to plain GPIO functionality
+    /// Changes the pins back to plain GPIO functionality.
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub unsafe fn deinit_pins(&mut self) {
         uart_deinit_pins(self.dev);
     }
 
-    /// Get the RX pin
+    /// Gets the RX pin.
+    ///
+    /// Note that this pin may not be usable except during a [.deinit_pin()][Self::deinit_pin]
+    /// period.
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub fn get_pin_rx(&mut self) -> Option<crate::gpio::GPIO> {
         crate::gpio::GPIO::from_c(unsafe { uart_pin_rx(self.dev) })
     }
 
-    /// Get the TX pin
+    /// Gets the TX pin.
+    ///
+    /// Note that this pin may not be usable except during a [.deinit_pin()][Self::deinit_pin]
+    /// period.
     #[cfg(riot_module_periph_uart_reconfigure)]
     pub fn get_pin_tx(&mut self) -> Option<crate::gpio::GPIO> {
         crate::gpio::GPIO::from_c(unsafe { uart_pin_tx(self.dev) })
     }
 
-    /// This is the callback that gets called directly from the kernel if new data from the `UART` is received
+    /// This is the callback that gets called directly from the kernel if new data from the `UART` is received.
+    ///
     /// # Arguments
+    ///
     /// * `user_callback` - The address pointing to the user defined callback
     /// * `data` - The newly received data from the `UART`  
     unsafe extern "C" fn new_data_callback<F>(user_callback: *mut c_void, data: u8)
@@ -334,7 +358,7 @@ impl<'cb> UartDevice<'cb> {
 
 impl<'cb> Drop for UartDevice<'cb> {
     /// The `drop` method resets the `UART`, removes the interrupt and tries
-    /// to reset the `GPIO` pins if possible
+    /// to reset the `GPIO` pins if possible.
     fn drop(&mut self) {
         unsafe {
             uart_init(self.dev, 9600, None, ptr::null_mut());
