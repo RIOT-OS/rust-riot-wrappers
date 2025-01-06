@@ -21,8 +21,8 @@
 
 use crate::error::{NegativeErrorExt, NumericError};
 use core::convert::Infallible;
-use embedded_hal::spi::{ErrorType, Mode, Operation};
 use core::num::NonZero;
+use embedded_hal::spi::{ErrorType, Mode, Operation};
 
 /// A RIOT SPI device combined with complete with mode and clock configuration, but no particular
 /// CS pin.
@@ -231,8 +231,14 @@ fn transaction(bus: &SpiBus, cs: riot_sys::spi_cs_t, ops: &mut [Operation<'_, u8
             },
             Operation::Transfer(read, write) => unsafe {
                 let common_length = core::cmp::min(read.len(), write.len());
-                let read_longer = read.len().checked_sub(write.len()).and_then(|n| NonZero::try_from(n).ok());
-                let write_longer = write.len().checked_sub(read.len()).and_then(|n| NonZero::try_from(n).ok());
+                let read_longer = read
+                    .len()
+                    .checked_sub(write.len())
+                    .and_then(|n| NonZero::try_from(n).ok());
+                let write_longer = write
+                    .len()
+                    .checked_sub(read.len())
+                    .and_then(|n| NonZero::try_from(n).ok());
                 riot_sys::spi_transfer_bytes(
                     bus.bus,
                     cs,
@@ -242,13 +248,16 @@ fn transaction(bus: &SpiBus, cs: riot_sys::spi_cs_t, ops: &mut [Operation<'_, u8
                     common_length.try_into().expect("usize and size_t match"),
                 );
                 if let Some(read_longer) = read_longer {
-                 riot_sys::spi_transfer_bytes(
+                    riot_sys::spi_transfer_bytes(
                         bus.bus,
                         cs,
                         cont,
                         core::ptr::null(),
                         read[common_length..].as_mut_ptr() as _,
-                        read_longer.get().try_into().expect("usize and size_t match"),
+                        read_longer
+                            .get()
+                            .try_into()
+                            .expect("usize and size_t match"),
                     );
                 }
                 if let Some(write_longer) = write_longer {
@@ -258,7 +267,10 @@ fn transaction(bus: &SpiBus, cs: riot_sys::spi_cs_t, ops: &mut [Operation<'_, u8
                         cont,
                         write[common_length..].as_ptr() as _,
                         core::ptr::null_mut(),
-                        write_longer.get().try_into().expect("usize and size_t match"),
+                        write_longer
+                            .get()
+                            .try_into()
+                            .expect("usize and size_t match"),
                     );
                 }
             },
