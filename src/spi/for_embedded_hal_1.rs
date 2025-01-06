@@ -122,7 +122,7 @@ impl SPIBus {
 }
 
 impl ErrorType for SPIBus {
-    type Error = core::convert::Infallible;
+    type Error = Infallible;
 }
 
 // To avoid re-implementing everything and especially the split transfer logic, this is hooking
@@ -133,10 +133,7 @@ impl ErrorType for SPIBus {
 // it means that ZTimer is a dependency even when not using SpiDevice; sticking with it for overall
 // simplicity.
 impl SpiBus for SPIBus {
-    fn read(
-        &mut self,
-        words: &mut [u8],
-    ) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+    fn read(&mut self, words: &mut [u8]) -> Result<(), Infallible> {
         transaction(
             &self,
             riot_sys::inline::GPIO_UNDEF.try_into().unwrap(),
@@ -152,11 +149,7 @@ impl SpiBus for SPIBus {
         );
         Ok(())
     }
-    fn transfer(
-        &mut self,
-        read: &mut [u8],
-        write: &[u8],
-    ) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+    fn transfer(&mut self, read: &mut [u8], write: &[u8]) -> Result<(), Infallible> {
         transaction(
             &self,
             riot_sys::inline::GPIO_UNDEF.try_into().unwrap(),
@@ -164,10 +157,7 @@ impl SpiBus for SPIBus {
         );
         Ok(())
     }
-    fn transfer_in_place(
-        &mut self,
-        words: &mut [u8],
-    ) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+    fn transfer_in_place(&mut self, words: &mut [u8]) -> Result<(), Infallible> {
         transaction(
             &self,
             riot_sys::inline::GPIO_UNDEF.try_into().unwrap(),
@@ -175,7 +165,7 @@ impl SpiBus for SPIBus {
         );
         Ok(())
     }
-    fn flush(&mut self) -> Result<(), <Self as embedded_hal::spi::ErrorType>::Error> {
+    fn flush(&mut self) -> Result<(), Infallible> {
         // See also comment on `SpiDevice for SPIDevice`
         Ok(())
     }
@@ -192,7 +182,7 @@ impl SPIDevice {
 }
 
 impl ErrorType for SPIDevice {
-    type Error = core::convert::Infallible;
+    type Error = Infallible;
 }
 
 impl SpiDevice for SPIDevice {
