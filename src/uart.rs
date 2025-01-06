@@ -263,15 +263,9 @@ impl<'cb> UartDevice<'cb> {
         stop_bits: StopBits,
     ) -> Result<(), UartDeviceError> {
         unsafe {
-            match UartDeviceError::from_c(uart_mode(
-                self.dev,
-                data_bits.to_c(),
-                parity.to_c(),
-                stop_bits.to_c(),
-            )) {
-                UartDeviceError::Success => Ok(()),
-                status => Err(status),
-            }
+            uart_mode(self.dev, data_bits.to_c(), parity.to_c(), stop_bits.to_c())
+                .negative_to_error()?;
+            Ok(())
         }
     }
 
