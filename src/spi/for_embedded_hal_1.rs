@@ -125,8 +125,14 @@ impl ErrorType for SpiBus {
     type Error = Infallible;
 }
 
+// In RIOT, there is no type-level distinction between a bus and a device -- if it's acquired with
+// GPIO_UNDEF as the CS pin, it matches the SpiBus pattern, and if it has a pin in it, it matches
+// the SpiDevice pattern. (The distinction of whether something is owned exclusively or not can not
+// be made in RIOT as it has no concept of exclusive device ownership.)
+//
 // To avoid re-implementing everything and especially the split transfer logic, this is hooking
-// into the transaction function, which is largely modeled after SpiDevice's API.
+// into the transaction function, which is largely modeled after the HAL SpiDevice's API (taking an
+// Operations list like SpiDeivce::transaction()).
 //
 // This may or may not be efficient depending on what the compiler inlines, but really, if you want
 // efficient, go with SpiDevice anyway for hardware CS. Another downside of this approach is that
