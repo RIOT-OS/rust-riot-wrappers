@@ -133,7 +133,7 @@ impl ErrorType for SpiBus {
 //
 // To avoid re-implementing everything and especially the split transfer logic, this is hooking
 // into the transaction function, which is largely modeled after the HAL SpiDevice's API (taking an
-// Operations list like SpiDeivce::transaction()).
+// Operations list like SpiDevice::transaction()).
 //
 // This may or may not be efficient depending on what the compiler inlines, but really, if you want
 // efficient, go with SpiDevice anyway for hardware CS. Another downside of this approach is that
