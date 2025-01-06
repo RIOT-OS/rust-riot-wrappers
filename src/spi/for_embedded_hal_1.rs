@@ -21,7 +21,7 @@
 
 use crate::error::{NegativeErrorExt, NumericError};
 use core::convert::Infallible;
-use embedded_hal::spi::{ErrorType, Mode, Operation, SpiBus, SpiDevice};
+use embedded_hal::spi::{ErrorType, Mode, Operation};
 
 /// A RIOT SPI device combined with complete with mode and clock configuration, but no particular
 /// CS pin.
@@ -29,19 +29,19 @@ use embedded_hal::spi::{ErrorType, Mode, Operation, SpiBus, SpiDevice};
 /// Note that while this implements [`embedded-hal::SpiBus`], it is not exclusive (because no
 /// peripheral in RIOT is); when accessed while another "owner" uses it, operations only start when
 /// the other party is done.
-pub struct SPIBus {
+pub struct SpiBus {
     bus: riot_sys::spi_t,
     mode: riot_sys::spi_mode_t,
     clk: riot_sys::spi_clk_t,
 }
 
 /// A RIOT SPI device combined with its CS pin, complete with mode and clock configuration.
-pub struct SPIDevice {
-    bus: SPIBus,
+pub struct SpiDevice {
+    bus: SpiBus,
     cs: riot_sys::spi_cs_t,
 }
 
-impl SPIBus {
+impl SpiBus {
     /// Creates a new SPI device, given its RIOT bus number (equivalent to running
     /// `SPI_DEV(number)`).
     ///
@@ -58,10 +58,10 @@ impl SPIBus {
         }
     }
 
-    /// Convenience alias for [`SPIDevice::new()`] for builder style construction.
+    /// Convenience alias for [`SpiDevice::new()`] for builder style construction.
     #[cfg(riot_module_periph_gpio)]
-    pub fn with_cs(self, cs: crate::gpio::GPIO) -> Result<SPIDevice, NumericError> {
-        SPIDevice::new(self, cs)
+    pub fn with_cs(self, cs: crate::gpio::GPIO) -> Result<SpiDevice, NumericError> {
+        SpiDevice::new(self, cs)
     }
 
     // This family of speed setters is deliberately by-function, because this can easily be kept
@@ -121,7 +121,7 @@ impl SPIBus {
     }
 }
 
-impl ErrorType for SPIBus {
+impl ErrorType for SpiBus {
     type Error = Infallible;
 }
 
@@ -132,7 +132,7 @@ impl ErrorType for SPIBus {
 // efficient, go with SpiDevice anyway for hardware CS. Another downside of this approach is that
 // it means that ZTimer is a dependency even when not using SpiDevice; sticking with it for overall
 // simplicity.
-impl SpiBus for SPIBus {
+impl embedded_hal::spi::SpiBus for SpiBus {
     fn read(&mut self, words: &mut [u8]) -> Result<(), Infallible> {
         transaction(
             &self,
@@ -166,26 +166,26 @@ impl SpiBus for SPIBus {
         Ok(())
     }
     fn flush(&mut self) -> Result<(), Infallible> {
-        // See also comment on `SpiDevice for SPIDevice`
+        // See also comment on `SpiDevice for SpiDevice`
         Ok(())
     }
 }
 
-impl SPIDevice {
+impl SpiDevice {
     /// and its CS GPIO pin
     #[cfg(riot_module_periph_gpio)]
-    pub fn new(bus: SPIBus, cs: crate::gpio::GPIO) -> Result<Self, NumericError> {
+    pub fn new(bus: SpiBus, cs: crate::gpio::GPIO) -> Result<Self, NumericError> {
         let cs = cs.to_c();
         (unsafe { riot_sys::spi_init_cs(bus.bus, cs) }).negative_to_error()?;
         Ok(Self { bus, cs })
     }
 }
 
-impl ErrorType for SPIDevice {
+impl ErrorType for SpiDevice {
     type Error = Infallible;
 }
 
-impl SpiDevice for SPIDevice {
+impl embedded_hal::spi::SpiDevice for SpiDevice {
     // No need to implement flush(): It's not very explicit, but as spi_release() docs say that
     // after release, the SPI bus should be powered down, that only works if release blocks until
     // that is done.
@@ -196,7 +196,7 @@ impl SpiDevice for SPIDevice {
     }
 }
 
-fn transaction(bus: &SPIBus, cs: riot_sys::spi_cs_t, ops: &mut [Operation<'_, u8>]) {
+fn transaction(bus: &SpiBus, cs: riot_sys::spi_cs_t, ops: &mut [Operation<'_, u8>]) {
     unsafe { riot_sys::spi_acquire(bus.bus, cs, bus.mode, bus.clk) };
     let len = ops.len();
     for (index, op) in ops.iter_mut().enumerate() {
