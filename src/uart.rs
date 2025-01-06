@@ -17,9 +17,8 @@ pub enum UartDeviceError {
     Other,
 }
 
-impl UartDeviceError {
-    /// Converts the given `c_int` into the matching Enum representation
-    fn from_c(n: NumericError) -> Self {
+impl From<NumericError> for UartDeviceError {
+    fn from(n: NumericError) -> Self {
         match n {
             crate::error::ENODEV => Self::InvalidDevice,
             crate::error::ENOTSUP => Self::UnsupportedConfig,
@@ -121,12 +120,11 @@ impl<'cb> UartDevice<'cb> {
             Some(Self::new_data_callback::<F>),
             user_callback as *mut _ as *mut c_void,
         )
-        .negative_to_error()
-        .map(|_| Self {
+        .negative_to_error()?;
+        Ok(Self {
             dev,
             _phantom: Default::default(),
         })
-        .map_err(UartDeviceError::from_c)
     }
 }
 
@@ -192,13 +190,11 @@ impl UartDevice<'static> {
     pub fn new_without_rx(index: usize, baud: u32) -> Result<Self, UartDeviceError> {
         unsafe {
             let dev = macro_UART_DEV(index as c_uint);
-            uart_init(dev, baud, None, ptr::null_mut())
-                .negative_to_error()
-                .map(|_| Self {
-                    dev,
-                    _phantom: Default::default(),
-                })
-                .map_err(UartDeviceError::from_c)
+            uart_init(dev, baud, None, ptr::null_mut()).negative_to_error()?;
+            Ok(Self {
+                dev,
+                _phantom: Default::default(),
+            })
         }
     }
 
