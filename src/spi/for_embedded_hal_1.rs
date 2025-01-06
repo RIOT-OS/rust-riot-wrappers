@@ -236,8 +236,8 @@ fn transaction(bus: &SPIBus, cs: riot_sys::spi_cs_t, ops: &mut [Operation<'_, u8
                 use core::cmp::{max, min};
                 // Or would this be expressed more easily as the 3 cases "same length", "one
                 // longer" and "the other longer"?
-                let first_part = min(read.len(), write.len());
-                let second_part = max(read.len(), write.len()) - first_part;
+                let read_longer = read.len() > write.len();
+                let write_longer = write.len() > read.len();
                 riot_sys::spi_transfer_bytes(
                     bus.bus,
                     cs,
@@ -246,22 +246,24 @@ fn transaction(bus: &SPIBus, cs: riot_sys::spi_cs_t, ops: &mut [Operation<'_, u8
                     read.as_mut_ptr() as _,
                     first_part.try_into().expect("usize and size_t match"),
                 );
-                if second_part > 0 {
+                if read_longer {
+                 riot_sys::spi_transfer_bytes(
+                        bus.bus,
+                        cs,
+                        cont,
+                        core::ptr::null(),
+                        read[write.len()..].as_mut_ptr() as _,
+                        (read.len()-write.len()).try_into().expect("usize and size_t match"),
+                    );
+                }
+                if write_longer {
                     riot_sys::spi_transfer_bytes(
                         bus.bus,
                         cs,
                         cont,
-                        if write.len() == first_part {
-                            core::ptr::null()
-                        } else {
-                            write[first_part..].as_ptr() as _
-                        },
-                        if read.len() == first_part {
-                            core::ptr::null_mut()
-                        } else {
-                            read[first_part..].as_mut_ptr() as _
-                        },
-                        second_part.try_into().expect("usize and size_t match"),
+                        write[read.len()..].as_ptr() as _,
+                        core::ptr::null_mut(),
+                         (write.len()-read.len()).try_into().expect("usize and size_t match"),
                     );
                 }
             },
