@@ -22,7 +22,7 @@ fn main() {
     };
 
     let cs = riot_wrappers::gpio::GPIO::from_port_and_pin(cs_num.0, cs_num.1).unwrap();
-    let spi = riot_wrappers::spi::for_embedded_hal_1::SPIBus::from_number(spi_num)
+    let spi = riot_wrappers::spi::for_embedded_hal_1::SpiBus::from_number(spi_num)
         // arbitrary parameters
         .with_speed_1mhz()
         .with_mode(embedded_hal::spi::MODE_2);
@@ -44,7 +44,7 @@ fn main() {
     // lets us do -- and it won't cause any sort of practical trouble because the exclusive device
     // is not used any more, probably even dropped already.
     let cs = riot_wrappers::gpio::GPIO::from_port_and_pin(cs_num.0, cs_num.1).unwrap();
-    let spi = riot_wrappers::spi::for_embedded_hal_1::SPIBus::from_number(spi_num)
+    let spi = riot_wrappers::spi::for_embedded_hal_1::SpiBus::from_number(spi_num)
         // arbitrary parameters
         .with_speed_1mhz()
         .with_mode(embedded_hal::spi::MODE_2);
