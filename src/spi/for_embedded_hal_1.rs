@@ -78,7 +78,7 @@ impl SPIBus {
     /// Sets the speed to 400KHz.
     pub fn with_speed_400khz(self) -> Self {
         Self {
-            clk: riot_sys::spi_clk_t_SPI_CLK_100KHZ,
+            clk: riot_sys::spi_clk_t_SPI_CLK_400KHZ,
             ..self
         }
     }
