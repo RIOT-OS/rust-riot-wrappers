@@ -52,7 +52,7 @@ fn main() {
     println!("Testing with hardware CS");
     // It is not guaranteed that this is really hardware CS; could just as well be performed by
     // RIOT internally.
-    let mut spi_with_hard_cs = spi.with_cs(cs).unwrap();
+    let mut spi_with_hard_cs = spi.into_device(cs).unwrap();
     test_on_device(&mut spi_with_hard_cs);
 
     println!("Both tests done.");

@@ -59,9 +59,11 @@ impl SpiBus {
         }
     }
 
+    /// Uses the bus with a particular CS pin, creating an [`embedded_hal::SpiDevice`].
+    ///
     /// Convenience alias for [`SpiDevice::new()`] for builder style construction.
     #[cfg(riot_module_periph_gpio)]
-    pub fn with_cs(self, cs: crate::gpio::GPIO) -> Result<SpiDevice, NumericError> {
+    pub fn into_device(self, cs: crate::gpio::GPIO) -> Result<SpiDevice, NumericError> {
         SpiDevice::new(self, cs)
     }
 
