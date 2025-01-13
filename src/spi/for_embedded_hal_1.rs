@@ -24,6 +24,29 @@ use core::convert::Infallible;
 use core::num::NonZero;
 use embedded_hal::spi::{ErrorType, Mode, Operation};
 
+// The way that cpu/stm32/include/periph/cpu_spi.h defines its enum values through a macro causes
+// them to be unprefixed for unknown reasons.
+//
+// This may become better when running a bindgen update, or when going with
+// <https://github.com/RIOT-OS/rust-riot-sys/pull/32>.
+#[cfg(accessible_riot_sys_spi_clk_t_SPI_CLK_100KHZ)]
+mod frequency {
+    pub(super) const SPI_CLK_100KHZ: riot_sys::spi_clk_t = riot_sys::spi_clk_t_SPI_CLK_100KHZ;
+    pub(super) const SPI_CLK_400KHZ: riot_sys::spi_clk_t = riot_sys::spi_clk_t_SPI_CLK_400KHZ;
+    pub(super) const SPI_CLK_1MHZ: riot_sys::spi_clk_t = riot_sys::spi_clk_t_SPI_CLK_1MHZ;
+    pub(super) const SPI_CLK_5MHZ: riot_sys::spi_clk_t = riot_sys::spi_clk_t_SPI_CLK_5MHZ;
+    pub(super) const SPI_CLK_10MHZ: riot_sys::spi_clk_t = riot_sys::spi_clk_t_SPI_CLK_10MHZ;
+}
+#[cfg(not(accessible_riot_sys_spi_clk_t_SPI_CLK_100KHZ))]
+mod frequency {
+    pub(super) const SPI_CLK_100KHZ: riot_sys::spi_clk_t = riot_sys::SPI_CLK_100KHZ;
+    pub(super) const SPI_CLK_400KHZ: riot_sys::spi_clk_t = riot_sys::SPI_CLK_400KHZ;
+    pub(super) const SPI_CLK_1MHZ: riot_sys::spi_clk_t = riot_sys::SPI_CLK_1MHZ;
+    pub(super) const SPI_CLK_5MHZ: riot_sys::spi_clk_t = riot_sys::SPI_CLK_5MHZ;
+    pub(super) const SPI_CLK_10MHZ: riot_sys::spi_clk_t = riot_sys::SPI_CLK_10MHZ;
+}
+use frequency::*;
+
 /// A RIOT SPI device combined with complete with mode and clock configuration, but no particular
 /// CS pin.
 ///
@@ -55,7 +78,7 @@ impl SpiBus {
         Self {
             bus,
             mode: riot_sys::spi_mode_t_SPI_MODE_0,
-            clk: riot_sys::spi_clk_t_SPI_CLK_100KHZ,
+            clk: SPI_CLK_100KHZ,
         }
     }
 
@@ -73,7 +96,7 @@ impl SpiBus {
     /// Sets the speed to 100KHz.
     pub fn with_speed_100khz(self) -> Self {
         Self {
-            clk: riot_sys::spi_clk_t_SPI_CLK_100KHZ,
+            clk: SPI_CLK_100KHZ,
             ..self
         }
     }
@@ -81,7 +104,7 @@ impl SpiBus {
     /// Sets the speed to 400KHz.
     pub fn with_speed_400khz(self) -> Self {
         Self {
-            clk: riot_sys::spi_clk_t_SPI_CLK_400KHZ,
+            clk: SPI_CLK_400KHZ,
             ..self
         }
     }
@@ -89,7 +112,7 @@ impl SpiBus {
     /// Sets the speed to 1MHz.
     pub fn with_speed_1mhz(self) -> Self {
         Self {
-            clk: riot_sys::spi_clk_t_SPI_CLK_1MHZ,
+            clk: SPI_CLK_1MHZ,
             ..self
         }
     }
@@ -97,7 +120,7 @@ impl SpiBus {
     /// Sets the speed to 5MHz.
     pub fn with_speed_5mhz(self) -> Self {
         Self {
-            clk: riot_sys::spi_clk_t_SPI_CLK_5MHZ,
+            clk: SPI_CLK_5MHZ,
             ..self
         }
     }
@@ -105,7 +128,7 @@ impl SpiBus {
     /// Sets the speed to 10MHz.
     pub fn with_speed_10mhz(self) -> Self {
         Self {
-            clk: riot_sys::spi_clk_t_SPI_CLK_10MHZ,
+            clk: SPI_CLK_10MHZ,
             ..self
         }
     }
@@ -184,7 +207,10 @@ impl SpiDevice {
     /// and its CS GPIO pin
     #[cfg(riot_module_periph_gpio)]
     pub fn new(bus: SpiBus, cs: crate::gpio::GPIO) -> Result<Self, NumericError> {
-        let cs = cs.to_c();
+        // spi_cs_t can be many things, but as the `spi_init_cs` documentation says that one can
+        // put a GPIO_PIN value in there, let's hope that this is only used where integer promotion
+        // actually makes sense (and where it makes sense, there is a .into()).
+        let cs: riot_sys::spi_cs_t = cs.to_c().into();
         (unsafe { riot_sys::spi_init_cs(bus.bus, cs) }).negative_to_error()?;
         Ok(Self { bus, cs })
     }
