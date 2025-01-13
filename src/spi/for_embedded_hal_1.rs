@@ -207,7 +207,10 @@ impl SpiDevice {
     /// and its CS GPIO pin
     #[cfg(riot_module_periph_gpio)]
     pub fn new(bus: SpiBus, cs: crate::gpio::GPIO) -> Result<Self, NumericError> {
-        let cs = cs.to_c();
+        // spi_cs_t can be many things, but as the `spi_init_cs` documentation says that one can
+        // put a GPIO_PIN value in there, let's hope that this is only used where integer promotion
+        // actually makes sense (and where it makes sense, there is a .into()).
+        let cs: riot_sys::spi_cs_t = cs.to_c().into();
         (unsafe { riot_sys::spi_init_cs(bus.bus, cs) }).negative_to_error()?;
         Ok(Self { bus, cs })
     }
