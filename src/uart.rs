@@ -322,24 +322,6 @@ impl<'cb> UartDevice<'cb> {
         uart_deinit_pins(self.dev);
     }
 
-    /// Gets the RX pin.
-    ///
-    /// Note that this pin may not be usable except during a [.deinit_pin()][Self::deinit_pin]
-    /// period.
-    #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn get_pin_rx(&mut self) -> Option<crate::gpio::GPIO> {
-        crate::gpio::GPIO::from_c(unsafe { uart_pin_rx(self.dev) })
-    }
-
-    /// Gets the TX pin.
-    ///
-    /// Note that this pin may not be usable except during a [.deinit_pin()][Self::deinit_pin]
-    /// period.
-    #[cfg(riot_module_periph_uart_reconfigure)]
-    pub fn get_pin_tx(&mut self) -> Option<crate::gpio::GPIO> {
-        crate::gpio::GPIO::from_c(unsafe { uart_pin_tx(self.dev) })
-    }
-
     /// This is the callback that gets called directly from the kernel if new data from the `UART` is received.
     ///
     /// # Arguments
