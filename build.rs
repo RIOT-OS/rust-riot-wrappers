@@ -153,6 +153,10 @@ fn main() {
         .into();
     println!("cargo:rerun-if-env-changed=RIOTBASE");
 
+    // FIXME: We're trying to get rid of that dependency in
+    // <https://github.com/RIOT-OS/rust-riot-sys/pull/38>, but for this one, there are no good
+    // alternatives.
+    let bindgen_output_file = std::env::var("DEP_RIOT_SYS_BINDGEN_OUTPUT_FILE").unwrap();
     let emulate_accessible = [
         // It's a static inline function and riot-sys currently only gives the file for the bindgen
         // output, not the c2rust output. Using coap_build_udp_hdr presence as a stand-in.
@@ -163,6 +167,11 @@ fn main() {
             &"inline_coap_pkt_set_code",
             &"sys/include/net/nanocoap.h",
             &"coap_pkt_set_code",
+        ),
+        (
+            &"spi_clk_t_SPI_CLK_100KHZ",
+            &bindgen_output_file.as_str(),
+            &"spi_clk_t_SPI_CLK_100KHZ",
         ),
     ];
 
