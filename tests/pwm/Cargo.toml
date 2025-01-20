@@ -1,0 +1,16 @@
+[package]
+name = "riot-wrappers-test-pwm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+riot-wrappers = { version = "*", features = [ "set_panic_handler" ] }
+riot-sys = "*"
+embedded-hal = { version = "0.2.4", features = ["unproven"] }
