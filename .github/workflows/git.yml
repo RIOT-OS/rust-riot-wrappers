@@ -1,0 +1,15 @@
+on: pull_request
+
+name: Git checks
+
+jobs:
+  message-check:
+    name: Block Autosquash Commits
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Block Autosquash Commits
+        uses: skjnldsv/block-autosquash-commits-action@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
