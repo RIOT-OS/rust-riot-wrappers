@@ -5,11 +5,11 @@ name: Git checks
 jobs:
   message-check:
     name: Block Autosquash Commits
-
     runs-on: ubuntu-latest
-
     steps:
-      - name: Block Autosquash Commits
-        uses: skjnldsv/block-autosquash-commits-action@v1
+      - name: Check out riot-wrappers
+        uses: actions/checkout@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Block Autosquash Commits
+        run: "! git log --oneline origin/main.. |grep 'fixup!\\|squash!\\|MERGE\\|DNM'"
