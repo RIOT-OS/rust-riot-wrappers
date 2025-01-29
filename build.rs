@@ -94,6 +94,7 @@ fn main() {
         "periph_dac",
         "periph_gpio",
         "periph_i2c",
+        "periph_pwm",
         "periph_spi",
         "periph_uart",
         "periph_uart_collision",

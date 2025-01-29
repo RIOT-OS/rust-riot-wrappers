@@ -26,6 +26,8 @@ riot-sys = "0.7.14"
 num-traits = { version = "0.2", default-features = false }
 mutex-trait = "0.2"
 
+fugit = "0.3.6"
+
 bare-metal = "1"
 
 # Only used for shell, where a macro is described to take a string literal and
