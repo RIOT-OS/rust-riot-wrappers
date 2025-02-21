@@ -23,7 +23,7 @@ jobs:
         # This is the subset of `make -f makefiles/app_dirs.inc.mk
         # info-applications` that is probably relevant; more is covered when
         # riot-wrappers are updated in RIOT.
-        example: [examples/rust-hello-world, examples/rust-gcoap, examples/rust-async, tests/rust_minimal, tests/rust_libs]
+        example: [examples/lang_support/official/rust-hello-world, examples/lang_support/official/rust-gcoap, examples/lang_support/official/rust-async, tests/rust_minimal, tests/rust_libs]
         board: [native, sltb001a, samr21-xpro, stk3700, stm32f429i-disc1, usb-kw41z]
     steps:
     # common steps start here

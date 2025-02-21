@@ -7,7 +7,7 @@ The [crate documentation](https://doc.riot-os.org/rustdoc/latest/riot_wrappers/)
 modules are available, and which other crates' traits they implement.
 
 For a newcomer's starting point, see [RIOT's documentation on using it with Rust].
-For basic code examples see [RIOT's examples](https://github.com/RIOT-OS/RIOT/tree/master/examples)
+For basic code examples see [RIOT's examples](https://github.com/RIOT-OS/RIOT/tree/master/examples/lang_support/official)
 (those with "rust" in their name), and the
 [additional examples](https://gitlab.com/etonomy/riot-examples/)
 which showcase more of the wrapped APIs.
