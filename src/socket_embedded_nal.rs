@@ -4,7 +4,7 @@
 use core::convert::TryInto;
 use core::mem::MaybeUninit;
 
-use crate::error::{NegativeErrorExt, NumericError};
+use crate::error::{NegativeErrorExt, NumericError, ENOMEM, ENOTCONN};
 use crate::socket::UdpEp;
 
 use embedded_nal::SocketAddr;
@@ -68,8 +68,7 @@ pub struct UdpSocket<'a> {
 impl<'a> UdpSocket<'a> {
     /// Version of socket() that gives errors compatible with Self::Error
     fn access(&mut self) -> Result<*mut riot_sys::sock_udp_t, NumericError> {
-        self.socket()
-            .ok_or(NumericError::from_constant(riot_sys::ENOTCONN as _))
+        self.socket().ok_or(ENOTCONN)
     }
 
     /// Accessor to the inner socket pointer
@@ -100,7 +99,7 @@ impl<'a, const UDPCOUNT: usize> StackAccessor<'a, UDPCOUNT> {
         self.stack
             .udp_sockets
             .push(Default::default())
-            .map_err(|_| NumericError::from_constant(riot_sys::ENOMEM as _))?;
+            .map_err(|_| ENOMEM)?;
 
         let last = self.stack.udp_sockets.len() - 1;
         Ok(&mut self.stack.udp_sockets[last] as *mut _)
