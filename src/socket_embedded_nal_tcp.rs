@@ -15,7 +15,7 @@ use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 use core::pin::Pin;
 
-use crate::error::{NegativeErrorExt, NumericError};
+use crate::error::{NegativeErrorExt, NumericError, ENOTCONN};
 
 use embedded_nal::{SocketAddr, TcpClientStack, TcpFullStack};
 
@@ -263,9 +263,7 @@ impl<'a, const QUEUELEN: usize> embedded_nal_tcpextensions::TcpExactStack
             // connection closed.
             //
             // FIXME is returning an error right here?
-            return Err(nb::Error::Other(NumericError::from_constant(
-                riot_sys::ENOTCONN as _,
-            )));
+            return Err(nb::Error::Other(ENOTCONN));
         }
         assert!(
             ret == buf.len(),

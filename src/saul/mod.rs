@@ -19,7 +19,7 @@
 
 use crate::error;
 use crate::helpers::PointerToCStr;
-use error::NegativeErrorExt;
+use error::{NegativeErrorExt, NumericError, EINVAL};
 
 pub mod registration;
 
@@ -70,7 +70,7 @@ impl RegistryEntry {
     }
 
     /// Read a value from the SAUL device
-    pub fn read(&self) -> Result<Phydat, error::NumericError> {
+    pub fn read(&self) -> Result<Phydat, NumericError> {
         // Could work with MaybeUninit here, but probably not worth it.
         let mut result: Phydat = Default::default();
         let length = (unsafe { riot_sys::saul_reg_read(self.0 as *mut _, &mut result.values) })
@@ -84,7 +84,7 @@ impl RegistryEntry {
     /// Note that the saul_reg_write call does not really pass on the initialized length of the
     /// values to the device, but the device returns the used length. If the lengths do not match,
     /// the returned length is expressed as an error.
-    pub fn write(&self, value: Phydat) -> Result<(), error::NumericError> {
+    pub fn write(&self, value: Phydat) -> Result<(), NumericError> {
         // Value copied as we can't really be sure that no SAUL device will ever write here
         let length =
             unsafe { riot_sys::saul_reg_write(self.0, &value.values as *const _ as *mut _) }
@@ -92,7 +92,7 @@ impl RegistryEntry {
         if length != value.length.into() {
             // It's not pretty to synthesize an error here, but neither would be expressing the
             // partial write in the context of lengthful phydat items.
-            Err(error::NumericError::from_constant(riot_sys::EINVAL as _))
+            Err(EINVAL)
         } else {
             Ok(())
         }

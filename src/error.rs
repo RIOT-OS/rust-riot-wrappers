@@ -79,7 +79,7 @@ impl NumericError {
     /// Convert the error into an [nb::Error] that is [nb::Error::WouldBlock] if the error is
     /// `-EAGAIN`, and an actual error otherwise.
     pub fn again_is_wouldblock(self) -> nb::Error<Self> {
-        if self == Self::from_constant(riot_sys::EAGAIN as _) {
+        if self == EAGAIN {
             return nb::Error::WouldBlock;
         }
         nb::Error::Other(self)
