@@ -68,7 +68,9 @@ impl NumericError {
             Some(n) => n,
             _ => panic!("Error names are expected to be positive for conversion into negative error numbers.")
         };
-        NumericError { number }
+        NumericError {
+            number: number.saturating_neg(),
+        }
     }
 
     /// Numeric value of the error
