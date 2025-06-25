@@ -3,7 +3,7 @@ use coap_message_0_3::{
     MutableWritableMessage, ReadableMessage, WithSortedOptions,
 };
 
-use crate::error::NumericError;
+use crate::error::{NumericError, EINVAL};
 
 /// Thin wrapper around NumericError that can render and satisfies all conversion requirements
 #[derive(Debug)]
@@ -82,7 +82,7 @@ impl<'a> MinimalWritableMessage for super::ResponseMessage<'a> {
 
     fn add_option(&mut self, number: Self::OptionNumber, value: &[u8]) -> Result<(), Error> {
         if self.payload_written.is_some() {
-            return Err(NumericError::from_constant(riot_sys::EINVAL as _).into());
+            return Err(EINVAL.into());
         }
         self.message.opt_add_opaque(number.into(), value)?;
         Ok(())
@@ -112,18 +112,18 @@ impl<'a> MutableWritableMessage for super::ResponseMessage<'a> {
             *pm = 0xff;
             Ok(pl)
         } else {
-            Err(NumericError::from_constant(riot_sys::EINVAL as _).into())
+            Err(EINVAL.into())
         }
     }
 
     fn truncate(&mut self, len: usize) -> Result<(), Error> {
         if self.payload_written.is_none() {
             // payload() will not even return anything sensible yet
-            return Err(NumericError::from_constant(riot_sys::EINVAL as _).into());
+            return Err(EINVAL.into());
         }
         let pl_len = self.message.payload().len() - 1;
         if len > pl_len {
-            return Err(NumericError::from_constant(riot_sys::EINVAL as _).into());
+            return Err(EINVAL.into());
         }
         self.payload_written = Some(len);
         Ok(())
