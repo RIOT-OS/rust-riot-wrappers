@@ -35,7 +35,8 @@ fn main() {
     // difference in the outcome, it's more to cover the full API surface.
     let Ok(mut spi_with_soft_cs) = embedded_hal_bus::spi::ExclusiveDevice::new(
         spi,
-        cs.configure_as_output(riot_wrappers::gpio::OutputMode::Out).unwrap(),
+        cs.configure_as_output(riot_wrappers::gpio::OutputMode::Out)
+            .unwrap(),
         riot_wrappers::ztimer::Clock::usec(),
     );
     test_on_device(&mut spi_with_soft_cs);
