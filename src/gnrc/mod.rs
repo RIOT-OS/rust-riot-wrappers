@@ -108,6 +108,6 @@ impl Netif {
     }
 
     pub fn l2addr(&self) -> &[u8] {
-        unsafe { &(*self.0).l2addr[..(*self.0).l2addr_len as usize] }
+        unsafe { &(&(&(*self.0).l2addr)[..(*self.0).l2addr_len as usize]) }
     }
 }
