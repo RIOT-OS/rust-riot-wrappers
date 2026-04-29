@@ -39,7 +39,7 @@ pub(crate) trait PointerToCStr {
     unsafe fn to_lifetimed_cstr<'a>(self) -> Option<&'a core::ffi::CStr>;
 }
 
-// Depending on the platform's default signeness of char, one of the casts is unnecessary.
+// Depending on the platform's default signedness of char, one of the casts is unnecessary.
 
 impl PointerToCStr for *const u8 {
     unsafe fn to_lifetimed_cstr<'a>(self) -> Option<&'a core::ffi::CStr> {
