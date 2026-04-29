@@ -1,6 +1,6 @@
 //! Wrappers for the [stdio](https://doc.riot-os.org/group__sys__stdio.html)
 
-use core::intrinsics::transmute;
+use core::mem::transmute;
 use riot_sys::{stdio_read, stdio_write};
 
 use crate::error::NegativeErrorExt;
