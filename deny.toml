@@ -9,3 +9,11 @@ exceptions = [
 ]
 private = { ignore = true }
 confidence-threshold = 1.0
+
+[advisories]
+ignore = [
+  # We just export bare-metal's critical sections, nothing bad happens unless someone uses them (and we'd need to bump versions to not export it)
+  "RUSTSEC-2026-0110",
+  # portable-atomic is only used in tests (transitively, but we need to configure it directly).
+  "RUSTSEC-2023-0089",
+]

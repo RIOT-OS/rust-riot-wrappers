@@ -23,7 +23,7 @@ impl<C: ChannelType + Default + Copy, const N: usize> BufferedWs281x<C, N> {
     /// Initialize a device and associated buffer.
     ///
     /// This requires having an explicit pin at hand (which is notoriously hard to construct with
-    /// riot-sys as GPIO_PIN is a macro); an alernative could be starting one from a ws281x_params
+    /// riot-sys as GPIO_PIN is a macro); an alternative could be starting one from a ws281x_params
     /// obtained from the board.
     pub fn init(pin: crate::gpio::GPIO) -> Self {
         let mut dev = MaybeUninit::uninit();

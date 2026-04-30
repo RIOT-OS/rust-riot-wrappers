@@ -49,7 +49,7 @@ impl<T> Mutex<T> {
     /// better [`.lock()`](crate::thread::ValueInThread<&Mutex<T>>::lock) method, which suffers
     /// neither the panic condition nor the runtime overhead.
     #[doc(alias = "mutex_lock")]
-    pub fn lock(&self) -> MutexGuard<T> {
+    pub fn lock(&self) -> MutexGuard<'_, T> {
         crate::thread::InThread::new()
             .expect("Mutex::lock may only be called outside of interrupt contexts")
             .promote(self)
@@ -58,7 +58,7 @@ impl<T> Mutex<T> {
 
     /// Get an accessor to the mutex if the mutex is available
     #[doc(alias = "mutex_trylock")]
-    pub fn try_lock(&self) -> Option<MutexGuard<T>> {
+    pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
         match unsafe { riot_sys::mutex_trylock(self.mutex.get()) } {
             1 => Some(MutexGuard { mutex: &self }),
             _ => None,

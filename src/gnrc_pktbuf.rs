@@ -105,7 +105,7 @@ impl<M: Mode> Pktsnip<M> {
         (unsafe { riot_sys::inline::gnrc_pkt_count(crate::inline_cast(self.ptr)) }) as _
     }
 
-    pub fn iter_snips(&self) -> SnipIter {
+    pub fn iter_snips(&self) -> SnipIter<'_> {
         SnipIter {
             pointer: self.ptr,
             datalifetime: PhantomData,
@@ -114,7 +114,7 @@ impl<M: Mode> Pktsnip<M> {
 
     // This is like a wrapper around gnrc_pktsnip_search_type, but given how simple that function
     // is, wrapping it to correct lifetimes would be more verbose than just re-implementing it.
-    pub fn search_type(&self, type_: gnrc_nettype_t) -> Option<PktsnipPart> {
+    pub fn search_type(&self, type_: gnrc_nettype_t) -> Option<PktsnipPart<'_>> {
         self.iter_snips().filter(|x| x.type_ == type_).next()
     }
 
