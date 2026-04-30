@@ -411,7 +411,7 @@ impl<'a, S: MessageSemantics> ReceivedMessage<'a, S> {
         mut self,
         _port: &'a ReceivePort<TYPE, TYPENO>,
         f: F,
-    ) -> Result<R, ReceivedMessage<S>> {
+    ) -> Result<R, ReceivedMessage<'a, S>> {
         // Not actually using the port argument, it's just the ZST on whose presence the type
         // constraint rides in. It's more for convenience of calling ("if it came on this port,
         // do...") than for correctness: The presence of a ReceivedMessage<S> instance suffices to
