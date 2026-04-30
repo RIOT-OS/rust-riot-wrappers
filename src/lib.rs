@@ -9,15 +9,6 @@
 //! [this crate's README file]: https://github.com/RIOT-OS/rust-riot-wrappers
 
 #![no_std]
-// for eh_personality; only needed on native
-#![cfg_attr(
-    all(
-        feature = "set_panic_handler",
-        target_arch = "x86",
-        not(panic = "abort")
-    ),
-    feature(lang_items)
-)]
 // Primarily for documentation, see feature docs
 #![cfg_attr(feature = "actual_never_type", feature(never_type))]
 #![cfg_attr(feature = "nightly_docs", feature(fundamental))]
