@@ -349,7 +349,7 @@ impl<'a> Mount<'a> {
     /// internal to it; a second call to this function may produce an empty iterator (just like
     /// attempting to read entries from an already exhausted [Dir] does); this may change if VFS's
     /// directories gain rewind support.
-    pub fn root_dir(&mut self) -> &'a mut Dir {
+    pub fn root_dir(&mut self) -> &'a mut Dir<'_> {
         // unsafe: Legitimized by the Dir being transparent, and by Dir not doing anything that'd
         // invalidate the dir's openness as long as it's not owned.
         unsafe { &mut *(self.0 as *mut _ as *mut _) }
