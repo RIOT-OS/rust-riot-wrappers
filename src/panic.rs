@@ -58,12 +58,18 @@ fn panic(info: &::core::panic::PanicInfo) -> ! {
     }
 }
 
-// We could make this conditional also on panic="abort" and thus enable stable compilation when
-// that flag is enabled -- but then again https://github.com/rust-lang/rust/issues/77443 is not
-// stable yet so it's kind of moot (and I don't want to introduce yet another crate feature that'll
-// largely be untested).
-#[cfg(all(target_arch = "x86", not(panic = "abort")))]
-#[lang = "eh_personality"]
-fn rust_eh_personality() {
+// There is no need to set the lang item (recent Rust versions plainly err with "unwinding panics
+// are not supported without std" anyway when attempting to build without panic="abort"), but the
+// pre-built core library does panic in some situations. While CARGO_OPTIONS+=-Zbuild-std=core is a
+// viable solution, it needs nightly and is thus not suitable for docker builds (where the number
+// of installed toolchains is kept at a minimum). Instead, we merely define the symbol, which is
+// enough to fix the linker errors that would otherwise be raised in nontrivial applications.
+//
+// We need to do this on precisely those RUST_TARGET values selected through RIOT that are built
+// with unwinding panic (which is those that have std; at the time of writing,
+// i686-unknown-linux-gnu and x86_64-unknown-linux-gnu), but there is no harm in defining the
+// symbol on other platforms for simplicity.
+#[no_mangle]
+unsafe extern "C" fn rust_eh_personality() {
     loop {}
 }
