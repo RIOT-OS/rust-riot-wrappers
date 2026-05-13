@@ -18,7 +18,7 @@ use core::pin::Pin;
 
 use pin_project::{pin_project, pinned_drop};
 
-use riot_sys::libc;
+use crate::libc;
 
 use crate::error::{NegativeErrorExt, NumericError};
 use crate::helpers::{PointerToCStr, SliceToCStr};

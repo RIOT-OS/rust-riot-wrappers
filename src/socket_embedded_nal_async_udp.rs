@@ -216,7 +216,7 @@ macro_rules! implementation_module {
             ),
             NumericError,
         >;
-        fn poll(&mut self, arg: *mut riot_sys::libc::c_void) -> core::task::Poll<Self::Output> {
+        fn poll(&mut self, arg: *mut crate::libc::c_void) -> core::task::Poll<Self::Output> {
             let sock: &mut sock_udp_t = self.sock;
 
             // Using recv_buf so that we can get the full length, and thus deliver the first
@@ -318,7 +318,7 @@ macro_rules! implementation_module {
         unsafe extern "C" fn callback(
             _sock: *mut sock_udp_t,
             flags: riot_sys::sock_async_flags_t,
-            arg: *mut riot_sys::libc::c_void,
+            arg: *mut crate::libc::c_void,
         ) {
             if flags & riot_sys::inline::SOCK_ASYNC_MSG_RECV == 0 {
                 // We can get stray _MSG_SENT in here (although I'm not sure those even get

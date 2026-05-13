@@ -1,8 +1,8 @@
 use crate::error::NegativeErrorExt;
+use crate::libc;
 use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
-use riot_sys::libc;
 use riot_sys::{coap_optpos_t, coap_pkt_t, gcoap_listener_t};
 
 use riot_sys::coap_resource_t;

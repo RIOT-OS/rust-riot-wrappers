@@ -193,7 +193,7 @@ impl<const HZ: u32> Clock<HZ> {
         // and nobody drops.
         let callback: *mut _ = &mut callback;
 
-        extern "C" fn caller<I: FnOnce() + Send>(arg: *mut riot_sys::libc::c_void) {
+        extern "C" fn caller<I: FnOnce() + Send>(arg: *mut crate::libc::c_void) {
             // unsafe: Was cast from the same type when assigned to arg.
             //
             // Reference construction: We're in a critical section, and the main thread only holds
@@ -598,7 +598,7 @@ impl<const HZ: u32> core::future::Future for AsyncSleep<HZ> {
             let NascentAsyncSleep { clock, ticks } = nascent;
 
             let mut timer: riot_sys::ztimer_t = Default::default();
-            extern "C" fn wake_arg(arg: *mut riot_sys::libc::c_void) {
+            extern "C" fn wake_arg(arg: *mut crate::libc::c_void) {
                 // Moving it out of its pinned position, leaving the bit pattern in place (but it
                 // won't ever be used again, as the timer only fires once).
                 let waker: core::task::Waker = unsafe { (arg as *mut core::task::Waker).read() };
@@ -624,7 +624,7 @@ impl<const HZ: u32> core::future::Future for AsyncSleep<HZ> {
             // We're casting a ManuallyDrop into the c_void here and cast it back into a Waker, but
             // that's OK because ManuallyDrop is repr(transparent)
             let waker_address = &running.waker as *const ManuallyDrop<core::task::Waker>
-                as *const riot_sys::libc::c_void;
+                as *const crate::libc::c_void;
             running.as_mut().project().timer.arg = waker_address as *mut _;
             let timer = &running.timer as *const _ as *mut _;
 

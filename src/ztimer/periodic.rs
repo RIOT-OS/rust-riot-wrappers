@@ -14,12 +14,12 @@ pub enum Behavior {
     Abort = (riot_sys::ZTIMER_PERIODIC_KEEP_GOING as isize) ^ 1,
 }
 
-impl Into<riot_sys::libc::c_int> for Behavior {
-    fn into(self) -> riot_sys::libc::c_int {
+impl Into<crate::libc::c_int> for Behavior {
+    fn into(self) -> crate::libc::c_int {
         match self {
             Behavior::KeepGoing => riot_sys::ZTIMER_PERIODIC_KEEP_GOING as _,
             // "any other value"
-            Behavior::Abort => (riot_sys::ZTIMER_PERIODIC_KEEP_GOING as riot_sys::libc::c_int) ^ 1,
+            Behavior::Abort => (riot_sys::ZTIMER_PERIODIC_KEEP_GOING as crate::libc::c_int) ^ 1,
         }
     }
 }
@@ -104,7 +104,7 @@ impl<H: Handler, const HZ: u32> Timer<H, HZ> {
         }
     }
 
-    extern "C" fn callback(arg: *mut riot_sys::libc::c_void) -> bool {
+    extern "C" fn callback(arg: *mut crate::libc::c_void) -> bool {
         let handler = unsafe { &mut *(arg as *mut H) };
         handler.trigger().into()
     }

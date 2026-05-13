@@ -1,4 +1,4 @@
-use riot_sys::libc;
+use crate::libc;
 
 use crate::helpers::PointerToCStr;
 

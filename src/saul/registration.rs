@@ -9,8 +9,8 @@
 //! dispatch by being generic over the [Drivable] and exposing untyped function pointers. (In a
 //! sense, SAUL ships its own version of Rust's `dyn`, and Driver manages that).
 
+use crate::libc;
 use core::ffi::CStr;
-use riot_sys::libc;
 
 use super::{Class, Phydat};
 use crate::error::NegativeErrorExt;
