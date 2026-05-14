@@ -1,10 +1,10 @@
 use super::{KernelPID, Status};
 
+use crate::libc;
 use core::ffi::CStr;
 use core::marker::PhantomData;
 use core::mem::transmute;
 use riot_sys as raw;
-use riot_sys::libc;
 
 /// Internal helper that does all the casting but relies on the caller to establish appropriate
 /// lifetimes.

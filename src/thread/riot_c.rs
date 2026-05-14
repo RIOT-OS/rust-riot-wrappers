@@ -177,8 +177,8 @@ impl KernelPID {
             struct ThreadOrItsStart(*const riot_sys::thread_t);
 
             // Before https://github.com/RIOT-OS/RIOT/pull/18942 (up and including 2024.04)
-            impl Into<*const riot_sys::libc::c_char> for ThreadOrItsStart {
-                fn into(self) -> *const riot_sys::libc::c_char {
+            impl Into<*const crate::libc::c_char> for ThreadOrItsStart {
+                fn into(self) -> *const crate::libc::c_char {
                     unsafe { (*self.0).stack_start }
                 }
             }

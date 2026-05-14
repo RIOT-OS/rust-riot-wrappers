@@ -22,6 +22,12 @@
 /// only where necessary to utilize riot-wrappers APIs.
 pub use riot_sys;
 
+// When removing, check for occurrences of `$crate::riot_sys::libc` in the modules!
+mod libc {
+    #[allow(deprecated, reason = "needed while we support riot-sys 0.7")]
+    pub use riot_sys::libc::*;
+}
+
 /// Re-exporting the cstr macro module because our macros in [shell] use it.
 pub use cstr;
 

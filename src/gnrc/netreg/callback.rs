@@ -59,7 +59,7 @@ pub fn register_static<C: Callback>(
     unsafe extern "C" fn c_callback<C: Callback>(
         cmd: u16,
         pkt: *mut riot_sys::gnrc_pktsnip_t,
-        ctx: *mut riot_sys::libc::c_void,
+        ctx: *mut crate::libc::c_void,
     ) {
         // unsafe: Constructed through the opposite cast, and API promises to deliver that value
         let callback = unsafe { &mut *(ctx as *mut C) };
@@ -77,7 +77,7 @@ pub fn register_static<C: Callback>(
 
     slot.1.write(riot_sys::gnrc_netreg_entry_cbd_t {
         cb: Some(c_callback::<C>),
-        ctx: slot.2.as_mut_ptr() as *mut riot_sys::libc::c_void,
+        ctx: slot.2.as_mut_ptr() as *mut crate::libc::c_void,
     });
 
     unsafe {

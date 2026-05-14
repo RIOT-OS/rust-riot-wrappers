@@ -21,7 +21,7 @@ pub enum NudState {
 }
 
 impl NudState {
-    fn from_c(input: riot_sys::libc::c_uint) -> Option<Self> {
+    fn from_c(input: crate::libc::c_uint) -> Option<Self> {
         Some(match input {
             riot_sys::GNRC_IPV6_NIB_NC_INFO_NUD_STATE_UNMANAGED => NudState::Unmanaged,
             riot_sys::GNRC_IPV6_NIB_NC_INFO_NUD_STATE_UNREACHABLE => NudState::Unreachable,
@@ -66,7 +66,7 @@ pub enum ArState {
 }
 
 impl ArState {
-    fn from_c(input: riot_sys::libc::c_uint) -> Option<Self> {
+    fn from_c(input: crate::libc::c_uint) -> Option<Self> {
         Some(match input {
             riot_sys::GNRC_IPV6_NIB_NC_INFO_AR_STATE_GC => ArState::Gc,
             riot_sys::GNRC_IPV6_NIB_NC_INFO_AR_STATE_TENTATIVE => ArState::Tentative,
@@ -98,7 +98,7 @@ impl NcEntry {
         // // Interfaces are positive numbers; MAX is clearly out of range and allows us to have an easier
         // // input type
         // let interface = interface.map(|i| {
-        //     riot_sys::libc::c_uint::try_from(usize::from(i)).unwrap_or(riot_sys::libc::c_uint::MAX)
+        //     crate::libc::c_uint::try_from(usize::from(i)).unwrap_or(crate::libc::c_uint::MAX)
         // });
 
         any_nc_query(0)
@@ -155,8 +155,8 @@ impl NcEntry {
 }
 
 struct NcIterator {
-    interface: riot_sys::libc::c_uint,
-    state: *mut riot_sys::libc::c_void,
+    interface: crate::libc::c_uint,
+    state: *mut crate::libc::c_void,
 }
 
 impl Iterator for NcIterator {
@@ -175,7 +175,7 @@ impl Iterator for NcIterator {
     }
 }
 
-fn any_nc_query(interface: riot_sys::libc::c_uint) -> impl Iterator<Item = NcEntry> {
+fn any_nc_query(interface: crate::libc::c_uint) -> impl Iterator<Item = NcEntry> {
     NcIterator {
         interface,
         state: core::ptr::null_mut(),

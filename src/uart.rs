@@ -5,7 +5,7 @@
 use core::ptr;
 
 use crate::error::{NegativeErrorExt, NumericError};
-use riot_sys::libc::{c_uint, c_void};
+use crate::libc::{c_uint, c_void};
 use riot_sys::*;
 
 /// Error representing the status returned by various `UART`-functions.

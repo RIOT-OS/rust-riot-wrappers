@@ -31,7 +31,7 @@ use core::future::Future;
 ///   implementor's responsibility to not just move its data around.
 pub(crate) trait RiotStyleFuture {
     type Output;
-    fn poll(&mut self, arg: *mut riot_sys::libc::c_void) -> core::task::Poll<Self::Output>;
+    fn poll(&mut self, arg: *mut crate::libc::c_void) -> core::task::Poll<Self::Output>;
 }
 
 /// Wrapper that makes a [Future] out of a [RiotStyleFuture] (see there for usage)
@@ -55,7 +55,7 @@ impl<A: RiotStyleFuture> RiotStylePollStruct<A> {
     }
 
     /// Reconstruct a Self and run its waker (if one is present)
-    pub(crate) unsafe fn callback(arg: *mut riot_sys::libc::c_void) {
+    pub(crate) unsafe fn callback(arg: *mut crate::libc::c_void) {
         // Actually Pin<>, but we just promise not to move it.
         let f: &mut Self = &mut *(arg as *mut _);
         // If it fires multiple times, we ignore it (the waker has been taken) -- unless the future

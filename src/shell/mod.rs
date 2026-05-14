@@ -23,9 +23,9 @@
 //! That complexity is not pulled in when only using [`static_command!`](crate::static_command!)
 //! and running on an otherwise empty command list.
 
+use crate::libc;
 use crate::{mutex, stdio};
 use core::ffi::CStr;
-use riot_sys::libc;
 use riot_sys::{shell_command_t, shell_run_forever, shell_run_once};
 
 mod args;
@@ -214,7 +214,7 @@ pub trait CommandList<const BUFSIZE: usize = { riot_sys::SHELL_DEFAULT_BUFSIZE a
 // downcast_mut() in the handlers to get back the right Root, verifying in the process that indeed
 // we agere on what it is in there. That currently doesn't work because the Root is not necessarily
 // 'static (but typically only lives its 'a).
-struct SleevedCommandList(*mut riot_sys::libc::c_void);
+struct SleevedCommandList(*mut crate::libc::c_void);
 
 // unsafe: The only way we access the pointer in there is through callbacks we only let RIOT from
 // the shell function, and this all happens in the same thread.

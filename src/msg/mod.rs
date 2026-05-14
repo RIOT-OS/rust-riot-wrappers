@@ -6,10 +6,10 @@
 //! pure-Rust thread doesn't accidentally reuse a number or does something else to misuse
 //! ContainerMsg::recognize; a better interface is WIP in the [v2] module.
 
+use crate::libc;
 use crate::thread::KernelPID;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
-use riot_sys::libc;
 use riot_sys::{self, kernel_pid_t, msg_receive, msg_reply, msg_send, msg_send_receive, msg_t};
 
 #[cfg(feature = "with_msg_v2")]
