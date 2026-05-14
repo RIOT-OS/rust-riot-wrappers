@@ -134,7 +134,7 @@ impl<'a, const QUEUELEN: usize> TcpClientStack for Pin<&'a mut ListenStack<QUEUE
             riot_sys::sock_tcp_write(
                 &mut self.as_mut().get_unchecked_mut().connections[index],
                 buf.as_ptr() as *const _,
-                buf.len().try_into().unwrap_or(u32::MAX),
+                buf.len().try_into().unwrap_or(usize::MAX as _),
             )
         }
         .negative_to_error()
@@ -154,7 +154,7 @@ impl<'a, const QUEUELEN: usize> TcpClientStack for Pin<&'a mut ListenStack<QUEUE
             riot_sys::sock_tcp_read(
                 &mut self.as_mut().get_unchecked_mut().connections[index],
                 buf.as_ptr() as *mut _,
-                buf.len().try_into().unwrap_or(u32::MAX),
+                buf.len().try_into().unwrap_or(usize::MAX as _),
                 0,
             )
         }

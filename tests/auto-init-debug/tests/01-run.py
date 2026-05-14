@@ -13,7 +13,7 @@ def test(child):
     child.expect("Main running")
 
 if __name__ == "__main__":
-    if os.environ['BOARD'] != 'native':
+    if not os.environ['BOARD'].startswith('native'):
         print("Automated test only works on native (other boards' early output is lost)", file=sys.stderr)
         sys.exit(1)
     sys.exit(run(test))

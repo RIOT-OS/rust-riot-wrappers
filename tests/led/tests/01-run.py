@@ -10,7 +10,7 @@ def test(child):
     child.expect("LED_GREEN_TOGGLE")
 
 if __name__ == "__main__":
-    if os.environ['BOARD'] != 'native':
-        print("Automated test only works on native (other boards don't report hteir LED activity)", file=sys.stderr)
+    if not os.environ['BOARD'].startswith('native'):
+        print("Automated test only works on native (other boards don't report their LED activity)", file=sys.stderr)
         sys.exit(1)
     sys.exit(run(test))
