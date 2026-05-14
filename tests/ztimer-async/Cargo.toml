@@ -8,9 +8,6 @@ publish = false
 [lib]
 crate-type = ["staticlib"]
 
-[profile.release]
-panic = "abort"
-
 [dependencies]
 riot-wrappers = { path = "../..", features = [ "set_panic_handler", "panic_handler_format", "embedded-hal-async", "provide_critical_section_1_0" ] }
 embassy-executor-riot = { git = "https://gitlab.com/etonomy/riot-module-examples" }
