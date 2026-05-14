@@ -1,8 +1,6 @@
 # name of your application
 APPLICATION = riot-wrappers-test-dac
 APPLICATION_RUST_MODULE = riot_wrappers_test_dac
-BASELIBS += $(APPLICATION_RUST_MODULE).module
-FEATURES_REQUIRED += rust_target
 FEATURES_REQUIRED += periph_dac
 
 # Of these boards it is known that DAC0 may be driven arbitrarily because it's
