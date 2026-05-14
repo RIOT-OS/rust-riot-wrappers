@@ -6,8 +6,8 @@ use crate::error::{NegativeErrorExt, NumericError};
 
 use super::*;
 
-const I2C_NOSTOP: u8 = riot_sys::i2c_flags_t_I2C_NOSTOP;
-const I2C_NOSTART: u8 = riot_sys::i2c_flags_t_I2C_NOSTART;
+const I2C_NOSTOP: u8 = riot_sys::i2c_flags_t_I2C_NOSTOP as _;
+const I2C_NOSTART: u8 = riot_sys::i2c_flags_t_I2C_NOSTART as _;
 
 #[derive(Debug)]
 pub struct Error(NumericError);
