@@ -24,7 +24,7 @@ jobs:
         # info-applications` that is probably relevant; more is covered when
         # riot-wrappers are updated in RIOT.
         example: [examples/lang_support/official/rust-hello-world, examples/lang_support/official/rust-gcoap, examples/lang_support/official/rust-async, tests/rust_minimal, tests/rust_libs]
-        # FIXME: Restore native in RIOT master.
+        # native32/64 excluded until RIOT is updated to the riot-sys 0.8 branch and can thus unblock native tests from its tests
         board: [sltb001a, samr21-xpro, stk3700, stm32f429i-disc1, usb-kw41z]
     steps:
     # common steps start here
@@ -89,7 +89,7 @@ jobs:
     container: riot/riotbuild
     strategy:
       matrix:
-        board: [native, sltb001a, samr21-xpro, stk3700, stm32f429i-disc1, usb-kw41z]
+        board: [native32, native64, sltb001a, samr21-xpro, stk3700, stm32f429i-disc1, usb-kw41z]
         testdir: ${{ fromJSON(needs.enumerate-wrappers-tests.outputs.list) }}
     steps:
     # common steps start here (kept in sync even though we wouldn't need to patch RIOT's .cargo/config.toml)
@@ -118,18 +118,18 @@ jobs:
         then
           BOARD=${{ matrix.board }} RUSTFLAGS=-Dwarnings make all
 
-          if [ "native" = "${{ matrix.board }}" ] && make test/available BOARD=native
+          if echo "${{ matrix.board }}" | grep -q ^native && make test/available BOARD=${{ matrix.board }}
           then
             echo
             echo "Testing ${D}"
             echo
 
-            if make BOARD=native info-modules |grep -q netdev_tap; then
+            if make BOARD=${{ matrix.board }} info-modules |grep -q netdev_tap; then
               # Seems we can't have tap interfaces on GitHub actions, aborting.
               echo "Board requires tap interface, skipping."
               exit 0
             fi
-            make all test BOARD=native
+            make all test BOARD=${{ matrix.board }}
           fi
         else
           echo "Board is not supported for this test, skipping."
