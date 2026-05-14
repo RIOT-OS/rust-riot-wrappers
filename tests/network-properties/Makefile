@@ -2,8 +2,6 @@
 APPLICATION = riot-wrappers-test-networkproperties
 BOARD ?= native
 APPLICATION_RUST_MODULE = riot_wrappers_test_networkproperties
-BASELIBS += $(APPLICATION_RUST_MODULE).module
-FEATURES_REQUIRED += rust_target
 
 # This may not be a GNRC netdev in all cases; when it is not, the test will
 # break, and that will be the time to split it. So far, also IPv6 support can

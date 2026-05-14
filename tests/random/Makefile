@@ -2,8 +2,6 @@
 APPLICATION = riot-wrappers-test-random
 BOARD ?= native
 APPLICATION_RUST_MODULE = riot_wrappers_test_random
-BASELIBS += $(APPLICATION_RUST_MODULE).module
-FEATURES_REQUIRED += rust_target
 
 USEMODULE += random
 # So that the RNG can be Default-constructed

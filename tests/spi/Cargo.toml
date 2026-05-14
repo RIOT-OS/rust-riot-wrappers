@@ -7,9 +7,6 @@ publish = false
 [lib]
 crate-type = ["staticlib"]
 
-[profile.release]
-panic = "abort"
-
 [dependencies]
 # critical-section: We don't *use* this, but the embedded-hal-bus crate also contains variants that rely on critical sections, so we have to enable it.
 riot-wrappers = { path = "../..", features = [ "set_panic_handler", "panic_handler_format", "provide_critical_section_1_0" ] }
