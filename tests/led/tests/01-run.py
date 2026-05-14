@@ -11,6 +11,6 @@ def test(child):
 
 if __name__ == "__main__":
     if os.environ['BOARD'] != 'native':
-        print("Automated test only works on native (other boards don't report hteir LED activity)", file=sys.stderr)
+        print("Automated test only works on native (other boards don't report their LED activity)", file=sys.stderr)
         sys.exit(1)
     sys.exit(run(test))
