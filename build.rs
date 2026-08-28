@@ -173,6 +173,11 @@ fn main() {
             &bindgen_output_file.as_str(),
             &"spi_clk_t_SPI_CLK_100KHZ",
         ),
+        (
+            &"sock_ep_t_member_ip",
+            &"sys/include/net/sock.h",
+            &"@deprecated use @ref sock_ip_ep_t::addr::v6 instead",
+        ),
     ];
 
     for (rust_name, header_file, header_search_string) in emulate_accessible {
