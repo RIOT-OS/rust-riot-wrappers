@@ -38,18 +38,7 @@ mod never;
 
 /// The identifier of the RIOT board the program is being built for (`RIOT_BOARD` in C).
 #[doc(alias = "RIOT_BOARD")]
-pub const BOARD: &'static str = {
-    let b = riot_sys::RIOT_BOARD;
-    let Ok(b) = core::ffi::CStr::from_bytes_with_nul(b) else {
-        // Could be `.expect()`, but that's not const yet
-        // Workaround-For: https://github.com/rust-lang/rust/issues/67441
-        panic!("Board names are null-terminated C strings");
-    };
-    let Ok(b) = b.to_str() else {
-        panic!("Board names should be ASCII")
-    };
-    b
-};
+pub const BOARD: &str = riot_sys::BOARD;
 
 #[inline]
 const fn assert_same_layout<A, B>() {
